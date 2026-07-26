@@ -1,8 +1,12 @@
-# citrinium
+# Citrinium
 
-A new Flutter project.
+Citrinium is a app for orginizing Markdown motes and managing tasks.
 
-## Getting Started
+## Name
+The name Citrinium is a combination of the the Citrine, a gemstone know as "the stone of success", and "-ium" a suffix used for metallic elements, such as Titanium. This app will hopefully help you be more successfully by helping you better manage your notes and track your tasks. The `-ium` ending should invoke an image of your data being stored in a metal vault.
+
+
+## Flutter Resources
 
 This project is a starting point for a Flutter application.
 
