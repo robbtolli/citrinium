@@ -1,0 +1,3 @@
+# Plain LF fixture
+
+- [ ] task

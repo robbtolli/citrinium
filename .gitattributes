@@ -1,0 +1,7 @@
+# The W1/W6 vault-I/O fixture corpus deliberately contains specific
+# byte-for-byte content (CRLF, mixed line endings, a UTF-8 BOM, no
+# trailing newline) that the round-trip tests assert is preserved
+# exactly. Without this, Git's line-ending normalization (core.autocrlf)
+# would silently rewrite CRLF -> LF on commit/checkout and quietly
+# invalidate the fixtures. Mark them binary so Git never touches them.
+packages/citrinium_core/test/fixtures/** -text
