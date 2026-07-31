@@ -30,3 +30,4 @@ This repo is **pre-implementation**. `lib/main.dart` and `test/widget_test.dart`
 ## Conventions observed in history
 
 - Doc-only commits use a `docs: <Capitalized summary>` message style (e.g. `docs: Added high-level design`).
+- Code commits use [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore:`, `test:`, `refactor:`, `ci:`), optionally scoped (e.g. `feat(vault): ...`). Reference requirement IDs (e.g. `D-02`, `FR-04`) in the commit body where a commit implements one. See `docs/milestones/m0.md` for an example.

@@ -23,6 +23,8 @@ Vault file I/O + watcher + Markdown parser/serializer for checkbox task states a
 
 **Requirements:** P-11 / D-15 (architecture-locked), FR-04 (draft), FR-09 (scaffold).
 
+**Detailed plan:** [`docs/milestones/m0.md`](docs/milestones/m0.md)
+
 ## M1 — Capture Loop: Inbox, Rapid Log & Daily Log
 
 Unified entry type (task/event/note/untyped), inbox, rapid logging with minimal type-switching, natural-language date parsing, fully offline capture, Daily Log view, notes-on-log-line integration, supportive copy tone, reschedule/snooze/drop affordances everywhere, functional-first UI.
