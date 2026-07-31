@@ -45,7 +45,7 @@ These are non-negotiable design constraints, not features to ship later.
 | D-13 | Optional **Areas of focus** (GTD Horizon 2) and higher-horizon notes (goals/vision/life) without blocking ground-level use. | COULD |
 | D-14 | Entries support rich note body (Markdown) attached to a rapid-log line / task. | SHOULD |
 | D-15 | **Local-first, file-based storage** — Notes and tasks are stored as Markdown files (with frontmatter/inline syntax for task/task-state metadata) directly on the user’s device/filesystem, per P-11. Offline use is fully functional; sync (if present) must not block capture and must reconcile against the files themselves, never a hidden database as the sole record.<br />*NOTE: If there is any data where markdown files are not the source of truth, there MUST be a way to export the data to an easy to read/parse text format.* | SHOULD |
-| D-16 | Support **recurring tasks/events**: flexible recurrence rules (daily, weekly, monthly, yearly, custom intervals such as “every 1st Monday” or “every weekday”), independent of any single dated instance. Applies to tasks, events, and habit checks (D-17). | COULD |
+| D-16 | Support **recurring tasks/events**: flexible recurrence rules (daily, weekly, monthly, yearly, custom intervals such as “every 1st Monday” or “every weekday”), independent of any single dated instance. Applies to tasks, events, and habit checks (D-17). | MUST |
 | D-17 | Support **Habit tracking** as a first-class entity built on recurring tasks (D-16), with streak/completion history. Missed days must not produce shaming UI (per P-04/A-02); streak “breaks” are shown as history, not punitive resets. | MUST |
 | D-18 | Tasks support lightweight **attachments and free-text notes/comments** (not only parent notes), e.g. links or short context, consistent with N-06. | SHOULD |
 
@@ -111,7 +111,7 @@ These are non-negotiable design constraints, not features to ship later.
 | E-08 | **Built-in reminders/alerts are a core feature, not optional or plugin-dependent** — any task or event may have one or more reminders. Defaults are gentle and non-spammy (per P-04/A-02), but the capability itself is a Must-have, not a nicety. | MUST |
 | E-09 | Calendar-bound items take precedence in Engage when time-specific. | SHOULD |
 | E-10 | Reminders support **configurable lead time** (e.g. “at due time,” “30 minutes before,” “morning of,” custom offsets) and are **recurrence-aware**, tied to D-16 recurring tasks/habits (e.g. “remind me every weekday at 8am” for a habit). | MUST |
-| E-11 | Reminders are delivered via **native OS notification/alarm surfaces** on each supported platform (mobile local/push notifications, desktop notification center) — not only in-app banners. Notification permissions are requested up-front at first launch, so that the user can get reminder notifications up front. For example, if the user first installs the app on their computer and sets up reminders, then installs and sets up the app on their phone, they should get reminders on their phone too, even if they never set up a reminder on their phone. | MUST |
+| E-11 | Reminders are delivered via **native OS notification/alarm surfaces** on each supported platform (mobile local/push notifications, desktop notification center) — not only in-app banners. Notification permission is requested **contextually**: (a) the first time the user sets a reminder on a given device, and (b) when the user enables sync (FR-01) on a device, preceded by an explanatory message clarifying that permission is needed to receive reminders that were created on other devices. **Cross-device reminder delivery** (a reminder set on one device firing on another) depends on sync (FR-01) being enabled; it must not be assumed or required without sync. | MUST |
 | E-12 | **Snooze and reschedule** are available directly from the reminder/notification itself, not only inside the app, consistent with A-03. | SHOULD |
 
 ---
@@ -163,12 +163,13 @@ Covers **daily** and **weekly** review. See §8 for **quarterly** and **yearly**
 | --- | --- | --- |
 | PL-01 | **Plugin architecture**: third-party/community plugins can extend functionality (new views, capture parsers, importers/exporters, integrations). | MUST |
 | PL-02 | **Permission-scoped plugin model**: each plugin declares the capabilities it needs (e.g. view tasks, modify tasks, view notes, modify notes, create/delete files, network access) and the user must explicitly grant them at install time (and when the plugin is updated, if the permissions have changed). | MUST |
-| PL-03 | **Per-permission granularity**: a plugin requesting “view tasks” must not implicitly also receive “modify notes” or any other ungranted scope; permissions are additive and independently revocable. <br />*Note: Being able to selectively enable/disable permissions for a plugin is a "could have" requirement. Allowing the user to accept or all the requested permissions for the plugin is sufficient (if the user rejects all the permissions, then the plugin is not installed).* | MUST |
-| PL-04 | Users can review and **revoke plugin permissions** at any time from a central settings surface; revoking disables only the dependent capability where possible, not necessarily the whole plugin. <br />*Note: An "all or none" model for plugin permissions is sufficient. The user can accept all the permissions and chose to install the plugin or not accept the permissions and choose not to install the plugin.* | COULD |
+| PL-03 | **All-or-nothing install consent**: at install time, the user reviews the full list of permissions a plugin requests (e.g. view tasks, modify tasks, view notes, modify notes, create/delete files, network access) and either accepts all of them (installing the plugin) or declines (the plugin is not installed). Selective/partial granting per permission is not required for v1. | MUST |
+| PL-04 | Users can **revoke a plugin at any time** from a central settings surface; for v1, revocation uninstalls/disables the plugin entirely (all-or-nothing), consistent with PL-03. | MUST |
 | PL-05 | Plugins operate on the same Markdown files as the core app (per P-11) rather than a private/opaque store, so plugin-authored content stays portable and readable if the plugin is removed. | SHOULD |
 | PL-06 | **Graph View**: visualize backlinks/links between notes, tasks, and projects (per N-02) as an interactive node graph. | COULD |
 | PL-07 | **Canvas**: freeform, infinite-canvas surface for visually arranging notes, tasks, and images/embeds. | COULD |
 | PL-08 | Core plugins (e.g. Daily Notes, Templates, Graph, Canvas) ship built-in and can be toggled off; this is distinct from community/third-party plugins, which always require explicit permission grants (PL-02) regardless of origin. | SHOULD |
+| PL-09 | **Future/stretch**: granular, independently-revocable per-permission control (e.g. keep a plugin's "modify tasks" permission while revoking its "create files" permission, without fully uninstalling it), superseding the all-or-nothing model in PL-03/PL-04. | COULD |
 
 ---
 
@@ -205,13 +206,32 @@ Research (Chen, Meng & Nie, 2026) notes that ADHD task management is often relat
 | --- | --- | --- |
 | T-01 | Fast local performance; opening capture and Today is near-instant on target devices. | MUST |
 | T-02 | Data export (e.g. markdown/JSON) so users are not locked in. | MUST |
-| T-03 | Backup / sync conflict handling that does not silently drop inbox items. | MUST<br />(if sync is implemented) |
-| T-04 | Privacy-respecting defaults; clear about what leaves the device if cloud sync exists. | MUST<br />(if sync is implemented) |
+| T-03 | Backup / sync conflict handling that does not silently drop inbox items. Applies once sync (FR-01) is enabled. | MUST |
+| T-04 | Privacy-respecting defaults; clear about what leaves the device if cloud sync exists. Applies once sync (FR-01) is enabled. | MUST |
 | T-05 | Accessibility: keyboard navigation, readable contrast, scalable type, optional **dyslexia-friendly font choice** (e.g. OpenDyslexic or similar), and a **reduced-motion/reduced-animation** setting for users sensitive to motion or visual noise. | COULD |
 
 ---
 
-## 14. Explicit non-goals (proposed)
+## 14. Concrete functional requirements
+
+Many requirements above are principles or capabilities stated at a conceptual level. This section lists specific, testable, engineering-facing features that either underpin those principles or were previously buried as side-clauses inside other requirements.
+
+| ID | Requirement | Priority |
+| --- | --- | --- |
+| FR-01 | Multi-device **sync** of the vault (mechanism TBD: cloud relay, CRDT/P2P, or user-provided storage like iCloud/Dropbox/WebDAV). | SHOULD |
+| FR-02 | External **calendar integration** — subscribe to and/or export hard-landscape items to Google Calendar / Apple Calendar / CalDAV / ICS feed. | SHOULD |
+| FR-03 | **Import** from other tools (Obsidian vault, Todoist, Things, TickTick) to ease migration/onboarding. | COULD |
+| FR-04 | Documented **file/frontmatter schema** for tasks, notes, and logs (concrete spec behind P-11/D-15) so "files are the source of truth" is actually implementable and testable. | MUST |
+| FR-05 | **Native OS push/local notification integration** per platform (iOS, Android, macOS, Windows, Linux) for reminders (concrete implementation behind E-08/E-11). | MUST |
+| FR-06 | **Full-text search index** with a stated performance target (e.g. results in <200ms across a vault of N notes). | SHOULD |
+| FR-07 | Manual **full-vault backup/export and restore**, distinct from continuous sync. | MUST |
+| FR-08 | **End-to-end encryption** for any cloud-synced data, if FR-01 is implemented. | SHOULD |
+| FR-09 | **Supported platform matrix** — explicit list of target platforms for v1 (project is scaffolded for Android/iOS/Linux/macOS/Windows/web). | MUST |
+| FR-10 | **Multi-vault support** (multiple independent vaults, switchable, like Obsidian). | COULD |
+
+---
+
+## 15. Explicit non-goals (proposed)
 
 Candidates to reject or defer unless prioritization says otherwise:
 
@@ -226,7 +246,7 @@ Candidates to reject or defer unless prioritization says otherwise:
 
 ---
 
-## 15. Example user journeys (acceptance sketches)
+## 16. Example user journeys (acceptance sketches)
 
 Use these when prioritizing and writing acceptance criteria.
 
@@ -241,7 +261,7 @@ Use these when prioritizing and writing acceptance criteria.
 
 ---
 
-## 16. Traceability (research → requirements)
+## 17. Traceability (research → requirements)
 
 | Research theme | Primary requirement groups |
 | --- | --- |
@@ -254,12 +274,13 @@ Use these when prioritizing and writing acceptance criteria.
 | Forgiving systems | P-04, B-09, A-02–A-03, R-05 |
 | Notes + linking (Obsidian-like) | N-*, D-12, D-14 |
 | Hybrid BuJo + GTD | P-06, X-04, journeys 1–5 |
-| Recurring tasks, habits & reminders (Todoist-like; ADHD reinforcement) | D-16, D-17, E-08–E-12, journey 8 |
+| Recurring tasks, habits & reminders (Todoist-like; ADHD reinforcement) | D-16, D-17, E-08–E-12, FR-05, journey 8 |
 | Quarterly/Annual planning & review | Q-01, Q-02, Y-01, Y-02, QY-03, QY-04, B-11, journey 7 |
-| Data ownership / local files (Obsidian vault model) | P-11, D-15, PL-05, T-02 |
-| Extensibility & visualization (Obsidian-like) | PL-01–PL-08 |
+| Data ownership / local files (Obsidian vault model) | P-11, D-15, PL-05, T-02, FR-04, FR-07 |
+| Extensibility & visualization (Obsidian-like) | PL-01–PL-09 |
 | Social/relational scaffolding (Chen et al. 2026) | AC-01–AC-03, X-02 |
 | Accessibility beyond basics | T-05 |
+| Ecosystem, sync & integrations (Todoist-like ecosystem, calendar sync) | FR-01, FR-02, FR-03, FR-05, FR-08, FR-09, FR-10 |
 
 ---
 
