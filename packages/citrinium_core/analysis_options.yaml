@@ -1,0 +1,4 @@
+# citrinium_core is pure Dart -- see AGENTS.md / design.md §6 ("no Flutter
+# import possible"). We still share the workspace-wide strict analyzer
+# settings from the repo root rather than duplicating them.
+include: ../../analysis_options.yaml

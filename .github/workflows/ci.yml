@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+
+env:
+  FLUTTER_VERSION: "3.44.8"
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      # `sqlite3`/`drift` (added in a later milestone) fetch prebuilt SQLite
+      # binaries via a Dart build hook on first use per platform; caching the
+      # pub-cache hosted directory means later CI runs skip that download.
+      - name: Cache pub & native-asset build-hook downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Install dependencies (workspace)
+        run: flutter pub get
+
+      - name: build_runner (generated code)
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test citrinium_core (pure Dart)
+        run: dart test
+        working-directory: packages/citrinium_core
+
+      - name: Test app
+        run: flutter test
