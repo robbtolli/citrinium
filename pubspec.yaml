@@ -40,6 +40,18 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
 
+  citrinium_core:
+    path: packages/citrinium_core
+  crypto: ^3.0.6
+  drift: ^2.34.3
+  drift_flutter: ^0.3.1
+  file_selector: ^1.1.0
+  flutter_riverpod: ^3.4.2
+  go_router: ^17.3.0
+  path: ^1.9.1
+  path_provider: ^2.1.6
+  shared_preferences: ^2.5.5
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -50,6 +62,19 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  # NOTE: `docs/milestones/m0.md` also calls for `riverpod_annotation` +
+  # `riverpod_generator` (code-generated providers) and `riverpod_lint` +
+  # `custom_lint` (its lint plugin). All four are skipped for now: the
+  # newest `custom_lint` (0.8.1) caps `analyzer ^8.0.0`, which can't
+  # resolve alongside `drift_dev`'s `analyzer >=10.0.0 <13.0.0` requirement
+  # in this single-workspace lockfile (see `packages/citrinium_core/pubspec.yaml`'s
+  # `drift_dev` comment for the matching constraint on the other side).
+  # Providers below are hand-written (`Provider`/`StreamProvider`/
+  # `NotifierProvider`), which is fully idiomatic Riverpod without the
+  # generator -- revisit once the SDK's `flutter_test` pin moves and the
+  # two toolchains can share an analyzer version again.
+  path_provider_platform_interface: ^2.1.3
+  plugin_platform_interface: ^2.1.8
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

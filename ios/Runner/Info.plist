@@ -26,6 +26,15 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- Per docs/milestones/m0.md W4: the vault lives in the app's documents
+	     directory on mobile (see lib/core/vault/vault_setup.dart), so these
+	     two keys are what makes it show up in the Files.app "On My
+	     iPhone/iPad" browser -- otherwise it would be invisible outside the
+	     app itself, undermining P-11 ("files are the source of truth"). -->
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
