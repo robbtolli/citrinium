@@ -21,6 +21,9 @@ migrate_working_dir/
 # Obsidian (used to browse/edit the docs in this repo as a vault)
 .obsidian/
 
+# opentree agent worktrees / local state (not part of the product)
+.opentree/
+
 # The .vscode folder contains launch configuration and tasks you configure in
 # VS Code which you may wish to be included in version control, so this line
 # is commented out by default.
@@ -35,6 +38,12 @@ migrate_working_dir/
 .pub/
 /build/
 /coverage/
+
+# Generated code (drift/freezed/riverpod_generator/etc.) -- per AGENTS.md /
+# docs/milestones/m0.md, CI runs `build_runner` before analyze/test, so
+# these are never committed.
+**/*.g.dart
+**/*.freezed.dart
 
 # Symbolication related
 app.*.symbols

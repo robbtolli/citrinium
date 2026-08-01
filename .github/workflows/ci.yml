@@ -35,8 +35,15 @@ jobs:
       - name: Install dependencies (workspace)
         run: flutter pub get
 
+      # `build_runner` only needs to run for `citrinium_core` (the only
+      # workspace member with generated code -- drift's schema.drift ->
+      # index_database.g.dart, per W3). Pub workspaces share one lockfile,
+      # but `build_runner` itself still only sees the package it's invoked
+      # from, so this must run with that package as the working directory,
+      # not the workspace root.
       - name: build_runner (generated code)
         run: dart run build_runner build --delete-conflicting-outputs
+        working-directory: packages/citrinium_core
 
       - name: Analyze
         run: flutter analyze
