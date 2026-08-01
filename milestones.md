@@ -74,6 +74,7 @@ Completes the `design.md` §7 decoration set deliberately left out of M1's reduc
 **Cheap-adjacent:** wikilink-decoration groundwork for N-02 (the backlink/graph *feature* itself still ships in M9 — this milestone only makes `[[wikilinks]]` render correctly, it doesn't add navigation or a backlinks panel); B-05 (checkbox/bullet gestures in-editor, extended to the new decoration kinds); T-05 partial (editor keyboard navigation, contrast, scalable type).
 
 **Detailed plan:** [`docs/milestones/m6.md`](docs/milestones/m6.md)
+**Status:** Completed
 
 ## M7 — Recurrence & Habit Tracking
 
