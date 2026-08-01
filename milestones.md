@@ -124,4 +124,5 @@ Manual full-vault export/backup/restore, data export for lock-in avoidance, `FR-
 - **Visualization**: PL-06 (Graph View), PL-07 (Canvas), PL-09 (per-permission revocation).
 - **Accessibility & accountability**: T-05 (dyslexia font, reduced motion), AC-01/AC-02 (share links, check-in nudges).
 - **Misc COULDs**: C-01/C-06/C-07 (global hotkey, voice capture, widgets), G-02/G-06/G-07, D-09 (time estimate/energy fields — tied to deferred Engage), D-13 (Areas of Focus), N-06 (file/image attachments), D-18's non-text attachments.
+- **Editor view modes** (`FR-11`, proposed — not yet a formal ID in `requirements.md`; see note below): four selectable modes for any Markdown file, alongside M6's Live Preview — **View-only** (rendered, read-only), **Raw edit** (plaintext, no decoration), and **Side-by-side** (vertical split: raw edit on the left, rendered view-only on the right). Live Preview stays the default. Motivated in part as a large-file escape hatch for M6's `EditableText` performance ceiling — see `docs/milestones/m6.md`'s "Post-1.0 large-file mode fallback" note for the mechanism and an important caveat about how much this actually buys.
 </content>
