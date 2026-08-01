@@ -2,7 +2,7 @@
 
 This document sequences `requirements.md` into buildable milestones, informed by the architecture in `design.md`. It is written against the same requirement IDs as `requirements.md` — treat those IDs as the vocabulary for referencing work in code/commits/PRs.
 
-**Scope rule:** all **MUST** requirements ship by the end of Milestone 11 (v1.0). SHOULD/COULD requirements are folded into a milestone only when they are a near-free addition once an adjacent MUST is built (called out per milestone as "cheap-adjacent"), or when a MUST functionally depends on a SHOULD-rated data-model piece being fully built (called out as "full-build dependency"). Everything else is pushed to the **Post-1.0 backlog** at the end of this document.
+**Scope rule:** all **MUST** requirements ship by the end of Milestone 12 (v1.0). SHOULD/COULD requirements are folded into a milestone only when they are a near-free addition once an adjacent MUST is built (called out per milestone as "cheap-adjacent"), or when a MUST functionally depends on a SHOULD-rated data-model piece being fully built (called out as "full-build dependency"). Everything else is pushed to the **Post-1.0 backlog** at the end of this document.
 
 ---
 
@@ -25,16 +25,22 @@ Vault file I/O + watcher + Markdown parser/serializer for checkbox task states a
 
 **Detailed plan:** [`docs/milestones/m0.md`](docs/milestones/m0.md)
 
+**Status: ** Completed
+
 ## M1 — Capture Loop: Inbox, Rapid Log & Daily Log
 
-Unified entry type (task/event/note/untyped), inbox, rapid logging with minimal type-switching, natural-language date parsing, fully offline capture, Daily Log view, notes-on-log-line integration, supportive copy tone, reschedule/snooze/drop affordances everywhere, functional-first UI.
+Unified entry type (task/event/note/untyped), a dedicated `inbox.md` (distinct from the dated Daily Log), rapid logging with minimal type-switching, natural-language date parsing (`chrono_dart`), fully offline capture, Daily Log view, notes-on-log-line integration, supportive copy tone, reschedule/migrate/drop affordances everywhere (snooze stubbed until M8), functional-first UI. Ships a **reduced-scope** Live Preview editor (checkboxes, BuJo signifiers, basic bold/italic) — the full decoration set (wikilinks, embeds, block-ID styling) is deferred to the new M6.
 
 **Requirements:** **D-01, C-02, C-03, C-04, C-05, B-01, N-01, N-07, A-02, A-03, A-07**.
-**Cheap-adjacent:** B-05 (one-gesture bullet actions), D-14 (rich note body on log line), D-18 (lightweight text comments), B-08 (signifier marks; filtering deferred to M8).
+**Cheap-adjacent:** B-05 (one-gesture bullet actions), D-14 (rich note body on log line), D-18 (lightweight text comments), B-08 (signifier marks; filtering deferred to M9).
+
+**Detailed plan:** [`docs/milestones/m1.md`](docs/milestones/m1.md)
+
+**Status:** in progress
 
 ## M2 — Organize Primitives: Projects, Someday/Maybe, Waiting For, Reference, Contexts
 
-Full versions of the data-model pieces Clarify (M3) and Weekly Review (M9) depend on.
+Full versions of the data-model pieces Clarify (M3) and Weekly Review (M10) depend on.
 
 **Requirements:** **D-07, D-08**.
 **Full-build dependencies:** D-03 (Projects), D-04 (zombie-project detection), D-05 (Someday/Maybe), D-06 (Waiting For).
@@ -56,39 +62,46 @@ The GTD decision-tree flow routing inbox items to the primitives built in M2, pl
 
 **Requirements:** **B-06, B-07, B-09, B-11, R-02**.
 
-## M6 — Recurrence & Habit Tracking
+## M6 — Full Live Preview Editor
+
+Completes the design.md §7 decoration set deliberately left out of M1's reduced-scope editor: cursor-aware wikilink bracket-hiding, embed (`![[...]]`) rendering, block-ID visual treatment, and heading/emphasis polish beyond bold/italic. Unifies every surface built so far (Inbox/Daily Log from M1, Projects/Someday/Waiting-For/Reference from M2, Calendar from M3, Monthly/Future Logs/Collections from M4, the migration-ritual UI from M5) onto the single full editor, so no surface is left permanently on the reduced-scope version. Sits here rather than immediately after M1 because it benefits from every content type (projects, collections, calendar items) that M2–M5 add existing first, and sits before M7's recurrence-heavy inline metadata and M8's reminder affordances, both of which are more pleasant to build against a finished decoration layer.
+
+**Requirements:** completes C-03, D-14, N-01, P-07, A-07 (deferred from M1's reduced scope).
+**Cheap-adjacent:** wikilink-decoration groundwork for N-02 (the backlink/graph *feature* itself still ships in M9 — this milestone only makes `[[wikilinks]]` render correctly, it doesn't add navigation or a backlinks panel).
+
+## M7 — Recurrence & Habit Tracking
 
 Domain-layer recurrence engine (daily/weekly/monthly/custom rules) and habit/streak engine on top of it, non-punitive by construction.
 
 **Requirements:** **D-16, D-17**.
 
-## M7 — Reminders & Native Notifications
+## M8 — Reminders & Native Notifications
 
-Re-derives reminders from vault metadata each launch; per-platform native scheduling with graceful degradation (iOS pending-notification cap, Android exact-alarm gating).
+Re-derives reminders from vault metadata each launch; per-platform native scheduling with graceful degradation (iOS pending-notification cap, Android exact-alarm gating). Also implements the snooze affordance M1 stubbed out (E-12).
 
 **Requirements:** **E-08, E-10, E-11, FR-05**.
 **Cheap-adjacent:** E-12 (snooze/reschedule from the notification itself).
 
-## M8 — Notes Linking & Full-Text Search
+## M9 — Notes Linking & Full-Text Search
 
 **Requirements:** **N-02, N-03**.
 **Cheap-adjacent:** N-04 (quick switcher), N-05 (optional folders/tags), D-12 (threading/backlinks), FR-06 (search performance target).
 
-## M9 — Weekly Review
+## M10 — Weekly Review
 
-Now unblocked: Projects/Someday/Waiting-For (M2), Calendar (M3), the migration-ritual UX pattern (M5), and notifications (M7) all exist.
+Now unblocked: Projects/Someday/Waiting-For (M2), Calendar (M3), the migration-ritual UX pattern (M5), and notifications (M8) all exist.
 
 **Requirements:** **R-01**.
 **Cheap-adjacent:** R-03 (stale-item surfacing), R-04 (resumable review), R-05 (optional review-start reminder).
 
-## M10 — Plugin Architecture (QuickJS Sandbox)
+## M11 — Plugin Architecture (QuickJS Sandbox)
 
 Per-plugin `JSContext`, capability manifest, all-or-nothing install consent, central revoke surface, host bridge scoped to granted permissions only.
 
 **Requirements:** **PL-01, PL-02, PL-03, PL-04**.
 **Cheap-adjacent:** PL-05 (plugins operate on the same Markdown files), PL-08 (core vs. community plugin distinction).
 
-## M11 — 1.0 Release Readiness
+## M12 — 1.0 Release Readiness
 
 Manual full-vault export/backup/restore, data export for lock-in avoidance, `FR-04` schema doc frozen, full 5-platform QA pass (`A-08`), performance budget validation (`T-01`), onboarding pass (`A-06`), progressive-disclosure UI audit (`A-01`). Explicit documentation that T-03/T-04/FR-08/QY-03 are vacuously satisfied (no sync, no quarterly/yearly rituals in v1).
 
