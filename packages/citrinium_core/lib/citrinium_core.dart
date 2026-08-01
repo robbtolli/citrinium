@@ -3,4 +3,5 @@
 /// `AGENTS.md` / `design.md` §6.1).
 library;
 
+export 'parser.dart';
 export 'vault.dart';
