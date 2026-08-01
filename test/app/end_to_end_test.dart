@@ -134,7 +134,7 @@ void main() {
   );
 
   testWidgets(
-    'opening a document shows its literal raw file content (read-only)',
+    'opening a document shows its literal raw file content in live preview editor',
     (tester) async {
       await tester.runAsync(() async {
         await pumpAppWithVault(tester);
@@ -142,10 +142,10 @@ void main() {
         await tester.tap(find.text('A Note'));
         await _waitUntil(
           tester,
-          () => find.byType(SelectableText).evaluate().isNotEmpty,
+          () => find.byType(EditableText).evaluate().isNotEmpty,
         );
 
-        expect(find.byType(SelectableText), findsOneWidget);
+        expect(find.byType(EditableText), findsOneWidget);
         expect(find.textContaining('Some body text.'), findsOneWidget);
       });
     },

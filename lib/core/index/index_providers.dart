@@ -43,22 +43,36 @@ final indexStatsProvider = StreamProvider<IndexStats?>((ref) async* {
   yield* services.indexService.watchStats();
 });
 
-/// The literal file content for [relPath], read fresh each time this
-/// provider is (re-)watched -- the read-only raw-file-view screen (W4)
-/// intentionally has no caching/edit-buffer layer of its own (that's M1's
-/// Live Preview editor); it just displays exactly what's on disk right
-/// now.
-final documentRawTextProvider = FutureProvider.family<String, String>((
+/// Stream of literal file content for [relPath], yielding initial text from disk
+/// and subsequent updates whenever the vault watcher detects an external change to [relPath].
+final documentRawTextProvider =
+    StreamProvider.autoDispose.family<String, String>((
   ref,
   relPath,
-) async {
+) async* {
   final services = await ref.watch(appServicesProvider.future);
   if (services == null) {
     throw StateError('No vault selected');
   }
+
   final absolutePath = VaultPath(relPath).toAbsolute(services.vaultPath);
-  final contents = await readVaultFile(File(absolutePath));
-  return contents.text;
+  final file = File(absolutePath);
+
+  if (await file.exists()) {
+    final contents = await readVaultFile(file);
+    yield contents.text;
+  }
+
+  final targetNormalized = VaultPath(relPath).value;
+
+  await for (final event in services.watcher.events) {
+    if (event.path.value == relPath || event.path.value == targetNormalized) {
+      if (await file.exists()) {
+        final contents = await readVaultFile(file);
+        yield contents.text;
+      }
+    }
+  }
 });
 
 /// Triggers a full index rebuild (the W4 "Rebuild index" button) and

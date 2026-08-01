@@ -3,6 +3,7 @@
 /// `AGENTS.md` / `design.md` §6.1).
 library;
 
+export 'decoration.dart';
 export 'index.dart';
 export 'parser.dart';
 export 'vault.dart';
