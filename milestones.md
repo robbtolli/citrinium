@@ -4,6 +4,8 @@ This document sequences `requirements.md` into buildable milestones, informed by
 
 **Scope rule:** all **MUST** requirements ship by the end of Milestone 12 (v1.0). SHOULD/COULD requirements are folded into a milestone only when they are a near-free addition once an adjacent MUST is built (called out per milestone as "cheap-adjacent"), or when a MUST functionally depends on a SHOULD-rated data-model piece being fully built (called out as "full-build dependency"). Everything else is pushed to the **Post-1.0 backlog** at the end of this document.
 
+**One exception to the scope rule:** M6 (Full Live Preview Editor) is the only *design-driven* rather than requirement-driven milestone. `design.md` §7 calls the Live Preview editor out as "a genuine engineering investment ... a significant, dedicated line item — not incidental UI work," but no single requirement ID owns it; it is the delivery vehicle for C-03, D-14, N-01, N-02, P-07 and A-07 rather than a requirement of its own. M1 ships a first, reduced-scope slice of the same editor (checkboxes, signifiers, basic emphasis — see M1) rather than nothing at all, so M6 is specifically the milestone that completes that decoration set; it still gets its own milestone rather than being folded silently into M1, because sizing the full engineering investment as incidental UI work inside M1 would be dishonest.
+
 ---
 
 ## Cross-cutting notes (apply to every milestone, not scoped to one)
@@ -29,7 +31,7 @@ Vault file I/O + watcher + Markdown parser/serializer for checkbox task states a
 
 ## M1 — Capture Loop: Inbox, Rapid Log & Daily Log
 
-Unified entry type (task/event/note/untyped), a dedicated `inbox.md` (distinct from the dated Daily Log), rapid logging with minimal type-switching, natural-language date parsing (`chrono_dart`), fully offline capture, Daily Log view, notes-on-log-line integration, supportive copy tone, reschedule/migrate/drop affordances everywhere (snooze stubbed until M8), functional-first UI. Ships a **reduced-scope** Live Preview editor (checkboxes, BuJo signifiers, basic bold/italic) — the full decoration set (wikilinks, embeds, block-ID styling) is deferred to the new M6.
+Unified entry type (task/event/note/untyped), a dedicated `inbox.md` (distinct from the dated Daily Log), rapid logging with minimal type-switching, natural-language date parsing (`chrono_dart`), fully offline capture, Daily Log view, notes-on-log-line integration, supportive copy tone, reschedule/migrate/drop affordances everywhere (snooze stubbed until M8), functional-first UI. Ships a **reduced-scope** Live Preview editor (checkboxes, BuJo signifiers, basic bold/italic) — the full decoration set (wikilinks, embeds, block-ID styling) is deferred to the new M6. This is a first slice of the *same* editor M6 completes, not a disposable prototype — see M6's note on shared foundational decisions.
 
 **Requirements:** **D-01, C-02, C-03, C-04, C-05, B-01, N-01, N-07, A-02, A-03, A-07**.
 **Cheap-adjacent:** B-05 (one-gesture bullet actions), D-14 (rich note body on log line), D-18 (lightweight text comments), B-08 (signifier marks; filtering deferred to M9).
@@ -64,10 +66,14 @@ The GTD decision-tree flow routing inbox items to the primitives built in M2, pl
 
 ## M6 — Full Live Preview Editor
 
-Completes the design.md §7 decoration set deliberately left out of M1's reduced-scope editor: cursor-aware wikilink bracket-hiding, embed (`![[...]]`) rendering, block-ID visual treatment, and heading/emphasis polish beyond bold/italic. Unifies every surface built so far (Inbox/Daily Log from M1, Projects/Someday/Waiting-For/Reference from M2, Calendar from M3, Monthly/Future Logs/Collections from M4, the migration-ritual UI from M5) onto the single full editor, so no surface is left permanently on the reduced-scope version. Sits here rather than immediately after M1 because it benefits from every content type (projects, collections, calendar items) that M2–M5 add existing first, and sits before M7's recurrence-heavy inline metadata and M8's reminder affordances, both of which are more pleasant to build against a finished decoration layer.
+Completes the `design.md` §7 decoration set deliberately left out of M1's reduced-scope editor: cursor-aware wikilink bracket-hiding, embed (`![[...]]`) rendering, block-ID visual treatment, and heading/emphasis polish beyond bold/italic — plus the surrounding engineering a single-milestone "reduced scope" pass couldn't responsibly include: viewport-scoped incremental decoration/caching, the full editing-affordance set (list continuation, indent/outdent, smart paste), `[[`/`#`/`@` autocomplete fed by the M0 index, and a debounced write-through/external-change-reconciliation pipeline. Unifies every surface built so far (Inbox/Daily Log from M1, Projects/Someday/Waiting-For/Reference from M2, Calendar from M3, Monthly/Future Logs/Collections from M4, the migration-ritual UI from M5) onto the single full editor, so no surface is left permanently on the reduced-scope version. Sits here rather than immediately after M1 because it benefits from every content type (projects, collections, calendar items) that M2–M5 add already existing, and sits before M7's recurrence-heavy inline metadata and M8's reminder affordances, both of which are more pleasant to build against a finished decoration layer.
 
-**Requirements:** completes C-03, D-14, N-01, P-07, A-07 (deferred from M1's reduced scope).
-**Cheap-adjacent:** wikilink-decoration groundwork for N-02 (the backlink/graph *feature* itself still ships in M9 — this milestone only makes `[[wikilinks]]` render correctly, it doesn't add navigation or a backlinks panel).
+**Note on shared foundations:** the base-widget, hiding-mechanism, offset-identity, and viewport-scoping decisions in `docs/milestones/m6.md` are not M6-exclusive — M1's reduced-scope editor (its own W5) is the *same* engine's first increment, not a separate prototype, and needs to be built against these same foundations from the start rather than rebuilt when M6 lands. See `docs/milestones/m6.md`'s "Shared foundations with M1" note.
+
+**Requirements:** completes C-03, D-14, N-01, P-07, A-07 (deferred from M1's reduced scope) and delivers the authoring half of **N-02**.
+**Cheap-adjacent:** wikilink-decoration groundwork for N-02 (the backlink/graph *feature* itself still ships in M9 — this milestone only makes `[[wikilinks]]` render correctly, it doesn't add navigation or a backlinks panel); B-05 (checkbox/bullet gestures in-editor, extended to the new decoration kinds); T-05 partial (editor keyboard navigation, contrast, scalable type).
+
+**Detailed plan:** [`docs/milestones/m6.md`](docs/milestones/m6.md)
 
 ## M7 — Recurrence & Habit Tracking
 
@@ -85,7 +91,7 @@ Re-derives reminders from vault metadata each launch; per-platform native schedu
 ## M9 — Notes Linking & Full-Text Search
 
 **Requirements:** **N-02, N-03**.
-**Cheap-adjacent:** N-04 (quick switcher), N-05 (optional folders/tags), D-12 (threading/backlinks), FR-06 (search performance target).
+**Cheap-adjacent:** N-04 (quick switcher — reuses M6's autocomplete overlay machinery), N-05 (optional folders/tags), D-12 (threading/backlinks), FR-06 (search performance target).
 
 ## M10 — Weekly Review
 
