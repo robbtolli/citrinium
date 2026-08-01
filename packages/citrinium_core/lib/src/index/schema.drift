@@ -1,0 +1,97 @@
+-- Index schema, per `docs/milestones/m0.md` W3 / `design.md` §4.
+--
+-- This is a derived, rebuildable cache over the vault (P-11): every row here
+-- can be reconstructed from the Markdown files alone (see
+-- `IndexService.fullRebuild`). Nothing in this schema is ever the sole
+-- record of anything -- `documents.rel_path` + `documents.sha256` are the
+-- join keys back to the file each row came from.
+
+CREATE TABLE documents (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    rel_path TEXT NOT NULL UNIQUE,
+    sha256 TEXT NOT NULL,
+    mtime_ms INTEGER NOT NULL,
+    size_bytes INTEGER NOT NULL,
+    doc_type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    frontmatter_json TEXT NULL,
+    indexed_at_ms INTEGER NOT NULL
+) AS Document;
+
+-- One row per structured rapid-log line (`design.md` §3.1/§3.2): a task,
+-- a BuJo event/note, or an "untyped" plain bullet (`ParsedLine.listItem`).
+-- Prose/heading/blank/code lines are not indexed as entries -- they're part
+-- of `documents` only for full-text search via `document_fts`.
+CREATE TABLE entries (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    document_id INTEGER NOT NULL REFERENCES documents (id) ON DELETE CASCADE,
+    line_index INTEGER NOT NULL,
+    char_start INTEGER NOT NULL,
+    char_end INTEGER NOT NULL,
+    block_id TEXT NULL,
+    kind TEXT NOT NULL, -- task | event | note | untyped
+    task_state TEXT NULL, -- TaskStateKind.name, or "unknown:<char>" -- see task_state.dart
+    -- Dart getter renamed to `textContent` (`AS "textContent"`): the plain
+    -- name `text` collides with `Table.text()`, the DSL method used to
+    -- *declare* text columns, which every generated table class inherits.
+    text TEXT NOT NULL AS "textContent",
+    due_date TEXT NULL, -- YYYY-MM-DD, verbatim from the 📅 field
+    due_time TEXT NULL, -- H:MM / HH:MM, verbatim from the ⏰ field
+    recurrence_raw TEXT NULL, -- free-text 🔁 value, not yet parsed into a rule (D-16 is M7)
+    signifier TEXT NULL -- reserved for B-08; parser doesn't extract these yet
+) AS Entry;
+
+CREATE INDEX entries_document_id_idx ON entries (document_id);
+
+CREATE TABLE entry_contexts (
+    entry_id INTEGER NOT NULL REFERENCES entries (id) ON DELETE CASCADE,
+    context TEXT NOT NULL,
+    PRIMARY KEY (entry_id, context)
+) AS EntryContext;
+
+CREATE TABLE entry_tags (
+    entry_id INTEGER NOT NULL REFERENCES entries (id) ON DELETE CASCADE,
+    tag TEXT NOT NULL,
+    PRIMARY KEY (entry_id, tag)
+) AS EntryTag;
+
+-- Wikilinks/embeds (`design.md` §3, N-02). `target_document_id` is a
+-- best-effort resolution (by relative path, then by unique basename) done
+-- by `IndexService`, not the parser -- it's left NULL for unresolved/
+-- ambiguous/dangling links, which is expected (a link to a not-yet-created
+-- note is not an error).
+CREATE TABLE links (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    source_document_id INTEGER NOT NULL REFERENCES documents (id) ON DELETE CASCADE,
+    source_entry_id INTEGER NULL REFERENCES entries (id) ON DELETE CASCADE,
+    target_raw TEXT NOT NULL,
+    target_document_id INTEGER NULL REFERENCES documents (id) ON DELETE SET NULL,
+    kind TEXT NOT NULL -- wikilink | embed
+) AS LinkRow;
+
+CREATE INDEX links_source_document_id_idx ON links (source_document_id);
+
+CREATE INDEX links_target_document_id_idx ON links (target_document_id);
+
+-- `document_fts` (the FTS5 virtual table, query-tuned in M9) is
+-- deliberately *not* declared here: the installed `drift_dev` (pinned to
+-- `<2.34.1` -- see `pubspec.yaml`'s comment) has a bug deserializing a
+-- plain (no `content=`/`content_rowid=`) `CREATE VIRTUAL TABLE ... USING
+-- fts5(...)` from a `.drift` file, which silently drops analysis of every
+-- element declared after it in the same file. Since `IndexService` always
+-- talks to `document_fts` via raw SQL anyway (FTS5 tables don't get a typed
+-- drift API the way regular tables do -- see `_Fts5Module` in
+-- `package:sqlparser`), there's no typed-API benefit lost by creating it
+-- with a plain `customStatement` in `IndexDatabase.migration` instead.
+-- Rows are correlated back to `documents` by inserting with an explicit
+-- `rowid` equal to the owning document's id, e.g.
+-- `INSERT INTO document_fts(rowid, title, body) ...`.
+--
+-- `schemaVersion` / `parserVersion` / `vaultFingerprint`, per
+-- `docs/milestones/m0.md` W3. A `parserVersion` mismatch (including "no
+-- value yet", i.e. a brand new database) triggers `IndexService.fullRebuild`
+-- before anything else touches the index.
+CREATE TABLE index_meta (
+    "key" TEXT NOT NULL PRIMARY KEY,
+    value TEXT NOT NULL
+) AS IndexMetaRow;
