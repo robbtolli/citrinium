@@ -7,7 +7,7 @@
 > (`lib/src/parser/parser_version.dart`) is bumped alongside any change here that
 > could alter how an existing file parses.
 
-Parent: [`design.md`](../design.md) §3 (Vault & file schema), [`milestones.md`](../milestones.md),
+Parent: [`design.md`](design.md) §3 (Vault & file schema), [`milestones.md`](milestones.md),
 [`docs/milestones/m0.md`](milestones/m0.md) W5.
 
 ## 0. Why this document exists
@@ -60,7 +60,7 @@ explicitly in §9 rather than papered over.
   - Any file or directory whose name starts with `.` (so `.DS_Store`, `.hidden.md`,
     `.anything/`, etc. are all invisible too)
 - **`.citrinium/`** is reserved for future app-level vault configuration (per
-  `docs/milestones/m0.md`'s "Vault config" decision: portable, travels with the vault,
+  `milestones/m0.md`'s "Vault config" decision: portable, travels with the vault,
   excluded from scan/index). **Nothing is written there yet as of M0** — this is a
   reserved namespace, not an active feature.
 - **Symlinks** to `.md` files are not followed by default (a size/cycle-safety
@@ -74,7 +74,7 @@ explicitly in §9 rather than papered over.
   explicit open questions in §9 where they're not yet decided.
 - **Daily/Monthly/Future Log naming** (`design.md` §3.4 gives `daily/2026-07-30.md` as
   an example) and **`inbox.md`'s location** are **not yet locked** — they're M1 W3
-  work (see `docs/milestones/m1.md`). This draft will be updated then; don't treat the
+  work (see `milestones/m1.md`). This draft will be updated then; don't treat the
   example path in `design.md` as final.
 
 ## 3. Frontmatter
@@ -268,7 +268,7 @@ runs, and are excluded from all of it:
   line kind (`codeFenceDelimiter`), distinct from the code content between them.
 
 This is treated as a data-integrity bug class, not a cosmetic one (per
-`docs/milestones/m0.md`'s risk table): a false positive here would mean Citrinium
+`milestones/m0.md`'s risk table): a false positive here would mean Citrinium
 silently reinterprets someone's code sample as task/link data.
 
 ## 8. Wikilinks & embeds (N-02)
@@ -309,7 +309,7 @@ expected to resolve it:
 
 1. **Inbox/Daily/Monthly/Future Log file locations and naming.** `design.md` §3.4's
    `daily/2026-07-30.md` is an example, not a locked convention. → M1 W3
-   (`docs/milestones/m1.md`).
+   (`milestones/m1.md`).
 2. **No escaping mechanism for inline metadata markers.** There's currently no way to
    write a literal `#`/`@`/`📅`/etc. in body text without it being parsed as metadata.
    → unscheduled; needs a decision (backslash-escape? require whitespace boundaries

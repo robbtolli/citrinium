@@ -25,7 +25,7 @@ Vault file I/O + watcher + Markdown parser/serializer for checkbox task states a
 
 **Requirements:** P-11 / D-15 (architecture-locked), FR-04 (draft), FR-09 (scaffold).
 
-**Detailed plan:** [`docs/milestones/m0.md`](docs/milestones/m0.md)
+**Detailed plan:** [`milestones/m0.md`](milestones/m0.md)
 
 **Status: ** Completed
 
@@ -36,7 +36,7 @@ Unified entry type (task/event/note/untyped), a dedicated `inbox.md` (distinct f
 **Requirements:** **D-01, C-02, C-03, C-04, C-05, B-01, N-01, N-07, A-02, A-03, A-07**.
 **Cheap-adjacent:** B-05 (one-gesture bullet actions), D-14 (rich note body on log line), D-18 (lightweight text comments), B-08 (signifier marks; filtering deferred to M9).
 
-**Detailed plan:** [`docs/milestones/m1.md`](docs/milestones/m1.md)
+**Detailed plan:** [`milestones/m1.md`](milestones/m1.md)
 
 **Status:** in progress
 
@@ -68,12 +68,12 @@ The GTD decision-tree flow routing inbox items to the primitives built in M2, pl
 
 Completes the `design.md` §7 decoration set deliberately left out of M1's reduced-scope editor: cursor-aware wikilink bracket-hiding, embed (`![[...]]`) rendering, block-ID visual treatment, and heading/emphasis polish beyond bold/italic — plus the surrounding engineering a single-milestone "reduced scope" pass couldn't responsibly include: viewport-scoped incremental decoration/caching, the full editing-affordance set (list continuation, indent/outdent, smart paste), `[[`/`#`/`@` autocomplete fed by the M0 index, and a debounced write-through/external-change-reconciliation pipeline. Unifies every surface built so far (Inbox/Daily Log from M1, Projects/Someday/Waiting-For/Reference from M2, Calendar from M3, Monthly/Future Logs/Collections from M4, the migration-ritual UI from M5) onto the single full editor, so no surface is left permanently on the reduced-scope version. Sits here rather than immediately after M1 because it benefits from every content type (projects, collections, calendar items) that M2–M5 add already existing, and sits before M7's recurrence-heavy inline metadata and M8's reminder affordances, both of which are more pleasant to build against a finished decoration layer.
 
-**Note on shared foundations:** the base-widget, hiding-mechanism, offset-identity, and viewport-scoping decisions in `docs/milestones/m6.md` are not M6-exclusive — M1's reduced-scope editor (its own W5) is the *same* engine's first increment, not a separate prototype, and needs to be built against these same foundations from the start rather than rebuilt when M6 lands. See `docs/milestones/m6.md`'s "Shared foundations with M1" note.
+**Note on shared foundations:** the base-widget, hiding-mechanism, offset-identity, and viewport-scoping decisions in `milestones/m6.md` are not M6-exclusive — M1's reduced-scope editor (its own W5) is the *same* engine's first increment, not a separate prototype, and needs to be built against these same foundations from the start rather than rebuilt when M6 lands. See `milestones/m6.md`'s "Shared foundations with M1" note.
 
 **Requirements:** completes C-03, D-14, N-01, P-07, A-07 (deferred from M1's reduced scope) and delivers the authoring half of **N-02**.
 **Cheap-adjacent:** wikilink-decoration groundwork for N-02 (the backlink/graph *feature* itself still ships in M9 — this milestone only makes `[[wikilinks]]` render correctly, it doesn't add navigation or a backlinks panel); B-05 (checkbox/bullet gestures in-editor, extended to the new decoration kinds); T-05 partial (editor keyboard navigation, contrast, scalable type).
 
-**Detailed plan:** [`docs/milestones/m6.md`](docs/milestones/m6.md)
+**Detailed plan:** [`milestones/m6.md`](milestones/m6.md)
 **Status:** Completed
 
 ## M7 — Recurrence & Habit Tracking
@@ -125,5 +125,5 @@ Manual full-vault export/backup/restore, data export for lock-in avoidance, `FR-
 - **Visualization**: PL-06 (Graph View), PL-07 (Canvas), PL-09 (per-permission revocation).
 - **Accessibility & accountability**: T-05 (dyslexia font, reduced motion), AC-01/AC-02 (share links, check-in nudges).
 - **Misc COULDs**: C-01/C-06/C-07 (global hotkey, voice capture, widgets), G-02/G-06/G-07, D-09 (time estimate/energy fields — tied to deferred Engage), D-13 (Areas of Focus), N-06 (file/image attachments), D-18's non-text attachments.
-- **Editor view modes** (`FR-11`, proposed — not yet a formal ID in `requirements.md`; see note below): four selectable modes for any Markdown file, alongside M6's Live Preview — **View-only** (rendered, read-only), **Raw edit** (plaintext, no decoration), and **Side-by-side** (vertical split: raw edit on the left, rendered view-only on the right). Live Preview stays the default. Motivated in part as a large-file escape hatch for M6's `EditableText` performance ceiling — see `docs/milestones/m6.md`'s "Post-1.0 large-file mode fallback" note for the mechanism and an important caveat about how much this actually buys.
+- **Editor view modes** (`FR-11`, proposed — not yet a formal ID in `requirements.md`; see note below): four selectable modes for any Markdown file, alongside M6's Live Preview — **View-only** (rendered, read-only), **Raw edit** (plaintext, no decoration), and **Side-by-side** (vertical split: raw edit on the left, rendered view-only on the right). Live Preview stays the default. Motivated in part as a large-file escape hatch for M6's `EditableText` performance ceiling — see `milestones/m6.md`'s "Post-1.0 large-file mode fallback" note for the mechanism and an important caveat about how much this actually buys.
 </content>
