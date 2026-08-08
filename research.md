@@ -25,6 +25,28 @@
 * **Cross-Platform Sync:** Real-time sync across Web, Mobile (iOS/Android), Desktop (Mac/Windows/Linux), and Wearables.
 * **Integrations:** Direct syncing with Google Calendar, email clients (Outlook/Gmail), Slack, and automation tools (Zapier/IFTTT).
 
+### 6. What users value and complain about
+Review themes are directional rather than prevalence claims: ratings measure general satisfaction, and individual reviews are anecdotal. Checked on 2026-08-08, Todoist showed 4.8/5 from 128K Apple App Store ratings and 4.6/5 from 303K Google Play reviews. G2 provides useful recent detail but its reviews have varying validation and incentive status.
+
+**Recurring value themes**
+
+* **Fast, forgiving capture:** users consistently value Quick Add's natural-language parsing of dates, recurrence, labels, projects, and priority. This lets a thought become a structured task without a form, which is particularly valuable when attention is fleeting.
+* **A trusted external memory:** reviews praise putting a future commitment into Todoist, including flexible recurrence such as completion-relative intervals, then being able to let go of remembering it. Calendar, email, Teams, widget, and voice capture integrations reinforce that trust across contexts.
+* **Simple core with enough structure:** projects, sections, subtasks, labels, priorities, filters, and multiple views scale from personal lists to light collaboration without requiring a full project-management system. Users value this balance more than feature density.
+
+**Recurring complaint and risk themes**
+
+* **Pricing and paywalled essentials:** users report that reminders and more than a small number of projects are important personal-organization basics, yet expensive or unavailable on the free tier. A 2026 Google Play reviewer specifically objected to paying for reminders and more than five projects. Do not make the external-memory features required by E-08 through E-12 dependent on a premium tier.
+* **Scheduling is less rich than capture:** users and review summaries still ask for start dates, duration, timeboxing, and better calendar planning rather than relying on a due date that becomes overdue. This validates Citrinium's separate soft-task, defer/start-date, duration, and hard-calendar model (P-09, G-05, E-06 through E-09).
+* **Reliability failures destroy system trust:** some reviews report weak notifications, recurring-task problems, or sync/offline discrepancies. These reports are anecdotal and may be fixed, but a missed medication or invisible completion is disproportionately harmful; reminders, recurrence, local persistence, and audit/history need stronger guarantees than a productivity graph.
+* **Task manager, not knowledge base:** Todoist is praised for action management but its task-first structure provides little place for long-form thinking and supporting reference material. Citrinium should keep task capture as fast as Todoist while retaining notes, links, and task context in the same vault (N-01, N-02, D-07, D-14).
+
+### 7. Review sources
+* Apple App Store: ratings, product description, and individual reviews: https://apps.apple.com/us/app/todoist-to-do-list-planner/id572688855
+* Google Play: ratings, current reviews, and product description: https://play.google.com/store/apps/details?id=com.todoist
+* G2: recent verified-review themes for natural-language capture, integrations, and organization: https://www.g2.com/products/todoist/reviews?qs=pros-and-cons
+* Product Hunt: community review summary of strengths and advanced-workflow gaps: https://www.producthunt.com/products/todoist/reviews
+
 ## Obsidian
 
 ### 1. Core Architecture
@@ -50,6 +72,28 @@
 ### 5. Extensibility
 * **Core Plugins:** Modular built-in features that users can toggle on or off (e.g., Daily Notes, Outliner, Templates, Backlinks).
 * **Community Plugins & CSS Themes:** An open ecosystem allowing users to install custom JavaScript plugins and custom CSS themes to modify aesthetics and expand functionality.
+
+### 6. What users value and complain about
+Review themes are directional rather than prevalence claims: high ratings do not establish that every feature works for every workflow, and individual reviews are anecdotal. Checked on 2026-08-08, Obsidian showed 4.5/5 from 2.7K Apple App Store ratings and 4.1/5 from about 18K Google Play reviews. G2 has only three reviews, so it is useful for examples, not a representative sample.
+
+**Recurring value themes**
+
+* **Data ownership and longevity:** users repeatedly value local plain-Markdown files, offline access, and the ability to leave or use alternative sync without losing their notes. This is the clearest market validation of P-11: ownership is not merely an export checkbox, but part of whether people trust a second brain.
+* **Flexible linked thinking:** backlinks, tags, graph view, tabs/split panes, and Canvas help users grow from folders into a connected knowledge base. Reviewers value being able to start simple and add structure later rather than commit to a database schema upfront.
+* **Adaptability without a subscription for the core:** users praise a capable free local app and the plugin/theme ecosystem for supporting specialized writing, research, task, and visual workflows. The app can adapt to a user's process instead of forcing one method.
+
+**Recurring complaint and risk themes**
+
+* **Learning, setup, and plugin overload:** the same flexibility that power users value makes a blank vault, Markdown, links, plugin selection, and custom workflows intimidating. Users report that the product is easy for plain notes but becomes much steeper when they attempt a full "second brain." For ADHD-oriented onboarding, do not require customization before the first useful capture (P-01, P-07, A-06).
+* **Configuration can become productivity procrastination:** community plugins add capability but can create incompatible conventions, maintenance burden, uneven quality, and an urge to design a system instead of use one. Citrinium should provide a complete, calm core workflow and editable defaults; plugins must extend it rather than be required to obtain daily capture, tasks, review, or reminders (PL-01 through PL-08, A-07).
+* **Mobile and collaboration friction:** reviewers describe desktop as the stronger experience; mobile navigation, tables/outlines, and some plugin workflows are less polished. Users also report that real-time shared editing and cross-device sync need workarounds or paid Sync and may risk conflicts when poorly managed. Preserve cross-platform core behavior and make sync/backup safety explicit (A-08, T-03, FR-01, FR-07).
+* **Too much structure can hide the next action:** Obsidian's links, files, tags, and graph are excellent for reference and reflection, but do not inherently clarify a commitment, surface a next action, or make time concrete. Citrinium must pair the vault's knowledge affordances with explicit task states, Today/Now, time/energy/context filters, and review rituals (D-02 through D-09, E-01 through E-07, R-01 through R-05).
+
+### 7. Review sources
+* Apple App Store: ratings, local-vault description, and individual reviews: https://apps.apple.com/us/app/obsidian-connected-notes/id1557175442
+* Google Play: ratings, local-Markdown description, and current reviews: https://play.google.com/store/apps/details?id=md.obsidian
+* G2: small-sample verified reviews on data control, learning curve, file scale, plugins, and collaboration: https://www.g2.com/products/obsidian/reviews
+* Product Hunt: community review summary of linking/plugins and learning/mobile/search concerns: https://www.producthunt.com/products/obsidian/reviews
 
 ## Amplenote
 
