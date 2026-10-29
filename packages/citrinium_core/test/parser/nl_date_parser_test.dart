@@ -105,6 +105,20 @@ void main() {
       expect(CadenceFiles.monthlyRelPath(date), 'monthly/2026-10.md');
       expect(CadenceFiles.quarterlyRelPath(date), 'quarterly/2026-Q4.md');
       expect(CadenceFiles.yearlyRelPath(date), 'yearly/2026.md');
+      expect(CadenceFiles.projectRelPath('Renew Passport!'), 'projects/renew-passport.md');
+      expect(CadenceFiles.collectionRelPath('Books to Read'), 'collections/books-to-read.md');
+
+      final projMd = CadenceFiles.defaultProjectContent(
+        title: 'Renew Passport',
+        outcome: 'Passport in hand before July',
+        firstNextAction: 'Download form @computer',
+      );
+      expect(projMd, contains('type: project'));
+      expect(projMd, contains('outcome: Passport in hand before July'));
+      expect(projMd, contains('- [ ] Download form @computer'));
+
+      final refMd = CadenceFiles.defaultReferenceContent();
+      expect(refMd, contains('type: reference'));
     });
   });
 }

@@ -391,10 +391,7 @@ class VaultMutationService {
     IndexedEntryWithDocument? promoteFromEntry,
   }) async {
     final services = await _requireServices();
-    final safeSlug = title
-        .trim()
-        .replaceAll(RegExp(r'[\\/:*?"<>|]'), '-')
-        .replaceAll(RegExp(r'\s+'), ' ');
+    final safeSlug = CadenceFiles.slugifyTitle(title);
     final dirPrefix = (folder != null && folder.trim().isNotEmpty)
         ? '${folder.trim()}/'
         : (docType == 'project'
@@ -439,11 +436,59 @@ class VaultMutationService {
     if (promoteFromEntry != null) {
       await updateEntryInPlace(
         promoteFromEntry,
+        newState: docType == 'project' ? TaskStateKind.migrated : null,
         newContent: '[[$safeSlug]] — ${promoteFromEntry.entry.textContent}',
       );
     }
 
     return relPath;
+  }
+
+  /// Files a non-actionable inbox item to Reference (`reference.md`, `D-07`,
+  /// `G-01`, `G-06`) as a clean BuJo note line (`- – ...`) without converting
+  /// it into a task, and marks the original inbox line as migrated (`[>]`).
+  Future<String> fileToReference(
+    IndexedEntryWithDocument item, {
+    String targetRelPath = CadenceFiles.referenceRelPath,
+  }) async {
+    final services = await _requireServices();
+    final cleanText = item.entry.textContent.trim();
+
+    await CadenceFiles.appendLineToVaultFile(
+      vaultRootPath: services.vaultPath,
+      relPath: targetRelPath,
+      lineText: '- – $cleanText',
+      initialContentIfMissing: CadenceFiles.defaultReferenceContent(),
+      watcher: services.watcher,
+    );
+    await _notifyFileUpdated(services, targetRelPath);
+
+    if (item.document.relPath != targetRelPath) {
+      await setTaskStateInPlace(item, TaskStateKind.migrated);
+    }
+    return targetRelPath;
+  }
+
+  /// Delegates an item to Waiting For (`- [w] ...`, `D-06`, `G-01`) with a
+  /// person/system name and an optional follow-up date (`📅 YYYY-MM-DD`).
+  Future<void> delegateToWaitingFor(
+    IndexedEntryWithDocument item, {
+    required String delegateTo,
+    String? followUpDate,
+  }) async {
+    final cleanWho = delegateTo.trim();
+    var updatedContent = item.entry.textContent.trim();
+    if (cleanWho.isNotEmpty && !updatedContent.contains('Waiting on:')) {
+      updatedContent = '$updatedContent (Waiting on: $cleanWho)';
+    }
+    await updateEntryInPlace(
+      item,
+      newState: TaskStateKind.waitingFor,
+      newContent: updatedContent,
+      dueDate: (followUpDate != null && followUpDate.trim().isNotEmpty)
+          ? followUpDate.trim()
+          : null,
+    );
   }
 }
 

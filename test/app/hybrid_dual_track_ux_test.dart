@@ -138,12 +138,107 @@ void main() {
           '# Meeting Notes\n\n- [ ] Send updated Q4 summary @computer\n  Include slides link\n',
         );
 
-        // 3. Navigate to Horizons & Review pillar and verify Weekly cadence (B-02, B-12)
+        // 3. Verify Hard-Landscape Calendar tab (G-05) and Projects / Clarify (M2 & M3)
+        await tester.tap(find.text('📅 Calendar'));
+        await tester.pumpAndSettle();
+        expect(find.textContaining('Hard-Landscape Calendar'), findsOneWidget);
+
+        // 4. Navigate to Horizons & Review pillar and verify Weekly cadence (B-02, B-12)
         await tester.tap(find.text('Horizons & Review'));
         await tester.pumpAndSettle();
 
         expect(find.text('Weekly'), findsWidgets);
         expect(find.textContaining('weekly/'), findsWidgets);
+      });
+    },
+  );
+
+  testWidgets(
+    'M2 & M3: GTD Clarify Flow (G-01) files to Reference (D-07) and New Project dialog prompts for Outcome & Next Action (G-03)',
+    (tester) async {
+      await tester.runAsync(() async {
+        SharedPreferences.setMockInitialValues({'vaultPath': vault.path});
+        final prefs = await SharedPreferences.getInstance();
+
+        final container = ProviderContainer(
+          overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        );
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const CitriniumApp(),
+          ),
+        );
+        await tester.pump();
+
+        await _waitUntil(
+          tester,
+          () =>
+              find.textContaining('Today\'s Focus Shelf').evaluate().isNotEmpty &&
+              find.text('Meeting Notes').evaluate().isNotEmpty,
+        );
+
+        await tester.tap(find.text('Actions & Inbox'));
+        await tester.pumpAndSettle();
+
+        // Open Inbox tab and launch Clarify Deck (G-01)
+        await tester.tap(find.textContaining('📥 Inbox'));
+        await tester.pumpAndSettle();
+
+        expect(find.textContaining('Clarify (1)'), findsOneWidget);
+        await tester.tap(find.textContaining('Clarify (1)'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Call pharmacy @phone'), findsWidgets);
+        expect(find.text('File to Reference (D-07)'), findsOneWidget);
+        expect(find.text('Schedule on Calendar (G-05)'), findsOneWidget);
+
+        // File the inbox item to Reference (D-07, G-06)
+        await tester.ensureVisible(find.text('File to Reference (D-07)'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('File to Reference (D-07)'));
+        await tester.pump();
+
+        await _waitUntil(
+          tester,
+          () => File(p.join(vault.path, 'reference.md')).existsSync(),
+        );
+
+        final refContent =
+            await File(p.join(vault.path, 'reference.md')).readAsString();
+        expect(refContent, contains('type: reference'));
+        expect(refContent, contains('- – Call pharmacy @phone'));
+
+        // Switch to Projects tab and verify G-03 skippable warning when Outcome/Next Action omitted
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('📁 Projects'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('New Project'));
+        await tester.pumpAndSettle();
+
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Project Name'),
+          'Launch Website',
+        );
+        // Click Create Project without Outcome or First Next Action -> shows G-03 warning
+        await tester.tap(find.text('Create Project'));
+        await tester.pumpAndSettle();
+
+        expect(find.textContaining('GTD Tip (G-03 / D-04)'), findsOneWidget);
+        expect(find.text('Create Anyway (Skip)'), findsOneWidget);
+
+        // Click Create Anyway (Skip) to confirm skippable creation
+        await tester.tap(find.text('Create Anyway (Skip)'));
+        await tester.pump();
+
+        await _waitUntil(
+          tester,
+          () => File(p.join(vault.path, 'projects', 'launch-website.md'))
+              .existsSync(),
+        );
       });
     },
   );

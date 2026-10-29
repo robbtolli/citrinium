@@ -81,6 +81,25 @@ class CadenceFiles {
   static const String inboxRelPath = 'inbox.md';
   static const String futureLogRelPath = 'future.md';
   static const String somedayRelPath = 'someday.md';
+  static const String referenceRelPath = 'reference.md';
+
+  /// Converts a human title into a safe lowercase filename slug.
+  static String slugifyTitle(String title) {
+    final slug = title
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+        .replaceAll(RegExp(r'^-+|-+$'), '');
+    return slug.isEmpty ? 'untitled' : slug;
+  }
+
+  /// Relative path for a project file (`D-03`, `G-03`): `projects/<slug>.md`.
+  static String projectRelPath(String title) =>
+      'projects/${slugifyTitle(title)}.md';
+
+  /// Relative path for a collection file (`D-10`, `B-10`): `collections/<slug>.md`.
+  static String collectionRelPath(String title) =>
+      'collections/${slugifyTitle(title)}.md';
 
   /// Relative path for the given [cadence] at [date] (per `docs/file-schema.md` §2).
   static String relPathForCadence(CadenceKind cadence, DateTime date) {
@@ -259,6 +278,71 @@ class CadenceFiles {
       '---\n'
       '# Someday / Maybe\n\n';
 
+  static String defaultReferenceContent() => '---\n'
+      'citrinium:\n'
+      '  type: reference\n'
+      '---\n'
+      '# Reference Material\n\n';
+
+  /// Builds initial Markdown content for a GTD/BuJo Project (`D-03`, `G-03`),
+  /// recording `outcome`, `status: active`, and an optional `firstNextAction`.
+  static String defaultProjectContent({
+    required String title,
+    String? outcome,
+    String? firstNextAction,
+    String? area,
+  }) {
+    final cleanTitle = title.trim().isEmpty ? 'Untitled Project' : title.trim();
+    final cleanOutcome = (outcome ?? '').trim();
+    final cleanArea = (area ?? '').trim();
+    final cleanAction = (firstNextAction ?? '').trim();
+
+    final buffer = StringBuffer()
+      ..writeln('---')
+      ..writeln('title: $cleanTitle')
+      ..writeln('citrinium:')
+      ..writeln('  type: project')
+      ..writeln('  status: active');
+    if (cleanOutcome.isNotEmpty) {
+      buffer.writeln('  outcome: $cleanOutcome');
+    }
+    if (cleanArea.isNotEmpty) {
+      buffer.writeln('  area: $cleanArea');
+    }
+    buffer
+      ..writeln('---')
+      ..writeln('# $cleanTitle')
+      ..writeln();
+    if (cleanOutcome.isNotEmpty) {
+      buffer
+        ..writeln('**Desired Outcome:** $cleanOutcome')
+        ..writeln();
+    }
+    buffer.writeln('## Next Actions');
+    if (cleanAction.isNotEmpty) {
+      final hasPrefix = RegExp(r'^[-*+]\s+\[.\]').hasMatch(cleanAction);
+      buffer.writeln(hasPrefix ? cleanAction : '- [ ] $cleanAction');
+    }
+    buffer
+      ..writeln()
+      ..writeln('## Support Notes & Reference')
+      ..writeln('- – ');
+    return buffer.toString();
+  }
+
+  /// Builds initial Markdown content for an on-demand BuJo Collection (`D-10`, `B-10`).
+  static String defaultCollectionContent({required String title}) {
+    final cleanTitle =
+        title.trim().isEmpty ? 'Untitled Collection' : title.trim();
+    return '---\n'
+        'title: $cleanTitle\n'
+        'citrinium:\n'
+        '  type: collection\n'
+        '---\n'
+        '# $cleanTitle\n\n'
+        '- – \n';
+  }
+
   /// Lazily creates [relPath] with [initialContent] if it does not yet exist
   /// on disk (`B-09`, `D-11`). Never overwrites an existing file.
   static Future<File> ensureVaultFile({
@@ -271,6 +355,7 @@ class CadenceFiles {
     final file = File(absPath);
     if (await file.exists()) return file;
 
+    await file.parent.create(recursive: true);
     watcher?.suppressSelfWrite(VaultPath(absPath));
     await writeVaultFileAtomic(
       file,
@@ -296,6 +381,7 @@ class CadenceFiles {
     if (await file.exists()) {
       existing = await readVaultFile(file);
     } else {
+      await file.parent.create(recursive: true);
       existing = VaultFileContents(
         text: initialContentIfMissing,
         hadBom: false,

@@ -11,6 +11,7 @@ import '../../shared/widgets/in_place_task_tile.dart';
 enum ActionsSubTab {
   inbox('Inbox'),
   nextActions('Next Actions'),
+  calendar('Calendar'),
   projects('Projects'),
   waiting('Waiting For'),
   someday('Someday');
@@ -57,36 +58,28 @@ class _ActionsInboxScreenState extends ConsumerState<ActionsInboxScreen> {
 
     return Column(
       children: [
-        // Top segmented navigation
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
+        // Top navigation bar across GTD Organize & Calendar views
+        Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: SegmentedButton<ActionsSubTab>(
-            showSelectedIcon: false,
-            segments: [
-              ButtonSegment(
-                value: ActionsSubTab.inbox,
-                label: Text('📥 Inbox (${inboxItems.length})'),
-              ),
-              const ButtonSegment(
-                value: ActionsSubTab.nextActions,
-                label: Text('⚡ Next Actions'),
-              ),
-              const ButtonSegment(
-                value: ActionsSubTab.projects,
-                label: Text('📁 Projects'),
-              ),
-              const ButtonSegment(
-                value: ActionsSubTab.waiting,
-                label: Text('⏳ Waiting'),
-              ),
-              const ButtonSegment(
-                value: ActionsSubTab.someday,
-                label: Text('🌱 Someday'),
-              ),
+          child: Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final (tab, label) in [
+                (ActionsSubTab.inbox, '📥 Inbox (${inboxItems.length})'),
+                (ActionsSubTab.nextActions, '⚡ Next Actions'),
+                (ActionsSubTab.calendar, '📅 Calendar'),
+                (ActionsSubTab.projects, '📁 Projects'),
+                (ActionsSubTab.waiting, '⏳ Waiting'),
+                (ActionsSubTab.someday, '🌱 Someday'),
+              ])
+                ChoiceChip(
+                  visualDensity: VisualDensity.compact,
+                  label: Text(label),
+                  selected: _tab == tab,
+                  onSelected: (_) => setState(() => _tab = tab),
+                ),
             ],
-            selected: {_tab},
-            onSelectionChanged: (sel) => setState(() => _tab = sel.first),
           ),
         ),
         const Divider(height: 1),
@@ -101,6 +94,10 @@ class _ActionsInboxScreenState extends ConsumerState<ActionsInboxScreen> {
               context,
               allEntries,
               workspace,
+            ),
+            ActionsSubTab.calendar => _buildCalendarView(
+              context,
+              allEntries,
             ),
             ActionsSubTab.projects => _buildProjectsView(
               context,
@@ -129,11 +126,12 @@ class _ActionsInboxScreenState extends ConsumerState<ActionsInboxScreen> {
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
           child: Row(
             children: [
-              Text(
-                'Inbox (${inboxItems.length} unclarified)',
-                style: Theme.of(context).textTheme.titleMedium,
+              Expanded(
+                child: Text(
+                  'Inbox (${inboxItems.length} unclarified)',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
               ),
-              const Spacer(),
               if (inboxItems.isNotEmpty)
                 FilledButton.icon(
                   onPressed: () {
@@ -306,6 +304,267 @@ class _ActionsInboxScreenState extends ConsumerState<ActionsInboxScreen> {
     );
   }
 
+  Widget _buildCalendarView(
+    BuildContext context,
+    List<IndexedEntryWithDocument> allEntries,
+  ) {
+    final now = DateTime.now();
+    final todayIso = NlDateParser.formatIsoDate(now);
+    final tomorrowIso = NlDateParser.formatIsoDate(
+      DateTime(now.year, now.month, now.day + 1),
+    );
+    final nextWeekIso = NlDateParser.formatIsoDate(
+      DateTime(now.year, now.month, now.day + 7),
+    );
+
+    // G-05: Calendar accepts ONLY explicit date/time commitments or events;
+    // undated soft next actions never clutter the calendar.
+    final commitments = allEntries.where((e) {
+      if (e.entry.taskState == 'dropped' || e.entry.taskState == 'migrated') {
+        return false;
+      }
+      return e.entry.dueDate != null || e.isEvent;
+    }).toList()
+      ..sort((a, b) {
+        final da = a.entry.dueDate ?? '9999-99-99';
+        final db = b.entry.dueDate ?? '9999-99-99';
+        final cmp = da.compareTo(db);
+        if (cmp != 0) return cmp;
+        final ta = a.entry.dueTime ?? '99:99';
+        final tb = b.entry.dueTime ?? '99:99';
+        return ta.compareTo(tb);
+      });
+
+    final todayItems = commitments
+        .where((e) => e.entry.dueDate == todayIso ||
+            (e.entry.dueDate == null &&
+                e.document.relPath == CadenceFiles.dailyRelPath(now)))
+        .toList();
+    final tomorrowItems =
+        commitments.where((e) => e.entry.dueDate == tomorrowIso).toList();
+    final upcomingWeekItems = commitments.where((e) {
+      final d = e.entry.dueDate;
+      if (d == null) return false;
+      return d.compareTo(tomorrowIso) > 0 && d.compareTo(nextWeekIso) <= 0;
+    }).toList();
+    final laterItems = commitments.where((e) {
+      final d = e.entry.dueDate;
+      if (d == null) return false;
+      return d.compareTo(nextWeekIso) > 0;
+    }).toList();
+    final earlierItems = commitments.where((e) {
+      final d = e.entry.dueDate;
+      if (d == null) return false;
+      return d.compareTo(todayIso) < 0 && !e.isCompletedTask;
+    }).toList();
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Hard-Landscape Calendar (${commitments.length})',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    Text(
+                      'Only explicit date/time commitments appear here — undated tasks stay in Next Actions (G-05).',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              FilledButton.icon(
+                onPressed: () => _openAddCalendarCommitmentDialog(context),
+                icon: const Icon(Icons.event_available, size: 16),
+                label: const Text('Add Commitment'),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: commitments.isEmpty
+              ? const Center(
+                  child: Text(
+                    'No date-specific commitments yet. Add 📅 YYYY-MM-DD to any task or event.',
+                  ),
+                )
+              : ListView(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  children: [
+                    if (earlierItems.isNotEmpty)
+                      _buildCalendarSection(
+                        context,
+                        'EARLIER OPEN COMMITMENTS',
+                        earlierItems,
+                      ),
+                    _buildCalendarSection(
+                      context,
+                      'TODAY ($todayIso)',
+                      todayItems,
+                    ),
+                    _buildCalendarSection(
+                      context,
+                      'TOMORROW ($tomorrowIso)',
+                      tomorrowItems,
+                    ),
+                    if (upcomingWeekItems.isNotEmpty)
+                      _buildCalendarSection(
+                        context,
+                        'NEXT 7 DAYS',
+                        upcomingWeekItems,
+                      ),
+                    if (laterItems.isNotEmpty)
+                      _buildCalendarSection(
+                        context,
+                        'LATER SCHEDULED',
+                        laterItems,
+                      ),
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCalendarSection(
+    BuildContext context,
+    String heading,
+    List<IndexedEntryWithDocument> items,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            child: Text(
+              '$heading (${items.length})',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          if (items.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Text(
+                'No hard commitments scheduled.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            )
+          else
+            for (final item in items) InPlaceTaskTile(item: item),
+        ],
+      ),
+    );
+  }
+
+  void _openAddCalendarCommitmentDialog(BuildContext context) {
+    final now = DateTime.now();
+    final titleCtrl = TextEditingController();
+    final dateCtrl = TextEditingController(
+      text: NlDateParser.formatIsoDate(now),
+    );
+    final timeCtrl = TextEditingController();
+    var isEvent = true;
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Add Hard-Landscape Commitment (G-05)'),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment(value: true, label: Text('○ Event')),
+                    ButtonSegment(value: false, label: Text('[ ] Due Task')),
+                  ],
+                  selected: {isEvent},
+                  onSelectionChanged: (s) =>
+                      setDialogState(() => isEvent = s.first),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: titleCtrl,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Commitment title',
+                    hintText: 'e.g. Dentist appointment',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: dateCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Date (YYYY-MM-DD)',
+                          prefixText: '📅 ',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: timeCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Time (optional HH:MM)',
+                          prefixText: '⏰ ',
+                          hintText: '14:00',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final title = titleCtrl.text.trim();
+                final date = dateCtrl.text.trim();
+                final time = timeCtrl.text.trim();
+                if (title.isEmpty || date.isEmpty) return;
+
+                final prefix = isEvent ? '- ○ ' : '- [ ] ';
+                final timePart = time.isNotEmpty ? ' ⏰$time' : '';
+                final line = '$prefix$title 📅 $date$timePart';
+
+                await ref.read(vaultMutationProvider).captureLine(
+                  rawInput: line,
+                  toTodayLog: true,
+                  defaultPrefix: prefix,
+                );
+                if (ctx.mounted) Navigator.of(ctx).pop();
+              },
+              child: const Text('Schedule'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildProjectsView(
     BuildContext context,
     List<Document> allDocs,
@@ -419,19 +678,48 @@ class _ActionsInboxScreenState extends ConsumerState<ActionsInboxScreen> {
     );
   }
 
-  void _openCreateProjectDialog(BuildContext context) {
-    final titleCtrl = TextEditingController();
-    final outcomeCtrl = TextEditingController();
-    final nextActionCtrl = TextEditingController();
+  void _openCreateProjectDialog(
+    BuildContext context, {
+    String? initialTitle,
+    IndexedEntryWithDocument? promoteFromEntry,
+    VoidCallback? onCreated,
+  }) {
+    showCreateProjectDialogWithOutcomePrompt(
+      context,
+      ref,
+      initialTitle: initialTitle,
+      promoteFromEntry: promoteFromEntry,
+      onCreated: onCreated,
+    );
+  }
+}
 
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
+/// Shared Project Creation Dialog (`D-03`, `G-03`) that prompts for Project
+/// Outcome and at least one physical Next Action, displaying a gentle skippable
+/// warning if either is omitted so projects don't start out as "Zombie Projects"
+/// (`D-04`).
+void showCreateProjectDialogWithOutcomePrompt(
+  BuildContext context,
+  WidgetRef ref, {
+  String? initialTitle,
+  IndexedEntryWithDocument? promoteFromEntry,
+  VoidCallback? onCreated,
+}) {
+  final titleCtrl = TextEditingController(text: initialTitle ?? '');
+  final outcomeCtrl = TextEditingController();
+  final nextActionCtrl = TextEditingController();
+  var warnedAboutSkip = false;
+
+  showDialog<void>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setDialogState) => AlertDialog(
         title: const Text('New Project (G-03)'),
         content: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
+          constraints: const BoxConstraints(maxWidth: 440),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TextField(
                 controller: titleCtrl,
@@ -439,13 +727,14 @@ class _ActionsInboxScreenState extends ConsumerState<ActionsInboxScreen> {
                   labelText: 'Project Name',
                   hintText: 'e.g. Renew Passport',
                 ),
-                autofocus: true,
+                autofocus: initialTitle == null || initialTitle.isEmpty,
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: outcomeCtrl,
+                autofocus: initialTitle != null && initialTitle.isNotEmpty,
                 decoration: const InputDecoration(
-                  labelText: 'Desired Successful Outcome',
+                  labelText: 'Desired Successful Outcome (G-03)',
                   hintText: 'e.g. Valid passport in hand before July trip',
                 ),
               ),
@@ -453,10 +742,28 @@ class _ActionsInboxScreenState extends ConsumerState<ActionsInboxScreen> {
               TextField(
                 controller: nextActionCtrl,
                 decoration: const InputDecoration(
-                  labelText: 'First Physical Next Action (prevents Zombie Project)',
+                  labelText:
+                      'First Physical Next Action (prevents Zombie Project)',
                   hintText: 'e.g. Download renewal form PDF @computer',
                 ),
               ),
+              if (warnedAboutSkip) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Theme.of(ctx).colorScheme.tertiaryContainer,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '⚠️ GTD Tip (G-03 / D-04): Creating a project without an Outcome and at least one Next Action makes it a "Zombie Project". You can add one above, or click "Create Anyway (Skip)" to proceed.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(ctx).colorScheme.onTertiaryContainer,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -469,20 +776,32 @@ class _ActionsInboxScreenState extends ConsumerState<ActionsInboxScreen> {
             onPressed: () async {
               final title = titleCtrl.text.trim();
               if (title.isEmpty) return;
+              final outcome = outcomeCtrl.text.trim();
+              final nextAction = nextActionCtrl.text.trim();
+
+              if (!warnedAboutSkip && (outcome.isEmpty || nextAction.isEmpty)) {
+                setDialogState(() => warnedAboutSkip = true);
+                return;
+              }
+
               await ref.read(vaultMutationProvider).createNoteOrProject(
                 title: title,
                 docType: 'project',
-                outcome: outcomeCtrl.text.trim(),
-                firstNextAction: nextActionCtrl.text.trim(),
+                outcome: outcome,
+                firstNextAction: nextAction,
+                promoteFromEntry: promoteFromEntry,
               );
               if (ctx.mounted) Navigator.of(ctx).pop();
+              onCreated?.call();
             },
-            child: const Text('Create Project'),
+            child: Text(
+              warnedAboutSkip ? 'Create Anyway (Skip)' : 'Create Project',
+            ),
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
 }
 
 /// Project card with automatic Zombie-Project warning (`D-04`) and inline
@@ -557,32 +876,31 @@ class _ProjectCardState extends ConsumerState<_ProjectCard> {
                 if (widget.isZombie)
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+                      horizontal: 6,
+                      vertical: 3,
                     ),
                     decoration: BoxDecoration(
                       color: colorScheme.errorContainer,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      '⚠️ Needs Next Action (D-04)',
+                      '⚠️ Needs Next Action',
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 10,
                         fontWeight: FontWeight.bold,
                         color: colorScheme.onErrorContainer,
                       ),
                     ),
                   ),
-                const SizedBox(width: 8),
-                TextButton.icon(
+                IconButton(
+                  tooltip: 'Open Project Note',
                   onPressed: () {
                     context.push(
                       '/documents/${widget.project.id}',
                       extra: widget.project,
                     );
                   },
-                  icon: const Icon(Icons.open_in_new, size: 15),
-                  label: const Text('Open Note'),
+                  icon: const Icon(Icons.open_in_new, size: 16),
                 ),
               ],
             ),
@@ -666,8 +984,8 @@ class _ClarifyDeckModalState extends ConsumerState<_ClarifyDeckModal> {
     final now = DateTime.now();
 
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -685,39 +1003,34 @@ class _ClarifyDeckModalState extends ConsumerState<_ClarifyDeckModal> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             LinearProgressIndicator(value: (_index + 1) / widget.items.length),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             Card(
               elevation: 2,
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(10),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('INBOX ITEM', style: theme.textTheme.labelSmall),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     Text(
                       item.entry.textContent,
-                      style: theme.textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Is this actionable? What is the very next physical step?',
-                      style: theme.textTheme.bodySmall,
+                      style: theme.textTheme.titleMedium,
                     ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Text(
               'ACTIONABLE',
               style: theme.textTheme.labelSmall?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -757,44 +1070,38 @@ class _ClarifyDeckModalState extends ConsumerState<_ClarifyDeckModal> {
                     child: Text('Next Action @$ctx'),
                   ),
                 OutlinedButton.icon(
-                  onPressed: () async {
-                    await ref.read(vaultMutationProvider).updateEntryInPlace(
-                      item,
-                      newState: TaskStateKind.waitingFor,
-                      addTag: 'waiting-for',
-                    );
-                    _advance();
-                  },
+                  onPressed: () => _promptScheduleOnCalendar(context, item),
+                  icon: const Icon(Icons.event, size: 16),
+                  label: const Text('Schedule on Calendar (G-05)'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => _promptDelegateWaitingFor(context, item),
                   icon: const Icon(Icons.hourglass_top, size: 16),
                   label: const Text('Delegate / Waiting For ([w])'),
                 ),
                 OutlinedButton.icon(
-                  onPressed: () async {
-                    await ref.read(vaultMutationProvider).createNoteOrProject(
-                      title: item.entry.textContent,
-                      docType: 'project',
-                      firstNextAction: 'Define first step for ${item.entry.textContent}',
+                  onPressed: () {
+                    showCreateProjectDialogWithOutcomePrompt(
+                      context,
+                      ref,
+                      initialTitle: item.entry.textContent,
                       promoteFromEntry: item,
+                      onCreated: _advance,
                     );
-                    await ref.read(vaultMutationProvider).setTaskStateInPlace(
-                      item,
-                      TaskStateKind.migrated,
-                    );
-                    _advance();
                   },
                   icon: const Icon(Icons.folder_outlined, size: 16),
-                  label: const Text('Promote to Project'),
+                  label: const Text('Promote to Project (G-03)'),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Text(
               'NOT ACTIONABLE RIGHT NOW',
               style: theme.textTheme.labelSmall?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -813,23 +1120,15 @@ class _ClarifyDeckModalState extends ConsumerState<_ClarifyDeckModal> {
                     _advance();
                   },
                   icon: const Icon(Icons.spa_outlined, size: 16),
-                  label: const Text('Someday / Maybe'),
+                  label: const Text('Someday / Maybe (D-05)'),
                 ),
                 OutlinedButton.icon(
                   onPressed: () async {
-                    await ref.read(vaultMutationProvider).createNoteOrProject(
-                      title: item.entry.textContent,
-                      docType: 'note',
-                      promoteFromEntry: item,
-                    );
-                    await ref.read(vaultMutationProvider).setTaskStateInPlace(
-                      item,
-                      TaskStateKind.migrated,
-                    );
+                    await ref.read(vaultMutationProvider).fileToReference(item);
                     _advance();
                   },
                   icon: const Icon(Icons.menu_book_outlined, size: 16),
-                  label: const Text('File as Reference Note'),
+                  label: const Text('File to Reference (D-07)'),
                 ),
                 TextButton.icon(
                   onPressed: () async {
@@ -848,5 +1147,145 @@ class _ClarifyDeckModalState extends ConsumerState<_ClarifyDeckModal> {
         ),
       ),
     );
+  }
+
+  Future<void> _promptDelegateWaitingFor(
+    BuildContext context,
+    IndexedEntryWithDocument item,
+  ) async {
+    final whoCtrl = TextEditingController();
+    final dateCtrl = TextEditingController();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delegate / Waiting For (D-06)'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: whoCtrl,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Person or system you are waiting on',
+                hintText: 'e.g. Alex, IT Support, Vendor',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: dateCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Follow-up date (optional YYYY-MM-DD)',
+                prefixText: '📅 ',
+                hintText: '2026-11-05',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Mark Waiting For ([w])'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await ref.read(vaultMutationProvider).delegateToWaitingFor(
+        item,
+        delegateTo: whoCtrl.text,
+        followUpDate: dateCtrl.text,
+      );
+      _advance();
+    }
+    whoCtrl.dispose();
+    dateCtrl.dispose();
+  }
+
+  Future<void> _promptScheduleOnCalendar(
+    BuildContext context,
+    IndexedEntryWithDocument item,
+  ) async {
+    final now = DateTime.now();
+    final dateCtrl = TextEditingController(
+      text: NlDateParser.formatIsoDate(
+        DateTime(now.year, now.month, now.day + 1),
+      ),
+    );
+    final timeCtrl = TextEditingController();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Schedule on Hard-Landscape Calendar (G-05)'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: dateCtrl,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Commitment Date (YYYY-MM-DD)',
+                prefixText: '📅 ',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: timeCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Time (optional HH:MM)',
+                prefixText: '⏰ ',
+                hintText: '10:00',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Schedule'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final dateStr = dateCtrl.text.trim();
+      final timeStr = timeCtrl.text.trim();
+      if (dateStr.isNotEmpty) {
+        await ref.read(vaultMutationProvider).updateEntryInPlace(
+          item,
+          newState: TaskStateKind.open,
+          dueDate: dateStr,
+          dueTime: timeStr.isNotEmpty ? timeStr : null,
+        );
+        await ref.read(vaultMutationProvider).migrateOrScheduleEntry(
+          item,
+          targetRelPath: CadenceFiles.dailyRelPath(now),
+          targetInitialContent: CadenceFiles.defaultContentForCadence(
+            CadenceKind.daily,
+            now,
+          ),
+          sourceMarker: TaskStateKind.scheduled,
+          overrideDueDate: dateStr,
+        );
+        _advance();
+      }
+    }
+    dateCtrl.dispose();
+    timeCtrl.dispose();
   }
 }

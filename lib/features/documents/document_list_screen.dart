@@ -8,6 +8,7 @@ import '../../core/index/index_providers.dart';
 enum IndexFilterKind {
   all('All'),
   notes('Notes'),
+  reference('Reference'),
   projects('Projects'),
   collections('Collections'),
   logs('Logs');
@@ -47,6 +48,10 @@ class _DocumentListScreenState extends ConsumerState<DocumentListScreen> {
         return true;
       case IndexFilterKind.notes:
         return doc.docType == 'note';
+      case IndexFilterKind.reference:
+        return doc.docType == 'reference' ||
+            doc.relPath == CadenceFiles.referenceRelPath ||
+            doc.relPath.startsWith('reference/');
       case IndexFilterKind.projects:
         return doc.docType == 'project' || doc.relPath.startsWith('projects/');
       case IndexFilterKind.collections:

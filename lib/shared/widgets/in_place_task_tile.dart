@@ -144,6 +144,43 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
     );
   }
 
+  Future<void> _promptCustomContext(BuildContext context) async {
+    final controller = TextEditingController();
+    final added = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add Custom @Context (D-08)'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Context name (e.g. office, garage, agenda-alex)',
+            prefixText: '@',
+            border: OutlineInputBorder(),
+          ),
+          onSubmitted: (v) => Navigator.of(ctx).pop(v),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text),
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (added != null && added.trim().isNotEmpty) {
+      await ref.read(vaultMutationProvider).updateEntryInPlace(
+        widget.item,
+        addContext: added.trim(),
+      );
+    }
+  }
+
   Future<void> _migrateToToday() async {
     final now = DateTime.now();
     final todayRelPath = CadenceFiles.dailyRelPath(now);
@@ -458,13 +495,24 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
                           label: const Text('Clear 📅'),
                           onPressed: () => _setQuickDate(null),
                         ),
-                      for (final ctx in const ['computer', 'phone', 'errands', 'home'])
+                      for (final ctx in <String>{
+                        'computer',
+                        'phone',
+                        'errands',
+                        'home',
+                        ...widget.item.contexts,
+                      })
                         FilterChip(
                           visualDensity: VisualDensity.compact,
                           label: Text('@$ctx'),
                           selected: widget.item.contexts.contains(ctx),
                           onSelected: (_) => _toggleContext(ctx),
                         ),
+                      ActionChip(
+                        visualDensity: VisualDensity.compact,
+                        label: const Text('+ @context'),
+                        onPressed: () => _promptCustomContext(context),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),

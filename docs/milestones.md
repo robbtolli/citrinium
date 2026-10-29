@@ -49,12 +49,16 @@ Full versions of the data-model pieces Clarify (M3) and Weekly Review (M10) depe
 **Full-build dependencies:** D-03 (Projects), D-04 (zombie-project detection), D-05 (Someday/Maybe), D-06 (Waiting For).
 **Cheap-adjacent:** G-03 (project outcome + next-action prompt), G-04 (context-filterable next-action lists — doubles as a minimal Engage view for v1).
 
+**Status:** Completed
+
 ## M3 — Clarify Flow & Calendar
 
 The GTD decision-tree flow routing inbox items to the primitives built in M2, plus the hard-landscape calendar surface it routes into.
 
 **Requirements:** **G-01**.
 **Full-build dependency:** G-05 (Calendar).
+
+**Status:** Completed
 
 ## M4 — Weekly/Monthly/Future Logs, Configurable Cadences & Collections
 
