@@ -35,11 +35,14 @@ class InPlaceTaskTile extends ConsumerStatefulWidget {
 class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
   bool _expanded = false;
   late TextEditingController _textController;
+  late TextEditingController _childNoteController;
+  bool _loadedChildNote = false;
 
   @override
   void initState() {
     super.initState();
     _textController = TextEditingController(text: widget.item.entry.textContent);
+    _childNoteController = TextEditingController();
   }
 
   @override
@@ -54,7 +57,28 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
   @override
   void dispose() {
     _textController.dispose();
+    _childNoteController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadChildNoteFromDisk() async {
+    try {
+      final raw = await ref.read(
+        documentRawTextProvider(widget.item.document.relPath).future,
+      );
+      if (!mounted) return;
+      final doc = MarkdownDocument.parse(raw);
+      final idx = widget.item.entry.lineIndex;
+      if (idx >= 0 && idx < doc.lines.length) {
+        final childText = doc.readChildBlockText(idx);
+        setState(() {
+          _childNoteController.text = childText;
+          _loadedChildNote = true;
+        });
+      }
+    } catch (_) {
+      // Ignore if document is still loading
+    }
   }
 
   Future<void> _toggleCompleted() async {
@@ -72,6 +96,7 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
     await ref.read(vaultMutationProvider).updateEntryInPlace(
       widget.item,
       newContent: newText,
+      newChildNoteBody: _loadedChildNote ? _childNoteController.text : null,
     );
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -261,6 +286,7 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
                 _expanded = !_expanded;
                 if (_expanded) {
                   _textController.text = widget.item.entry.textContent;
+                  _loadChildNoteFromDisk();
                 }
               });
             },
@@ -388,6 +414,20 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
                     ],
                   ),
                   const SizedBox(height: 8),
+                  // Indented Markdown note body / comment editor (D-14, D-18)
+                  TextField(
+                    controller: _childNoteController,
+                    minLines: 1,
+                    maxLines: 3,
+                    onChanged: (_) => _loadedChildNote = true,
+                    decoration: const InputDecoration(
+                      labelText:
+                          'Indented note / comment (stored beneath line in .md)',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   // Quick Date & Context chips
                   Wrap(
                     spacing: 6,
@@ -473,6 +513,14 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
                         onPressed: _dropTask,
                         icon: const Icon(Icons.close, size: 16),
                         label: const Text('Drop'),
+                      ),
+                      const Tooltip(
+                        message:
+                            'Time-based Snooze depends on native reminders infrastructure (Milestone 8). Use 📅 Tomorrow / +1 Week to reschedule now.',
+                        child: OutlinedButton(
+                          onPressed: null,
+                          child: Text('Snooze (M8)'),
+                        ),
                       ),
                     ],
                   ),

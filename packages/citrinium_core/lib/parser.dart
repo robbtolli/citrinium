@@ -7,6 +7,7 @@
 /// of a document is exactly its `rawText`.
 library;
 
+export 'src/domain/entry_hierarchy.dart';
 export 'src/parser/bujo.dart';
 export 'src/parser/frontmatter.dart';
 export 'src/parser/inline_metadata.dart';

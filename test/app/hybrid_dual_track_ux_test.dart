@@ -110,12 +110,17 @@ void main() {
           findsOneWidget,
         );
 
-        // Edit the task text in-place and click Save
+        // Edit the task text AND indented note/comment (D-14, D-18) in-place and click Save
         final editField = find.widgetWithText(
           TextField,
           'Edit task in-place (updates source .md file)',
         );
+        final childNoteField = find.widgetWithText(
+          TextField,
+          'Indented note / comment (stored beneath line in .md)',
+        );
         await tester.enterText(editField, 'Send updated Q4 summary @computer');
+        await tester.enterText(childNoteField, 'Include slides link');
         await tester.tap(find.text('Save'));
         await tester.pump();
 
@@ -123,14 +128,14 @@ void main() {
           tester,
           () => File(p.join(vault.path, 'note.md'))
               .readAsStringSync()
-              .contains('Send updated Q4 summary @computer'),
+              .contains('Include slides link'),
         );
 
         final updatedNoteContent =
             await File(p.join(vault.path, 'note.md')).readAsString();
         expect(
           updatedNoteContent,
-          '# Meeting Notes\n\n- [ ] Send updated Q4 summary @computer\n',
+          '# Meeting Notes\n\n- [ ] Send updated Q4 summary @computer\n  Include slides link\n',
         );
 
         // 3. Navigate to Horizons & Review pillar and verify Weekly cadence (B-02, B-12)

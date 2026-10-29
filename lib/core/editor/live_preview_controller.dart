@@ -153,6 +153,7 @@ class LivePreviewController extends TextEditingController {
         if (isComposingCovered) {
           spans.add(TextSpan(text: spanText, style: style));
         } else {
+          final spanStartOffset = currentOffset;
           final span = decTheme.buildSpan(
             spanText: spanText,
             decoration: dec,
@@ -160,14 +161,14 @@ class LivePreviewController extends TextEditingController {
             isSourceMode: _sourceMode,
             onCheckboxTap: (markerChar) {
               if (onTaskCheckboxTapped != null) {
-                onTaskCheckboxTapped!(currentOffset, markerChar);
+                onTaskCheckboxTapped!(spanStartOffset, markerChar);
               } else {
-                _toggleCheckboxAt(currentOffset, markerChar);
+                _toggleCheckboxAt(spanStartOffset, markerChar);
               }
             },
             onCheckboxLongPress: (markerChar) {
               if (onTaskCheckboxLongPressed != null) {
-                onTaskCheckboxLongPressed!(currentOffset, markerChar);
+                onTaskCheckboxLongPressed!(spanStartOffset, markerChar);
               }
             },
           );

@@ -39,7 +39,7 @@ Unified entry type (task/event/note/untyped), a dedicated `inbox.md` (distinct f
 
 **Detailed plan:** [`milestones/m1.md`](milestones/m1.md)
 
-**Status:** in progress
+**Status:** Completed
 
 ## M2 — Organize Primitives: Projects, Someday/Maybe, Waiting For, Reference, Contexts
 

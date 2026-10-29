@@ -39,20 +39,34 @@ void main() {
     });
 
     test('does not false-positive on ordinary text or existing 📅 metadata', () {
-      expect(
-        NlDateParser.detect(
-          'Review architecture doc for version 2',
-          referenceNow: referenceNow,
-        ),
-        isNull,
-      );
-      expect(
-        NlDateParser.detect(
-          '- [ ] Existing task 📅 2026-10-30',
-          referenceNow: referenceNow,
-        ),
-        isNull,
-      );
+      const falsePositiveCorpus = [
+        'Review architecture doc for version 2',
+        'May 3rd project retrospective notes',
+        'May I ask a question about the API',
+        'March forward with the migration plan',
+        'Sat on the patio and read chapter 4',
+        'Buy sun block and 5 apples',
+        '- [ ] Existing task 📅 2026-10-30',
+        '- [ ] Existing time ⏰14:30',
+      ];
+
+      for (final phrase in falsePositiveCorpus) {
+        expect(
+          NlDateParser.detect(phrase, referenceNow: referenceNow),
+          isNull,
+          reason: 'Should not false-positive on: "$phrase"',
+        );
+      }
+    });
+
+    test('replaces existing 📅 singleton field when a new NL date is confirmed', () {
+      const input = '- [ ] Submit report 📅 2026-10-20 tomorrow @work';
+      final match = NlDateParser.detect(input, referenceNow: referenceNow);
+      expect(match, isNotNull);
+      expect(match!.dueDate, '2026-10-29');
+
+      final rewritten = match.applyToLineText(input);
+      expect(rewritten, '- [ ] Submit report 📅 2026-10-29 @work');
     });
   });
 

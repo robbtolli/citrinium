@@ -240,11 +240,13 @@ class VaultMutationService {
     await _notifyFileUpdated(services, relPath);
   }
 
-  /// Edits an entry's text content and/or inline metadata (`📅`, `⏰`, `@context`,
-  /// `#tag`) in-place inside its source `.md` file without navigating away (`D-19`).
+  /// Edits an entry's text content, inline metadata (`📅`, `⏰`, `@context`,
+  /// `#tag`), and/or indented child note/comment block (`D-14`, `D-18`) in-place
+  /// inside its source `.md` file without navigating away (`D-19`).
   Future<void> updateEntryInPlace(
     IndexedEntryWithDocument item, {
     String? newContent,
+    String? newChildNoteBody,
     TaskStateKind? newState,
     String? dueDate,
     bool clearDueDate = false,
@@ -327,6 +329,9 @@ class VaultMutationService {
               clean,
             );
           }
+        }
+        if (newChildNoteBody != null) {
+          updated = updated.replaceChildBlockText(idx, newChildNoteBody);
         }
         return updated;
       },

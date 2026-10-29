@@ -207,6 +207,125 @@ class MarkdownDocument {
     return MarkdownDocument.parse(newText);
   }
 
+  /// Returns the range of line indices `[startChildIdx, endChildIdxExclusive)`
+  /// that form the single-level indented note/comment block (`D-14`, `D-18`)
+  /// immediately beneath `lines[parentLineIndex]`.
+  ({int startLine, int endLineExclusive, int childIndentCols})
+  childBlockRangeForLine(int parentLineIndex) {
+    final parent = _requireLine(parentLineIndex);
+    final parentLineText = rawText.substring(parent.span.start, parent.span.end);
+    final parentIndentCols = _leadingIndentColumns(parentLineText);
+    final minChildIndentCols = parentIndentCols + 2;
+
+    final startLine = parentLineIndex + 1;
+    var scanLine = startLine;
+    var lastNonBlankChildLine = -1;
+
+    while (scanLine < lines.length) {
+      final candidate = lines[scanLine];
+      if (candidate.kind == LineKind.heading ||
+          candidate.kind == LineKind.codeFenceDelimiter) {
+        break;
+      }
+      if (candidate.kind == LineKind.blank) {
+        scanLine++;
+        continue;
+      }
+      final candidateText = rawText.substring(
+        candidate.span.start,
+        candidate.span.end,
+      );
+      final indentCols = _leadingIndentColumns(candidateText);
+      if (indentCols >= minChildIndentCols) {
+        lastNonBlankChildLine = scanLine;
+        scanLine++;
+      } else {
+        break;
+      }
+    }
+
+    final endExclusive =
+        lastNonBlankChildLine == -1 ? startLine : lastNonBlankChildLine + 1;
+    return (
+      startLine: startLine,
+      endLineExclusive: endExclusive,
+      childIndentCols: minChildIndentCols,
+    );
+  }
+
+  /// Reads the de-indented note/comment body (`D-14`, `D-18`) attached beneath
+  /// `lines[parentLineIndex]`. Returns an empty string if the line has no
+  /// indented child lines.
+  String readChildBlockText(int parentLineIndex) {
+    final range = childBlockRangeForLine(parentLineIndex);
+    if (range.endLineExclusive <= range.startLine) return '';
+
+    final buffer = <String>[];
+    for (var i = range.startLine; i < range.endLineExclusive; i++) {
+      final line = lines[i];
+      final rawLine = rawText.substring(line.span.start, line.span.end);
+      buffer.add(_stripIndentColumns(rawLine, range.childIndentCols));
+    }
+    return buffer.join('\n');
+  }
+
+  /// Replaces (or inserts/removes) the indented child note/comment block
+  /// (`D-14`, `D-18`) beneath `lines[parentLineIndex]` while preserving every
+  /// other byte and line ending in [rawText].
+  MarkdownDocument replaceChildBlockText(
+    int parentLineIndex,
+    String newChildBody,
+  ) {
+    final parent = _requireLine(parentLineIndex);
+    _requireEditableLine(parentLineIndex, parent);
+
+    final range = childBlockRangeForLine(parentLineIndex);
+    final ending = _lineEndingLiteral(detectLineEndingStyle(rawText));
+    final indentPrefix = ' ' * range.childIndentCols;
+
+    final normalizedTrimmed = newChildBody.replaceAll('\r\n', '\n').trimRight();
+    final hasNewBody = normalizedTrimmed.trim().isNotEmpty;
+
+    final formattedChildLines = hasNewBody
+        ? normalizedTrimmed
+            .split('\n')
+            .map((l) => l.trim().isEmpty ? '' : '$indentPrefix$l')
+            .join(ending)
+        : '';
+
+    final hasExistingBlock = range.endLineExclusive > range.startLine;
+
+    if (hasExistingBlock) {
+      final firstChild = lines[range.startLine];
+      final lastChild = lines[range.endLineExclusive - 1];
+      if (hasNewBody) {
+        final newText = rawText.replaceRange(
+          firstChild.span.start,
+          lastChild.span.end,
+          formattedChildLines,
+        );
+        return MarkdownDocument.parse(newText);
+      } else {
+        // Remove from the end of the parent line through the end of lastChild
+        final newText = rawText.replaceRange(
+          parent.span.end,
+          lastChild.span.end,
+          '',
+        );
+        return MarkdownDocument.parse(newText);
+      }
+    } else {
+      if (!hasNewBody) return this;
+      final insertAt = parent.span.end;
+      final newText = rawText.replaceRange(
+        insertAt,
+        insertAt,
+        '$ending$formattedChildLines',
+      );
+      return MarkdownDocument.parse(newText);
+    }
+  }
+
   /// Sets the task at `lines[lineIndex]`'s marker character verbatim to
   /// [markerChar] (exactly one code unit), preserving unrecognized/custom
   /// statuses rather than requiring them to round-trip through
@@ -430,6 +549,39 @@ class MarkdownDocument {
 
 bool _isSpaceOrTab(String text, int index) =>
     text[index] == ' ' || text[index] == '\t';
+
+int _leadingIndentColumns(String lineText) {
+  var cols = 0;
+  for (var i = 0; i < lineText.length; i++) {
+    final ch = lineText[i];
+    if (ch == ' ') {
+      cols += 1;
+    } else if (ch == '\t') {
+      cols += 2;
+    } else {
+      break;
+    }
+  }
+  return cols;
+}
+
+String _stripIndentColumns(String lineText, int maxColsToStrip) {
+  var strippedCols = 0;
+  var index = 0;
+  while (index < lineText.length && strippedCols < maxColsToStrip) {
+    final ch = lineText[index];
+    if (ch == ' ') {
+      strippedCols += 1;
+      index++;
+    } else if (ch == '\t') {
+      strippedCols += 2;
+      index++;
+    } else {
+      break;
+    }
+  }
+  return lineText.substring(index);
+}
 
 /// `YamlEditor.update` requires every element of `path` except the last to
 /// already exist (it won't auto-vivify intermediate maps the way, say,
