@@ -249,6 +249,112 @@ extension IndexDatabaseOperations on IndexDatabase {
             ..orderBy([(t) => OrderingTerm.asc(t.lineIndex)]))
           .watch();
 
+  /// Streams every indexed [Entry] across the entire vault joined with its
+  /// owning [Document], `@contexts`, and `#tags`. Used by Today's Focus Shelf,
+  /// Next Actions, Inbox Clarify, Projects, Waiting For, Someday/Maybe, and
+  /// Review rituals so any entry can be displayed and edited in-place (`D-19`).
+  Stream<List<IndexedEntryWithDocument>> watchAllEntriesWithDocuments() {
+    final entriesStream = (select(entries)
+          ..orderBy([
+            (t) => OrderingTerm.asc(t.documentId),
+            (t) => OrderingTerm.asc(t.lineIndex),
+          ]))
+        .watch();
+
+    return entriesStream.asyncMap((allEntries) async {
+      if (allEntries.isEmpty) return const <IndexedEntryWithDocument>[];
+      final allDocs = await select(documents).get();
+      final docById = <int, Document>{for (final d in allDocs) d.id: d};
+
+      final allContexts = await select(entryContexts).get();
+      final contextsByEntry = <int, List<String>>{};
+      for (final c in allContexts) {
+        contextsByEntry.putIfAbsent(c.entryId, () => []).add(c.context);
+      }
+
+      final allTags = await select(entryTags).get();
+      final tagsByEntry = <int, List<String>>{};
+      for (final t in allTags) {
+        tagsByEntry.putIfAbsent(t.entryId, () => []).add(t.tag);
+      }
+
+      final result = <IndexedEntryWithDocument>[];
+      for (final entry in allEntries) {
+        final doc = docById[entry.documentId];
+        if (doc == null) continue;
+        result.add(
+          IndexedEntryWithDocument(
+            entry: entry,
+            document: doc,
+            contexts: List.unmodifiable(contextsByEntry[entry.id] ?? const []),
+            tags: List.unmodifiable(tagsByEntry[entry.id] ?? const []),
+          ),
+        );
+      }
+      return result;
+    });
+  }
+
+  /// Watches incoming `[[wikilinks]]` pointing at [targetDocumentId], paired
+  /// with the source [Document] (`N-02`, `D-12`).
+  Stream<List<BacklinkItem>> watchBacklinksForDocument(int targetDocumentId) {
+    final linkStream = (select(links)
+          ..where((t) => t.targetDocumentId.equals(targetDocumentId)))
+        .watch();
+    return linkStream.asyncMap((rows) async {
+      if (rows.isEmpty) return const <BacklinkItem>[];
+      final allDocs = await select(documents).get();
+      final docById = <int, Document>{for (final d in allDocs) d.id: d};
+      return [
+        for (final row in rows)
+          if (docById[row.sourceDocumentId] != null)
+            BacklinkItem(
+              link: row,
+              sourceDocument: docById[row.sourceDocumentId]!,
+            ),
+      ];
+    });
+  }
+
+  /// Full-text search across `document_fts` (`N-03`, `FR-06`).
+  Future<List<Document>> searchDocuments(String rawQuery) async {
+    final trimmed = rawQuery.trim();
+    if (trimmed.isEmpty) {
+      return (select(documents)..orderBy([(t) => OrderingTerm.asc(t.relPath)])).get();
+    }
+    // Sanitize FTS5 query tokens into prefix matches
+    final tokens = trimmed
+        .split(RegExp(r'\s+'))
+        .map((t) => t.replaceAll(RegExp(r'[^\w\-]'), ''))
+        .where((t) => t.isNotEmpty)
+        .toList();
+    if (tokens.isEmpty) return const [];
+    final ftsQuery = tokens.map((t) => '"$t"*').join(' AND ');
+    try {
+      final rows = await customSelect(
+        'SELECT rowid FROM document_fts WHERE document_fts MATCH ? LIMIT 50;',
+        variables: [Variable.withString(ftsQuery)],
+      ).get();
+      final ids = rows.map((r) => r.read<int>('rowid')).toSet();
+      if (ids.isEmpty) return const [];
+      return await (select(documents)
+            ..where((t) => t.id.isIn(ids))
+            ..orderBy([(t) => OrderingTerm.asc(t.relPath)]))
+          .get();
+    } on Object {
+      // Fallback to case-insensitive substring match if FTS syntax is unusual
+      final lower = trimmed.toLowerCase();
+      final all = await select(documents).get();
+      return all
+          .where(
+            (d) =>
+                d.title.toLowerCase().contains(lower) ||
+                d.relPath.toLowerCase().contains(lower),
+          )
+          .toList();
+    }
+  }
+
   /// Summary stats for the settings screen (W4).
   Future<IndexStats> stats() async {
     final documentCount =
@@ -316,4 +422,55 @@ class IndexStats {
   final int? lastIndexedAtMs;
   final String? parserVersion;
   final String? vaultFingerprint;
+}
+
+/// An indexed [Entry] paired with its owning [Document], `@contexts`, and
+/// `#tags` for aggregated views and in-place task editing (`D-19`).
+class IndexedEntryWithDocument {
+  const IndexedEntryWithDocument({
+    required this.entry,
+    required this.document,
+    required this.contexts,
+    required this.tags,
+  });
+
+  final Entry entry;
+  final Document document;
+  final List<String> contexts;
+  final List<String> tags;
+
+  /// Stable key across UI lists (`relPath:lineIndex`).
+  String get uniqueKey => '${document.relPath}:${entry.lineIndex}';
+
+  bool get isTask => entry.kind == 'task';
+  bool get isEvent => entry.kind == 'event';
+  bool get isNote => entry.kind == 'note';
+  bool get isUntyped => entry.kind == 'untyped';
+
+  bool get isOpenTask =>
+      isTask && (entry.taskState == 'open' || entry.taskState == 'inProgress');
+  bool get isCompletedTask => isTask && entry.taskState == 'completed';
+  bool get isWaitingTask =>
+      isTask &&
+      (entry.taskState == 'waitingFor' ||
+          tags.any((t) => t.startsWith('waiting-for')) ||
+          contexts.contains('waiting-for'));
+  bool get isSomedayTask =>
+      document.relPath == 'someday.md' ||
+      document.docType == 'someday' ||
+      tags.contains('someday');
+  bool get isHabit =>
+      tags.contains('habit') ||
+      (entry.recurrenceRaw != null && entry.recurrenceRaw!.trim().isNotEmpty);
+}
+
+/// An incoming wikilink paired with the source [Document] (`N-02`, `D-12`).
+class BacklinkItem {
+  const BacklinkItem({
+    required this.link,
+    required this.sourceDocument,
+  });
+
+  final LinkRow link;
+  final Document sourceDocument;
 }

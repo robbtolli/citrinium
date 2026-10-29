@@ -32,6 +32,7 @@ class AppServices {
   final StreamSubscription<VaultChangeEvent> watcherSubscription;
 
   Future<void> dispose() async {
+    indexService.markClosed();
     await watcherSubscription.cancel();
     await watcher.stop();
     await database.close();

@@ -11,6 +11,7 @@ export 'src/parser/bujo.dart';
 export 'src/parser/frontmatter.dart';
 export 'src/parser/inline_metadata.dart';
 export 'src/parser/markdown_document.dart';
+export 'src/parser/nl_date_parser.dart';
 export 'src/parser/parsed_line.dart';
 export 'src/parser/parser_version.dart';
 export 'src/parser/span.dart';

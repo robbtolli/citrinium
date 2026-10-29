@@ -1,8 +1,10 @@
+import 'package:citrinium_core/citrinium_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/index/index_providers.dart';
 import '../../core/vault/vault_path_provider.dart';
+import '../../core/workspace/workspace_state.dart';
 
 /// Settings screen (`docs/milestones/m0.md` W4): vault path, index stats,
 /// and the "Rebuild index" button -- the manual escape hatch that proves
@@ -38,6 +40,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final vaultPath = ref.watch(vaultPathProvider);
     final statsAsync = ref.watch(indexStatsProvider);
+    final workspace = ref.watch(workspaceStateProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -107,6 +110,84 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onPressed: () => ref.read(vaultPathProvider.notifier).clear(),
               child: const Text('Choose a different vault'),
             ),
+          ),
+          const Divider(height: 32),
+
+          // Configurable Planning & Review Cadences (B-12)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'Planning & Review Cadences (B-12)',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ),
+          for (final cadence in CadenceKind.values)
+            SwitchListTile(
+              title: Text(cadence.label),
+              subtitle: Text(cadence.description),
+              value: workspace.enabledCadences.contains(cadence),
+              onChanged: (enabled) {
+                ref
+                    .read(workspaceStateProvider.notifier)
+                    .toggleCadence(cadence, enabled);
+              },
+            ),
+          const Divider(height: 32),
+
+          // Historical Task Filter Safeguard (A-06)
+          SwitchListTile(
+            title: const Text('14-Day Historical Task Filter (A-06)'),
+            subtitle: const Text(
+              'Only surface undated open tasks from the last 14 days in Next Actions so older notes don\'t flood your active lists.',
+            ),
+            value: workspace.filterOlderUndatedTasks,
+            onChanged: (val) {
+              ref
+                  .read(workspaceStateProvider.notifier)
+                  .setHistoricalTaskFilter(filterOlderUndatedTasks: val);
+            },
+          ),
+          const Divider(height: 32),
+
+          // Portable Data Export (P-11, D-15, T-02)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            child: OutlinedButton.icon(
+              onPressed: () => _showOperationalExportDialog(context, workspace),
+              icon: const Icon(Icons.download_outlined),
+              label: const Text(
+                'Export Operational Data (Markdown / JSON — T-02)',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showOperationalExportDialog(
+    BuildContext context,
+    WorkspaceState workspace,
+  ) {
+    final md = workspace.exportToMarkdown();
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Portable Operational Data Export (P-11, T-02)'),
+        content: SizedBox(
+          width: 480,
+          height: 320,
+          child: SingleChildScrollView(
+            child: SelectableText(
+              md,
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Close'),
           ),
         ],
       ),

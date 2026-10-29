@@ -9,6 +9,8 @@ import '../../core/editor/live_preview_controller.dart';
 import '../../core/editor/live_preview_editor.dart';
 import '../../core/index/app_services.dart';
 import '../../core/index/index_providers.dart';
+import '../../core/workspace/workspace_state.dart';
+import '../../shared/widgets/in_place_task_tile.dart';
 
 /// Full Live Preview Editor screen for Milestone 6.
 class DocumentDetailScreen extends ConsumerStatefulWidget {
@@ -24,6 +26,21 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
   LivePreviewController? _controller;
   EditorSavePipeline? _pipeline;
   String? _loadedRelPath;
+  bool _showBacklinksPanel = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Record visit for 2-hour session continuity & Recent switcher (A-08, N-04)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(workspaceStateProvider.notifier).recordVisitedDocument(
+        relPath: widget.document.relPath,
+        title: widget.document.title,
+        docType: widget.document.docType,
+      );
+    });
+  }
 
   @override
   void dispose() {
@@ -73,9 +90,15 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
     final rawTextAsync = ref.watch(documentRawTextProvider(widget.document.relPath));
     final docsAsync = ref.watch(documentListProvider);
     final appServicesAsync = ref.watch(appServicesProvider);
+    final backlinksAsync = ref.watch(backlinksForDocumentProvider(widget.document.id));
+    final allEntriesAsync = ref.watch(allEntriesWithDocumentsProvider);
 
     final vaultPath = appServicesAsync.value?.vaultPath ?? '';
     final noteTitles = docsAsync.value?.map((d) => d.title.isNotEmpty ? d.title : d.relPath).toList() ?? [];
+    final backlinks = backlinksAsync.value ?? const [];
+    final docTasks = (allEntriesAsync.value ?? const [])
+        .where((e) => e.document.id == widget.document.id && e.isTask)
+        .toList();
 
     return rawTextAsync.when(
       data: (rawText) {
@@ -181,6 +204,104 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
                       controller: controller,
                       noteTitles: noteTitles,
                       onSaveRequested: () => pipeline.saveNow(),
+                    ),
+                  ),
+
+                  // Collapsible Backlinks & Document Tasks Footer (N-02, D-12, D-19)
+                  Material(
+                    color: Theme.of(context).colorScheme.surfaceContainerLow,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Divider(height: 1),
+                        ListTile(
+                          dense: true,
+                          leading: const Icon(Icons.link, size: 18),
+                          title: Text(
+                            'Backlinks (${backlinks.length}) · Tasks in note (${docTasks.length})',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          trailing: Icon(
+                            _showBacklinksPanel
+                                ? Icons.expand_more
+                                : Icons.expand_less,
+                            size: 18,
+                          ),
+                          onTap: () => setState(
+                            () => _showBacklinksPanel = !_showBacklinksPanel,
+                          ),
+                        ),
+                        if (_showBacklinksPanel)
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxHeight: 220),
+                            child: ListView(
+                              shrinkWrap: true,
+                              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                              children: [
+                                if (backlinks.isNotEmpty) ...[
+                                  const Text(
+                                    'LINKED MENTIONS (BACKLINKS)',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  for (final b in backlinks)
+                                    ListTile(
+                                      dense: true,
+                                      leading: const Icon(
+                                        Icons.subdirectory_arrow_right,
+                                        size: 16,
+                                      ),
+                                      title: Text(
+                                        b.sourceDocument.title.isNotEmpty
+                                            ? b.sourceDocument.title
+                                            : b.sourceDocument.relPath,
+                                      ),
+                                      subtitle: Text(b.sourceDocument.relPath),
+                                      onTap: () {
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute<void>(
+                                            builder: (_) => DocumentDetailScreen(
+                                              document: b.sourceDocument,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                ],
+                                if (docTasks.isNotEmpty) ...[
+                                  const SizedBox(height: 6),
+                                  const Text(
+                                    'TASKS IN THIS NOTE (IN-PLACE EDITABLE)',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  for (final t in docTasks)
+                                    InPlaceTaskTile(
+                                      item: t,
+                                      showSourceBadge: false,
+                                      dense: true,
+                                    ),
+                                ],
+                                if (backlinks.isEmpty && docTasks.isEmpty)
+                                  const Padding(
+                                    padding: EdgeInsets.all(8.0),
+                                    child: Text(
+                                      'No incoming [[wikilinks]] or tasks in this note yet.',
+                                      style: TextStyle(fontSize: 12),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ],

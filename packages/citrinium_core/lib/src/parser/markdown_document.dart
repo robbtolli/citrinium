@@ -121,6 +121,92 @@ class MarkdownDocument {
     return setTaskMarkerChar(lineIndex, canonicalMarkerFor(newState));
   }
 
+  /// Replaces the content text of the entry at `lines[lineIndex]` in-place
+  /// (`D-19`), preserving any leading indentation, bullet marker, and
+  /// checkbox (`- [ ] `) or BuJo signifier (`- ○ ` / `- – `).
+  ///
+  /// Throws [MarkdownEditException] if the line is inside a code block.
+  MarkdownDocument replaceEntryContent(int lineIndex, String newContent) {
+    final line = _requireLine(lineIndex);
+    _requireEditableLine(lineIndex, line);
+
+    final task = line.task;
+    if (task != null) {
+      final newText = rawText.replaceRange(
+        task.contentSpan.start,
+        task.contentSpan.end,
+        newContent,
+      );
+      return MarkdownDocument.parse(newText);
+    }
+
+    final bujo = line.bujo;
+    if (bujo != null) {
+      final newText = rawText.replaceRange(
+        bujo.contentSpan.start,
+        bujo.contentSpan.end,
+        newContent,
+      );
+      return MarkdownDocument.parse(newText);
+    }
+
+    final lineText = rawText.substring(line.span.start, line.span.end);
+    final listMatch = RegExp(r'^([ \t]*[-*+][ \t]+)').firstMatch(lineText);
+    if (listMatch != null) {
+      final contentStart = line.span.start + listMatch.group(0)!.length;
+      final newText = rawText.replaceRange(
+        contentStart,
+        line.span.end,
+        newContent,
+      );
+      return MarkdownDocument.parse(newText);
+    }
+
+    final newText = rawText.replaceRange(
+      line.span.start,
+      line.span.end,
+      newContent,
+    );
+    return MarkdownDocument.parse(newText);
+  }
+
+  /// Converts an untyped list item or BuJo line at `lines[lineIndex]` into a
+  /// checkbox task line with [state] (used during GTD Clarify `G-01`). If the
+  /// line is already a task, updates its state to [state].
+  MarkdownDocument convertToTask(
+    int lineIndex, {
+    TaskStateKind state = TaskStateKind.open,
+  }) {
+    final line = _requireLine(lineIndex);
+    _requireEditableLine(lineIndex, line);
+    if (line.kind == LineKind.task) {
+      return setTaskState(lineIndex, state);
+    }
+    final marker = canonicalMarkerFor(state);
+    final bujo = line.bujo;
+    if (bujo != null) {
+      final newText = rawText.replaceRange(
+        bujo.signifierSpan.start,
+        bujo.signifierSpan.end,
+        '[$marker]',
+      );
+      return MarkdownDocument.parse(newText);
+    }
+    final lineText = rawText.substring(line.span.start, line.span.end);
+    final listMatch = RegExp(r'^([ \t]*[-*+][ \t]+)').firstMatch(lineText);
+    if (listMatch != null) {
+      final insertAt = line.span.start + listMatch.group(0)!.length;
+      final newText = rawText.replaceRange(insertAt, insertAt, '[$marker] ');
+      return MarkdownDocument.parse(newText);
+    }
+    final newText = rawText.replaceRange(
+      line.span.start,
+      line.span.start,
+      '- [$marker] ',
+    );
+    return MarkdownDocument.parse(newText);
+  }
+
   /// Sets the task at `lines[lineIndex]`'s marker character verbatim to
   /// [markerChar] (exactly one code unit), preserving unrecognized/custom
   /// statuses rather than requiring them to round-trip through

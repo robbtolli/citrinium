@@ -5,9 +5,9 @@ import 'package:go_router/go_router.dart';
 
 import '../core/vault/vault_path_provider.dart';
 import '../features/document_detail/document_detail_screen.dart';
-import '../features/documents/document_list_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/vault_setup/vault_setup_screen.dart';
+import 'app_shell_scaffold.dart';
 
 /// Bridges Riverpod's `vaultPathProvider` to go_router's `Listenable`-based
 /// refresh mechanism, so the redirect logic in [goRouterProvider] re-runs
@@ -47,7 +47,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/documents',
-        builder: (context, state) => const DocumentListScreen(),
+        builder: (context, state) => const AppShellScaffold(),
+      ),
+      GoRoute(
+        path: '/notes',
+        builder: (context, state) =>
+            const AppShellScaffold(initialPillar: AppPillar.notes),
       ),
       GoRoute(
         path: '/documents/:id',

@@ -48,6 +48,13 @@ class IndexService {
   final IndexDatabase _db;
   final String vaultRootPath;
   final VaultScanOptions scanOptions;
+  bool _isClosed = false;
+
+  /// Marks this service as closed so in-flight watcher callbacks do not
+  /// surface spurious errors while the database is being torn down.
+  void markClosed() {
+    _isClosed = true;
+  }
 
   /// Reactive stats stream for the settings screen (W4).
   Stream<IndexStats> watchStats() => _db.watchStats();
@@ -56,6 +63,15 @@ class IndexService {
 
   Stream<List<Entry>> watchEntriesForDocument(int documentId) =>
       _db.watchEntriesForDocument(documentId);
+
+  Stream<List<IndexedEntryWithDocument>> watchAllEntriesWithDocuments() =>
+      _db.watchAllEntriesWithDocuments();
+
+  Stream<List<BacklinkItem>> watchBacklinksForDocument(int targetDocumentId) =>
+      _db.watchBacklinksForDocument(targetDocumentId);
+
+  Future<List<Document>> searchDocuments(String rawQuery) =>
+      _db.searchDocuments(rawQuery);
 
   Future<Document?> documentByRelPath(String relPath) =>
       _db.documentByRelPath(relPath);
@@ -102,37 +118,59 @@ class IndexService {
     );
   }
 
+  /// Immediately re-reads and indexes [relPath] after an app-initiated write
+  /// (where watcher self-write suppression is used), so reactive UI streams
+  /// reflect in-place task edits and quick captures with zero debounce delay.
+  Future<void> refreshFile(String relPath) async {
+    await handleChange(
+      VaultChangeEvent(
+        type: VaultChangeType.modify,
+        path: VaultPath(relPath),
+      ),
+    );
+  }
+
   /// Applies one debounced [VaultWatcher] event incrementally: reads +
   /// parses just the changed file (skipping the write entirely if its
   /// `sha256` matches what's already indexed) rather than rescanning the
   /// whole vault.
   Future<void> handleChange(VaultChangeEvent event) async {
-    if (event.type == VaultChangeType.remove) {
-      await _db.removeDocument(event.path.value);
-      await _db.setMeta('vaultFingerprint', await _db.computeFingerprint());
-      return;
-    }
+    if (_isClosed) return;
+    try {
+      if (event.type == VaultChangeType.remove) {
+        await _db.removeDocument(event.path.value);
+        if (_isClosed) return;
+        await _db.setMeta('vaultFingerprint', await _db.computeFingerprint());
+        return;
+      }
 
-    final absolutePath = event.path.toAbsolute(vaultRootPath);
-    final file = File(absolutePath);
-    if (!file.existsSync()) {
-      // Raced with a delete between the debounced event firing and us
-      // reading the file -- treat it the same as an explicit remove.
-      await _db.removeDocument(event.path.value);
-      await _db.setMeta('vaultFingerprint', await _db.computeFingerprint());
-      return;
-    }
+      final absolutePath = event.path.toAbsolute(vaultRootPath);
+      final file = File(absolutePath);
+      if (!file.existsSync()) {
+        // Raced with a delete between the debounced event firing and us
+        // reading the file -- treat it the same as an explicit remove.
+        await _db.removeDocument(event.path.value);
+        if (_isClosed) return;
+        await _db.setMeta('vaultFingerprint', await _db.computeFingerprint());
+        return;
+      }
 
-    final contents = readVaultFileSync(file);
-    final stat = file.statSync();
-    final scanned = buildScannedDocumentFromContents(
-      relPath: event.path.value,
-      contents: contents,
-      mtimeMs: stat.modified.millisecondsSinceEpoch,
-      sizeBytes: stat.size,
-    );
-    await _db.upsertDocument(scanned);
-    await _db.setMeta('vaultFingerprint', await _db.computeFingerprint());
+      final contents = readVaultFileSync(file);
+      final stat = file.statSync();
+      final scanned = buildScannedDocumentFromContents(
+        relPath: event.path.value,
+        contents: contents,
+        mtimeMs: stat.modified.millisecondsSinceEpoch,
+        sizeBytes: stat.size,
+      );
+      if (_isClosed) return;
+      await _db.upsertDocument(scanned);
+      if (_isClosed) return;
+      await _db.setMeta('vaultFingerprint', await _db.computeFingerprint());
+    } catch (_) {
+      if (_isClosed) return;
+      rethrow;
+    }
   }
 }
 

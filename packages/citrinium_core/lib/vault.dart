@@ -6,6 +6,7 @@
 /// parser/serializer (see `design.md` §3, upcoming in this package).
 library;
 
+export 'src/vault/cadence_files.dart';
 export 'src/vault/ignore_rules.dart';
 export 'src/vault/path_normalization.dart';
 export 'src/vault/vault_file_io.dart';
