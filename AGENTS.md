@@ -12,12 +12,16 @@ This repo is **pre-implementation**. `lib/main.dart` and `test/widget_test.dart`
 
 ## Locked architecture decisions (from `docs/design.md`)
 
-- **Markdown files on disk are the source of truth** (Obsidian-compatible schema: YAML frontmatter, `[[wikilinks]]`, checkbox task states). Any SQLite/index/cache layer must be derived and fully rebuildable from the files — never treat it as authoritative.
+- **User data ownership, clean Markdown & structured operational state (`P-11`, `D-15`)**: Notes, projects, collections, cadence logs (`daily/`, `weekly/`, `monthly/`, `quarterly/`, `yearly/`, `future.md`, `inbox.md`), and inline rapid-logged tasks/events/notes live in plain-text Markdown files on disk (Obsidian-compatible schema: YAML frontmatter, `[[wikilinks]]`, checkbox task states). The search/task index over these files is derived and rebuildable from disk. Operational/history data that would clutter Markdown notes with "emoji soup" or duplicated recurring rows (habit completion history, Today's Top-3 pins, snooze state, review ritual checkpoints, cadence toggles, recent-view history) lives in local SQLite / `.citrinium/` and must be 100% exportable to human-readable Markdown/JSON (`T-02`).
+- **UX architecture ("Hybrid Dual-Track", `design.md` §6.2)**:
+  - **Today's Combined View** is the default home screen (collapsible Top-3 Focus Shelf + `daily/YYYY-MM-DD.md` Live Preview editor), with a **2-hour session-continuity restore window** and a **`🕒 Recent` Views/Documents switcher** (`A-08`, `N-04`).
+  - **In-place task editing everywhere (`D-19`, `B-05`)**: Clicking/tapping a task in any list, filter, Focus Shelf, or review ritual edits it directly in-place (splicing changes into the source `.md` file in the background) without jumping to the source note; an explicit source badge (`[📄 note ↗]`) lets users peek at or open the note when they want surrounding context.
+  - **User-configurable cadences (`B-12`)**: Daily, Weekly (`weekly/YYYY-Www.md`), Monthly, Quarterly, Yearly, and Future Log planning surfaces and review rituals can be individually toggled on/off by the user.
 - **State management: Riverpod only**, not Bloc/Provider. Multi-step flows (Clarify, Migration, Review rituals) use `Notifier`s holding `freezed` sealed-class state rather than a second framework.
-- **Local index/search: SQLite via `drift`**, FTS5 for full-text search — a rebuildable cache, per above.
+- **Local index/search: SQLite via `drift`**, FTS5 for full-text search — a rebuildable cache for vault files, plus operational tables for habits/pins/rituals per above.
 - **Plugin sandbox: embedded QuickJS**, not WASM (deliberate choice — see `docs/design.md` §5 for why). One `JSContext` per plugin, no `std`/`os` modules linked, capability-scoped host bridge is the entire enforcement boundary.
-- **Markdown editor: custom `TextField`/`TextEditingController` + decoration overlay** (Obsidian-style Live Preview), not `super_editor`/`appflowy_editor`. The edit buffer must always be the literal file content — no document-tree/serialization round-trip.
-- **Platforms for v1: Android, iOS, Linux, macOS, Windows.** Web is explicitly excluded (no real filesystem access maps to the source-of-truth requirement above).
+- **Markdown editor: custom `EditableText`/`TextEditingController` + decoration overlay** (Obsidian-style Live Preview), not `super_editor`/`appflowy_editor`. The edit buffer must always be the literal file content — no document-tree/serialization round-trip.
+- **Platforms for v1: Android, iOS, Linux, macOS, Windows.** Web is explicitly excluded.
 - **Sync (FR-01) is deferred entirely for v1** — build single-device/offline-first; don't add sync transport code speculatively.
 
 ## Commands

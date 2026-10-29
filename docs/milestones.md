@@ -10,7 +10,8 @@ This document sequences `requirements.md` into buildable milestones, informed by
 
 ## Cross-cutting notes (apply to every milestone, not scoped to one)
 
-- **P-11 / D-15 discrepancy**: `requirements.md` rates "files are the source of truth" and "local-first file-based storage" as SHOULD, but `design.md` treats it as a locked, non-negotiable architecture decision — every layer above the vault is a derived, rebuildable cache. This is treated as a **Milestone 0 hard requirement** regardless of its MoSCoW label; it cannot be retrofitted later.
+- **P-11 / D-15 data ownership & storage boundary**: Notes, projects, collections, cadence logs (`daily/`, `weekly/`, `monthly/`, `quarterly/`, `yearly/`, `future.md`, `inbox.md`), and inline rapid-logged tasks/events/notes live in plain-text Markdown files on disk; the search/task index over those files is a derived, rebuildable cache. Operational and history state that would clutter Markdown notes with "emoji soup" or duplicated recurring rows (habit completion history `D-17`, Today's Top-3 Focus pins `E-02`, snooze state `E-12`, ritual progress `R-04`, cadence preferences `B-12`, and recent-view history `N-04`/`A-08`) lives in SQLite / `.citrinium/` and is 100% exportable to human-readable Markdown/JSON (`T-02`).
+- **D-19 / B-05 in-place task editing**: Every surface that displays tasks (Inbox, Today's Focus Shelf, Next Actions, Projects, Reviews, Search) must allow editing the task **in-place** (splicing changes into the source `.md` file in the background) without forcing the user to navigate to the containing note, while providing an explicit source-note badge (`[📄 note ↗]`) when they want surrounding context.
 - **Principles P-01, P-04–P-08** (capture-before-organize, forgiving tone, method-flexibility, calm defaults, search-over-taxonomy) are not standalone build tasks — they are acceptance-criteria checks applied at every milestone's review (e.g. "does this UI force a folder/tag at capture?").
 - **T-03, T-04, FR-08** (sync conflict handling, sync privacy defaults, E2E encryption) are all explicitly conditioned on FR-01 (sync), which `design.md` §9 defers entirely for v1. These MUSTs (T-03/T-04) are **vacuously satisfied** in v1 — no sync exists, so there is nothing to conflict or leak. No milestone task is needed for them.
 - **QY-03** (quarterly/yearly reviews never mandatory) is similarly vacuous in v1 since Q-*/Y-* planning surfaces are SHOULD-rated and deferred to the post-1.0 backlog — nothing exists yet that could be "mandatory."
@@ -29,12 +30,12 @@ Vault file I/O + watcher + Markdown parser/serializer for checkbox task states a
 
 **Status: ** Completed
 
-## M1 — Capture Loop: Inbox, Rapid Log & Daily Log
+## M1 — Capture Loop: Inbox, Rapid Log & Today's Combined View
 
-Unified entry type (task/event/note/untyped), a dedicated `inbox.md` (distinct from the dated Daily Log), rapid logging with minimal type-switching, natural-language date parsing (`chrono_dart`), fully offline capture, Daily Log view, notes-on-log-line integration, supportive copy tone, reschedule/migrate/drop affordances everywhere (snooze stubbed until M8), functional-first UI. Ships a **reduced-scope** Live Preview editor (checkboxes, BuJo signifiers, basic bold/italic) — the full decoration set (wikilinks, embeds, block-ID styling) is deferred to the new M6. This is a first slice of the *same* editor M6 completes, not a disposable prototype — see M6's note on shared foundational decisions.
+Unified entry type (task/event/note/untyped), a dedicated `inbox.md` (distinct from the dated Daily Log), **Today's Combined View** (collapsible Today's Focus Shelf + `daily/<date>.md` rapid-log stream), global Quick Capture bar with a **sticky `[ Inbox | Today ]` destination toggle**, natural-language date parsing (`chrono_dart`), fully offline capture, **in-place task editing** from any task row without navigating away (`D-19`), **2-hour session continuity** + **Recent Views/Documents switcher** (`A-08`, `N-04`), existing-vault **14-day historical task filter safeguard** (`A-06`), notes-on-log-line integration (`D-14`, `D-18`), supportive copy tone (`A-02`), and reschedule/migrate/drop affordances everywhere (`A-03`, `B-05`; snooze stubbed until M8). Mounts the completed M6 [`LivePreviewEditor`](../lib/core/editor/live_preview_editor.dart) directly inside Today and Inbox.
 
-**Requirements:** **D-01, C-02, C-03, C-04, C-05, B-01, N-01, N-07, A-02, A-03, A-07**.
-**Cheap-adjacent:** B-05 (one-gesture bullet actions), D-14 (rich note body on log line), D-18 (lightweight text comments), B-08 (signifier marks; filtering deferred to M9).
+**Requirements:** **D-01, D-19, C-01 (sticky toggle), C-02, C-03, C-04, C-05, B-01, B-05, N-01, N-07, A-02, A-03, A-06 (14-day safeguard), A-07, A-08 (2-hour session restore)**.
+**Cheap-adjacent:** D-14 (rich note body on log line), D-18 (lightweight text comments), B-08 (signifier marks; filtering deferred to M9), N-04 partial (Recent Views/Documents switcher).
 
 **Detailed plan:** [`milestones/m1.md`](milestones/m1.md)
 
@@ -55,9 +56,11 @@ The GTD decision-tree flow routing inbox items to the primitives built in M2, pl
 **Requirements:** **G-01**.
 **Full-build dependency:** G-05 (Calendar).
 
-## M4 — Monthly/Future Logs & Collections
+## M4 — Weekly/Monthly/Future Logs, Configurable Cadences & Collections
 
-**Requirements:** **B-02**.
+Adds the `weekly/YYYY-Www.md` and `monthly/YYYY-MM.md` planning surfaces, `future.md` Future Log, user-configurable cadence toggles (`B-12`: enabling/disabling Daily, Weekly, Monthly, Quarterly, Yearly, Future Log), auto-Index (`B-04`), and on-demand Collections (`B-10`/`D-10`).
+
+**Requirements:** **B-02, B-12**.
 **Cheap-adjacent:** B-03 (Future Log), B-04 (auto Index of collections/projects/notes), B-10 / D-10 (on-demand Collections).
 
 ## M5 — Migration Ritual & Daily Review

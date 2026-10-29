@@ -8,40 +8,50 @@ Non-goals X-01–X-06 from `requirements.md` are assumed and not re-litigated he
 
 ## 1. Architecture overview
 
-Citrinium is a layered, offline-first Flutter application. The guiding constraint (P-11) is that every layer above the vault is a **derived, rebuildable cache** — nothing above the file layer is allowed to become a second source of truth.
+Citrinium is a layered, offline-first Flutter application. The guiding principle (P-11, D-15) centers on three user goals:
+1. **User data ownership & portability:** All data belongs to the user, can be exported to an easy-to-read/parse text format (Markdown/JSON) at any time, and existing Obsidian/Markdown vaults can be opened or imported non-destructively.
+2. **Rapid logging alongside notes:** Tasks, events, and notes can be captured inline in the same stream.
+3. **First-class Markdown viewing & editing:** Users view and edit standard Markdown notes directly.
+
+To achieve these goals without polluting Markdown notes with noisy operational state ("emoji soup" or hundreds of cloned recurring-task rows), Citrinium uses a **clean hybrid storage boundary**:
+- **Markdown files on disk** are the source of truth for all user prose, notes, projects, collections, cadence logs (`daily/`, `weekly/`, `monthly/`, `quarterly/`, `yearly/`, `future.md`, `inbox.md`), and inline rapid-logged tasks/events/notes. The search/task index over these files is a **derived, rebuildable cache**.
+- **Structured operational & history storage** (SQLite + `.citrinium/` sidecar JSON) holds data that would otherwise degrade Markdown readability: habit/recurrence completion history (`D-17`), Today's Top-3 Focus pins (`E-02`), snooze timestamps (`E-12`), multi-step review ritual checkpoints (`R-04`), user cadence preferences (`B-12`), and recent view/document history (`N-04`, `A-08`). All structured operational data is included in human-readable exports (`T-02`, `FR-07`).
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ Presentation                                                 │
-│  Daily/Monthly/Future Log · Inbox/Clarify · Engage · Focus   │
-│  Reviews (Daily/Weekly/Quarterly/Annual) · Graph · Canvas    │
-│  Markdown editor (custom TextField + Live Preview decorator) │
+│ Presentation (Hybrid Dual-Track UX)                         │
+│  ☀️ Today (Focus Shelf + Daily Log) · ✅ Actions & Inbox    │
+│  🧭 Horizons & Review (D/W/M/Q/Y)   · 📓 Notes & Index      │
+│  In-place task editor (D-19) · Live Preview Markdown editor │
 ├─────────────────────────────────────────────────────────────┤
-│ State (Riverpod)                                             │
+│ State (Riverpod)                                            │
 │  Providers over repositories · freezed sealed-state Notifiers│
-│  for multi-step rituals (Clarify, Migration, Review)          │
+│  for multi-step rituals (Clarify, Migration, Review)        │
 ├─────────────────────────────────────────────────────────────┤
-│ Domain                                                        │
-│  Task state machine (D-02) · recurrence engine (D-16)         │
-│  habit/streak engine (D-17) · migration & review logic (B-*, R-*, Q-*, Y-*) │
-│  zombie-project detection (D-04)                              │
+│ Domain                                                      │
+│  Task state machine (D-02) · recurrence engine (D-16)       │
+│  habit/streak engine (D-17) · migration & review logic      │
+│  in-place splice editor (D-19) · zombie-project check (D-04)│
 ├──────────────────────────┬──────────────────────────────────┤
-│ Index (drift/SQLite)     │ Plugin host (QuickJS)             │
-│  derived, rebuildable    │  per-plugin JSContext              │
-│  cache of tasks/notes/   │  capability-scoped host bridge     │
-│  links; FTS5 search      │  (PL-01–PL-09)                     │
+│ Index & Operational DB   │ Plugin host (QuickJS)            │
+│  (drift/SQLite)          │  per-plugin JSContext            │
+│  1. Derived cache of     │  capability-scoped host bridge   │
+│     files/tasks + FTS5   │  (PL-01–PL-09)                   │
+│  2. Operational state    │                                  │
+│     (habits, pins, etc.) │                                  │
 ├──────────────────────────┴──────────────────────────────────┤
-│ Vault                                                         │
-│  Plain Markdown files on disk (Obsidian-compatible schema)    │
-│  File watcher · parser/serializer · frontmatter               │
+│ Vault                                                       │
+│  Plain Markdown files on disk (Obsidian-compatible schema)  │
+│  + .citrinium/ templates & portable config                  │
+│  File watcher · offset-preserving parser/serializer         │
 ├─────────────────────────────────────────────────────────────┤
-│ Platform services                                             │
-│  Native notification scheduling (E-08–E-12, FR-05)             │
-│  Filesystem access per OS (Android/iOS/Linux/macOS/Windows)    │
+│ Platform services                                           │
+│  Native notification scheduling (E-08–E-12, FR-05)          │
+│  Filesystem access per OS (Android/iOS/Linux/macOS/Windows) │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-Data flows down for writes (UI → domain → vault file rewrite) and up for reads (file watcher → reparse → index update → provider stream → UI). The index and plugin host are peers: both are derived/sandboxed consumers of the vault, neither is trusted as authoritative.
+For document/task content, data flows down for writes (UI → domain → surgical span splice into vault `.md` file) and up for reads (file watcher → reparse → index update → provider stream → UI).
 
 ---
 
@@ -105,11 +115,30 @@ tags: [project, health]
 ---
 ```
 
-### 3.4 Logs
+### 3.4 Logs & cadence files
 
-Daily/Monthly/Future Log surfaces (B-01–B-03, D-11) are one file per period (e.g. `daily/2026-07-30.md`), created on first use — never pre-generated — satisfying B-09/P-04.
+Planning and log surfaces (B-01–B-03, D-11, Q-01, Y-01) are stored as one Markdown file per period, created lazily on first use — never pre-generated — satisfying B-09/P-04:
 
-A full frontmatter/inline-syntax reference (concrete grammar, edge cases, migration notes) is a follow-up spec under FR-04.
+- `inbox.md` — perpetual GTD capture inbox at vault root (`citrinium.type: inbox`).
+- `daily/YYYY-MM-DD.md` — Daily Log (`citrinium.type: dailyLog`).
+- `weekly/YYYY-Www.md` — Weekly Plan & Review log (`citrinium.type: weeklyLog`).
+- `monthly/YYYY-MM.md` — Monthly Log (`citrinium.type: monthlyLog`).
+- `quarterly/YYYY-QN.md` — Quarterly Log (`citrinium.type: quarterlyLog`).
+- `yearly/YYYY.md` — Yearly Log (`citrinium.type: yearlyLog`).
+- `future.md` — BuJo Future Log (`citrinium.type: futureLog`).
+- `someday.md` — GTD Someday/Maybe list (`citrinium.type: someday`).
+- `.citrinium/templates/` — editable Markdown templates for each enabled cadence (B-11).
+
+### 3.5 Clean Markdown vs. operational metadata boundary (P-11, D-15, D-17)
+
+To keep Markdown files clean and readable in any editor (avoiding the "emoji soup" and duplicated recurring-task clutter common in Obsidian plugins):
+- **Stored inline in `.md` files:** Task state marker (`[ ]`, `[/]`, `[x]`, `[>]`, `[<]`, `[-]`, `[w]`), BuJo signifiers (`○`, `–`, `*`), `📅` date, `⏰` time, `🔁` recurrence rule, `@context`, `#tag`, `^blockid`, and indented note/comment lines (`D-14`, `D-18`).
+- **Stored in structured local storage (SQLite / `.citrinium/`) with portable text/JSON export (`T-02`):**
+  - **Habit & recurring-task completion logs (`D-16`, `D-17`):** Completing a recurring habit records a completion entry in the habit log table rather than appending hundreds of duplicate `- [x]` lines into the user's note.
+  - **Extended task operational state:** Today's Top-3 Focus Shelf pins (`E-02`), snooze-until timestamps (`E-12`), optional duration/energy metadata when not written inline (`D-09`), migration counters, and historical-task cutoff filters (`A-06`).
+  - **Workspace & ritual state:** Resumable review ritual progress (`R-04`), enabled cadence toggles (`B-12`), and recent views/documents history (`N-04`, `A-08`).
+
+Full grammar details are specified in [`docs/file-schema.md`](file-schema.md) (FR-04).
 
 ---
 
@@ -207,6 +236,38 @@ lib/
 ```
 
 Feature-first under `features/`, with `core/` as the platform-agnostic domain/data layer plugins and features both depend on.
+
+### 6.2 UX architecture & core workflows ("The Hybrid Dual-Track")
+
+Citrinium's UI uses a **Hybrid Dual-Track** architecture that supports Bullet Journal rapid logging, GTD list/clarify workflows, and ADHD executive-function scaffolds without forcing users into a single rigid method (P-06, X-04):
+
+1. **Four Primary Navigation Pillars** (bottom navigation bar on mobile, left navigation rail on desktop):
+   - **☀️ Today (Default Home):** Combines a collapsible **Today's Focus Shelf** at the top (today's hard-landscape calendar events `G-05`, up to **Top 3** pinned focus tasks `E-02` with a 1-tap **2-Minute Start** timer `E-05`, and daily habits `D-17`) directly above today's **Daily Log** (`daily/YYYY-MM-DD.md`) rendered in the Live Preview editor (§7).
+   - **✅ Actions & Inbox (GTD Engine):** Segmented views for **Inbox** (`inbox.md` + 1-tap **Clarify Deck** `G-01`), **Next Actions** (filterable by `@context`, time available, and energy `E-01`), **Projects** (with automatic zombie-project badges `D-04`), **Waiting For** (`D-06`), and **Someday/Maybe** (`D-05`).
+   - **🧭 Horizons & Review (Configurable Cadences):** Displays the planning pages and guided review/migration rituals for whichever cadences the user has enabled (`B-12`): **Daily**, **Weekly** (`weekly/YYYY-Www.md`), **Monthly** (`monthly/YYYY-MM.md`), **Quarterly** (`quarterly/YYYY-QN.md`), **Yearly** (`yearly/YYYY.md`), and **Future Log** (`future.md`).
+   - **📓 Notes & Index (Knowledge Base):** Auto-generated BuJo **Index** (`B-04`: Collections, Projects, Areas of Focus, Recent Notes), optional Folder/Tag browser (`N-05`), and FTS5 Search / Quick Switcher (`N-03`, `N-04`).
+
+2. **Persistent Global Affordances:**
+   - **Quick Capture Bar (`P-01`, `P-02`, `C-01`):** Available from every primary surface via bottom bar or global hotkey, featuring a **sticky `[ Inbox | Today ]` destination toggle** that remembers the user's last choice.
+   - **Recent Views & Documents Switcher (`🕒 Recent`, `N-04`, `A-08`):** Header strip/drawer listing recently visited notes, logs, projects, and task filters so users can immediately recover context after an interruption.
+
+3. **Launch, Onboarding & Session Continuity (`A-06`, `A-08`, `B-09`, `P-04`):**
+   - **First launch (new vault):** 1-step folder setup + optional cadence toggle selection, seeding only `daily/YYYY-MM-DD.md` with 3 interactive tutorial lines.
+   - **First launch (existing Obsidian/Markdown vault):** Non-destructive background indexing (`IndexService` modifies zero files). If >10 undated open `- [ ]` tasks exist in files older than 14 days, Citrinium prompts to **surface only open tasks from the last 14 days by default** in Action Lists so the user is not overwhelmed by old notes on day one.
+   - **Return within <2 hours:** Restores the user's **exact last open view/document and cursor/scroll position**.
+   - **Return after ≥2 hours (same day):** Opens **Today's Combined View** with a prominent `↩ Resume [[Last Open Note/View]]` chip at the top.
+   - **Return on a new day (1–3 days) or after an absence (4+ days):** Never shows punitive red overdue badges or broken-streak alerts (`P-04`, `A-02`). Surfaces a calm migration pill (1–3 days) or a **"Fresh Start" card** (4+ days) to pick 1–3 focus items for today and sweep remaining open items into the review queue.
+
+4. **In-Place Task Editing Everywhere (`D-19`, `B-05`):**
+   - Unlike Obsidian's Tasks plugin (where clicking a task in a query navigates away to the source document and leaves a trail of open past notes), clicking/tapping any task in *any* Citrinium list, Focus Shelf, or review card expands an **inline task editor** right inside the current view.
+   - Edits to task text, state, `📅` date, `⏰` time, `@context`, `#tags`, or indented note body (`D-14`) are spliced directly into the owning `.md` file in the background via `(documentId, lineIndex, charStart, charEnd)` without changing the active route.
+   - A dedicated source badge (`[📄 source-note ↗]`) lets the user peek at surrounding lines or jump to the full document only when they explicitly want note context.
+
+5. **Guided Review & Migration Rituals (`B-06`, `R-01`–`R-04`, `Q-02`, `Y-02`):**
+   - Every enabled cadence pairs its editable Markdown planning file with a guided, resumable review ritual driven by a `freezed` sealed-state `Notifier`:
+     - Starts with a **"Celebrate What Shipped"** summary of completed tasks/projects in that period to counter retrospective time blindness.
+     - Uses **card-by-card triage** (with a bulk-list toggle `G-07`) for open loops (`Keep/Migrate >`, `Schedule <`, `Someday`, `Drop -`) so users make one clear decision at a time without list fatigue.
+     - Dynamically threads horizon links (`QY-04`) across whichever cadences the user has enabled (`B-12`).
 
 ---
 

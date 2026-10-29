@@ -12,18 +12,13 @@ Parent: [`design.md`](design.md) §3 (Vault & file schema), [`milestones.md`](mi
 
 ## 0. Why this document exists
 
-Per P-11/D-15, the vault is a folder of plain-text Markdown files, and the app is a
-view/editor over those files — not a database with an export feature bolted on. That
-claim is only as real as this document: everything below is what actually makes a
-Citrinium vault readable, editable, and re-derivable by any other tool (a text editor,
-Obsidian, a script), not just by Citrinium itself.
+Per P-11/D-15, user data belongs to the user: notes, projects, collections, cadence logs, and inline rapid-logged tasks/events/notes live in plain-text Markdown files on disk so they are readable and editable in Citrinium, Obsidian, or any text editor. Operational and history data that would otherwise pollute Markdown lines with "emoji soup" or hundreds of cloned recurring-task rows (e.g. habit completion logs, Today's Top-3 pins, snooze state, review ritual checkpoints, recent-view history) lives in Citrinium's structured local store (SQLite / `.citrinium/`) and is 100% exportable to human-readable Markdown/JSON (`T-02`).
 
 This is a **grammar/schema reference**, not a tutorial. It documents what
 `packages/citrinium_core`'s parser (`lib/src/parser/`) and vault layer
-(`lib/src/vault/`) actually implement, plus the handful of conventions those layers
-assume but don't themselves enforce (file/folder placement, frontmatter field names).
-Where the current implementation is silent or provisional, that's called out
-explicitly in §9 rather than papered over.
+(`lib/src/vault/`) actually implement, plus the conventions for cadence files,
+frontmatter field names, and the boundary between inline Markdown syntax and operational
+storage.
 
 ## 1. Encoding, line endings, and whitespace
 
@@ -67,15 +62,19 @@ explicitly in §9 rather than papered over.
   default); `VaultScanner(options: VaultScanOptions(followSymlinks: true))` opts in.
 - **File size cap:** files over 10MB are excluded from scanning/indexing by default
   (`VaultScanOptions.maxFileSizeBytes`) rather than loaded fully into memory.
-- **Folder structure is otherwise unconstrained.** Nothing in the parser or index
-  requires a particular directory layout — a flat vault and a deeply-nested one are
-  equally valid. Specific conventions for particular content types (daily logs,
-  inbox, projects) are introduced by name below where they're locked, and left as
-  explicit open questions in §9 where they're not yet decided.
-- **Daily/Monthly/Future Log naming** (`design.md` §3.4 gives `daily/2026-07-30.md` as
-  an example) and **`inbox.md`'s location** are **not yet locked** — they're M1 W3
-  work (see `milestones/m1.md`). This draft will be updated then; don't treat the
-  example path in `design.md` as final.
+- **Folder structure is otherwise unconstrained for general notes.** Nothing in the parser or index
+  requires a particular directory layout for user notes — a flat vault and a deeply-nested one are
+  equally valid.
+- **Default cadence & GTD file paths** (created lazily on first use, never pre-generated; user-configurable cadences per `B-12`):
+  - `inbox.md` — perpetual GTD capture inbox at vault root (`citrinium.type: inbox`).
+  - `daily/YYYY-MM-DD.md` — Daily Log (`citrinium.type: dailyLog`).
+  - `weekly/YYYY-Www.md` — Weekly Plan & Review log, ISO week format e.g. `weekly/2026-W44.md` (`citrinium.type: weeklyLog`).
+  - `monthly/YYYY-MM.md` — Monthly Log (`citrinium.type: monthlyLog`).
+  - `quarterly/YYYY-QN.md` — Quarterly Log, e.g. `quarterly/2026-Q4.md` (`citrinium.type: quarterlyLog`).
+  - `yearly/YYYY.md` — Yearly Log, e.g. `yearly/2026.md` (`citrinium.type: yearlyLog`).
+  - `future.md` — BuJo Future Log (`citrinium.type: futureLog`).
+  - `someday.md` — GTD Someday/Maybe list (`citrinium.type: someday`).
+  - `.citrinium/templates/` — user-editable Markdown templates for each planning/review cadence (`B-11`).
 
 ## 3. Frontmatter
 
@@ -116,9 +115,16 @@ or table-adjacent text, not frontmatter — this matches CommonMark/Obsidian con
   | --- | --- | --- |
   | *(absent)* | Defaults to `note` | M0 |
   | `note` | A plain note | M0 |
+  | `inbox` | Perpetual GTD capture inbox (`inbox.md`) | M1 |
+  | `dailyLog` | Daily Log (`daily/YYYY-MM-DD.md`) | M1 |
+  | `weeklyLog` | Weekly Log (`weekly/YYYY-Www.md`) | M4/M10 |
+  | `monthlyLog` | Monthly Log (`monthly/YYYY-MM.md`) | M4 |
+  | `quarterlyLog` | Quarterly Log (`quarterly/YYYY-QN.md`) | Post-1.0 / configurable |
+  | `yearlyLog` | Yearly Log (`yearly/YYYY.md`) | Post-1.0 / configurable |
+  | `futureLog` | Future Log (`future.md`) | M4 |
+  | `someday` | Someday/Maybe list (`someday.md`) | M2 |
   | `project` | A GTD/BuJo project (D-03) | M2 |
-  | `collection` | A BuJo collection (D-10) | M2 |
-  | `dailyLog` / `monthlyLog` / `futureLog` | Log surfaces (D-11) | M1/M3/M4 |
+  | `collection` | A BuJo collection (D-10) | M2/M4 |
   | `areaOfFocus` | GTD Horizon 2 (D-13) | M2+ |
 
   Unrecognized `citrinium.type` values are stored and indexed as-is (`docType` is a
@@ -307,9 +313,7 @@ every component:
 These are acknowledged gaps this draft doesn't paper over, each tied to the milestone
 expected to resolve it:
 
-1. **Inbox/Daily/Monthly/Future Log file locations and naming.** `design.md` §3.4's
-   `daily/2026-07-30.md` is an example, not a locked convention. → M1 W3
-   (`milestones/m1.md`).
+1. *(Resolved)* **Inbox & Cadence Log file locations and naming.** Locked in §2 above (`inbox.md`, `daily/YYYY-MM-DD.md`, `weekly/YYYY-Www.md`, `monthly/YYYY-MM.md`, `quarterly/YYYY-QN.md`, `yearly/YYYY.md`, `future.md`, `someday.md`).
 2. **No escaping mechanism for inline metadata markers.** There's currently no way to
    write a literal `#`/`@`/`📅`/etc. in body text without it being parsed as metadata.
    → unscheduled; needs a decision (backslash-escape? require whitespace boundaries

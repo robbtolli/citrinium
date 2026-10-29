@@ -22,7 +22,7 @@ These are non-negotiable design constraints, not features to ship later.
 | P-08 | **Search and links over perfect taxonomy** — Full-text search and linking beat mandatory hierarchy. | MUST |
 | P-09 | **Hard calendar ≠ soft task list** — Date/time commitments stay distinct from undated next actions. | SHOULD |
 | P-10 | **Stable core, optional novelty** — Themes/rewards may refresh interest without requiring system rebuild. | COULD |
-| P-11 | **Files are the source of truth** — The vault is a folder of plain-text Markdown files on disk; the app is a view/editor over those files, not a database with an export feature bolted on. Any search index, cache, or sync layer is derived and rebuildable from the files, never the sole record of truth.  *NOTE: If there is any data where markdown files are not the source of truth, there MUST be a way to export the data to an easy to read/parse text format.* | SHOULD |
+| P-11 | **User data ownership, Markdown interoperability & inline rapid logging** — (1) The data belongs to the user: they can export all data into an easy-to-read/parse portable text format at any time, and open/import Markdown files from Obsidian. (2) Users can view and edit standard Markdown notes in Citrinium, and rapid-log tasks inline alongside notes. Notes, logs, projects, collections, and inline rapid-log entries live in plain-text Markdown files on disk; operational/history data that would clutter Markdown lines (e.g. habit/recurrence completion logs, Today's Top-3 pins, snooze state, review ritual checkpoints, recent-view history) may live in a structured local store (`.citrinium/` or SQLite) provided it is 100% exportable to human-readable Markdown/JSON. | MUST |
 
 ---
 
@@ -40,14 +40,15 @@ These are non-negotiable design constraints, not features to ship later.
 | D-08 | Support **Contexts** (e.g. `@home`, `@computer`, `@errands`, `@phone`, custom) on actions. | MUST |
 | D-09 | Support optional **time estimate**, **energy**, and **priority/signifier** on actions. | SHOULD |
 | D-10 | Support **Collections** (BuJo): on-demand themed note/task groupings without mandatory folder trees at capture. | SHOULD |
-| D-11 | Support **Daily Log**, **Monthly Log**, and **Future Log** surfaces (auto-created as used; no empty pre-printed days required). | SHOULD |
+| D-11 | Support **Daily Log**, **Weekly Log**, **Monthly Log**, **Quarterly Log**, **Yearly Log**, and **Future Log** surfaces (auto-created on first use; no empty pre-printed days/periods required). | SHOULD |
 | D-12 | Support **threading/backlinks** between related notes, continued collections, projects, and logs. | SHOULD |
 | D-13 | Optional **Areas of focus** (GTD Horizon 2) and higher-horizon notes (goals/vision/life) without blocking ground-level use. | COULD |
 | D-14 | Entries support rich note body (Markdown) attached to a rapid-log line / task. | SHOULD |
-| D-15 | **Local-first, file-based storage** — Notes and tasks are stored as Markdown files (with frontmatter/inline syntax for task/task-state metadata) directly on the user’s device/filesystem, per P-11. Offline use is fully functional; sync (if present) must not block capture and must reconcile against the files themselves, never a hidden database as the sole record.<br />*NOTE: If there is any data where markdown files are not the source of truth, there MUST be a way to export the data to an easy to read/parse text format.* | SHOULD |
+| D-15 | **Local-first storage with clean Markdown + structured operational state** — Notes, logs, projects, and inline tasks are stored as clean Markdown files on the user’s device/filesystem per P-11, avoiding "emoji soup" or cloned recurring-task rows inside notes. Operational metadata (habit completion history, Today's Top-3 pins, snooze timestamps, time/energy estimates when not written inline, review ritual state, and workspace history) may be stored in SQLite / `.citrinium/` sidecar files and MUST be exportable to an easy-to-read/parse text format (Markdown/JSON). Offline use is fully functional. | MUST |
 | D-16 | Support **recurring tasks/events**: flexible recurrence rules (daily, weekly, monthly, yearly, custom intervals such as “every 1st Monday” or “every weekday”), independent of any single dated instance. Applies to tasks, events, and habit checks (D-17). | MUST |
-| D-17 | Support **Habit tracking** as a first-class entity built on recurring tasks (D-16), with streak/completion history. Missed days must not produce shaming UI (per P-04/A-02); streak “breaks” are shown as history, not punitive resets. | MUST |
+| D-17 | Support **Habit tracking** as a first-class entity built on recurring tasks (D-16), with streak/completion history stored cleanly without polluting Markdown notes with duplicate completed lines on every occurrence. Missed days must not produce shaming UI (per P-04/A-02); streak “breaks” are shown as history, not punitive resets. | MUST |
 | D-18 | Tasks support lightweight **attachments and free-text notes/comments** (not only parent notes), e.g. links or short context, consistent with N-06. | SHOULD |
+| D-19 | **In-place task editing everywhere** — When viewing tasks in any aggregated list, filter, Focus Shelf, or review ritual, clicking/tapping a task edits it **in-place** (updating the underlying Markdown file and/or operational metadata in the background) without navigating away from the current list or leaving a trail of open source notes. An explicit affordance (e.g. source-note badge) allows jumping to or peeking at the containing note when the user wants surrounding context. | MUST |
 
 ---
 
@@ -55,7 +56,7 @@ These are non-negotiable design constraints, not features to ship later.
 
 | ID | Requirement | Priority |
 | --- | --- | --- |
-| C-01 | **Global quick capture** from app home, system share sheet, and desktop/global hotkey where platform allows. | COULD |
+| C-01 | **Global quick capture** from app home, system share sheet, and desktop/global hotkey where platform allows, with a **sticky `[ Inbox | Today ]` destination toggle** that remembers the user's last choice. | SHOULD |
 | C-02 | **Inbox** accepts undifferentiated stuff; organize is a separate step. | MUST |
 | C-03 | **Rapid logging**: keyboard-first stream mixing tasks, events, and notes with minimal type switching (symbol, shortcut, or toggle). | MUST |
 | C-04 | **Natural language parsing** for dates/times where provided (e.g. “tomorrow 5pm”), without requiring NL for every entry. | MUST |
@@ -83,17 +84,18 @@ These are non-negotiable design constraints, not features to ship later.
 
 | ID | Requirement | Priority |
 | --- | --- | --- |
-| B-01 | **Daily Log** view: today’s rapid-log stream; create day only when used. | MUST |
-| B-02 | **Monthly Log** view: month overview (days/events) + month open loops. | MUST |
-| B-03 | **Future Log** view: items beyond current month / undated-far planning. | SHOULD |
+| B-01 | **Daily Log** view: today’s rapid-log stream (`daily/YYYY-MM-DD.md`), paired on the default **Today's Combined View** with a collapsible Today's Focus Shelf; create day only when used. | MUST |
+| B-02 | **Weekly & Monthly Log** views: dedicated **Weekly Log** (`weekly/YYYY-Www.md`) for weekly outcomes/focus and **Monthly Log** (`monthly/YYYY-MM.md`) for month overview (days/events) + month open loops. | MUST |
+| B-03 | **Future Log** view (`future.md`): items beyond current month / undated-far planning. | SHOULD |
 | B-04 | **Index** (auto): list of collections, projects, and key notes with navigation. | SHOULD |
-| B-05 | **Stateful bullet actions** one gesture away: complete, migrate, schedule, drop. | SHOULD |
+| B-05 | **Stateful bullet actions & inline editing** one gesture away anywhere a task appears: complete, migrate, schedule, drop, or expand to edit in-place without leaving the current view (per D-19). | MUST |
 | B-06 | **Migration / review ritual**: present open items and require keep (migrate), schedule, or drop—do not silently eternal-carry without surfacing. | MUST |
-| B-07 | Daily and/or end-of-period migration modes (day, week, month). | MUST |
+| B-07 | Daily and/or end-of-period migration modes (day, week, month, quarter, year). | MUST |
 | B-08 | **Signifiers** (priority, inspiration, etc.) as lightweight marks, filterable later. | SHOULD |
 | B-09 | Missed days do not break the product; user resumes on a new Daily Log without penalty UI. | MUST |
 | B-10 | Collections creatable on demand from any note/log; no forced template aesthetics onboarding. | SHOULD |
 | B-11 | The app ships **default, fully editable/replaceable templates** for each planning/review cadence it supports (Daily, Weekly, Monthly, Quarterly, Yearly logs and their review rituals — see §8), so new users get a working structure without building one from scratch. Editing or replacing a template must never disable the underlying feature. | MUST |
+| B-12 | **User-configurable planning & review cadences** — Users can individually enable or disable which planning surfaces and review rituals they want active (Daily, Weekly, Monthly, Quarterly, Yearly, Future Log). Disabling a cadence hides its UI chrome and prompts without deleting any files on disk, and horizon links (QY-04) automatically bridge across whichever cadences are enabled. | MUST |
 
 ---
 
@@ -150,7 +152,7 @@ Covers **daily** and **weekly** review. See §8 for **quarterly** and **yearly**
 | N-01 | First-class **notes** alongside tasks (same vault/workspace). | MUST |
 | N-02 | **Wiki-style links** and **backlinks** between notes, projects, and log entries. | MUST |
 | N-03 | Full-text **search** across notes, tasks, logs, projects, reference. | MUST |
-| N-04 | Quick switcher / command palette for navigation and actions (keyboard-first). | SHOULD |
+| N-04 | Quick switcher / command palette for navigation and actions (keyboard-first), plus a **Recent Views & Documents** switcher (`🕒 Recent`) so users can easily pick up where they left off after an interruption. | SHOULD |
 | N-05 | Optional folders/tags; never required to save. | SHOULD |
 | N-06 | Attach images/files to notes and project support material. | COULD |
 | N-07 | Daily notes / log integration so journaling and tasks share one timeline when desired. | MUST |
@@ -182,9 +184,9 @@ Covers **daily** and **weekly** review. See §8 for **quarterly** and **yearly**
 | A-03 | Easy **reschedule**, **snooze**, and **drop** everywhere tasks appear. | MUST |
 | A-04 | Optional lightweight positive feedback on completion (points/celebration) that does not gate core features or punish breaks. | SHOULD |
 | A-05 | Optional mood/energy check-in that can filter Engage suggestions—never required. | COULD |
-| A-06 | Onboarding teaches capture → clarify/migrate → engage in minutes, not multi-hour setup. | SHOULD |
+| A-06 | Onboarding teaches capture → clarify/migrate → engage in minutes, not multi-hour setup. When attaching an existing Markdown/Obsidian vault with older unchecked tasks, offer a safeguard to **only surface open tasks from the last 14 days by default** so action lists are not flooded on day one. | SHOULD |
 | A-07 | Avoid decoration-first templates; functional defaults first. | MUST |
-| A-08 | Cross-platform consistency so the system is trusted on phone and desktop. | MUST |
+| A-08 | Cross-platform consistency so the system is trusted on phone and desktop. Launching the app within **2 hours** of last activity restores the user's exact last open view/document; launching after **≥2 hours** opens **Today's Combined View** with a 1-tap `↩ Resume` affordance to return to their previous context. | MUST |
 
 ---
 
