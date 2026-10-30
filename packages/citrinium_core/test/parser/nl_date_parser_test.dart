@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:citrinium_core/citrinium_core.dart';
 import 'package:test/test.dart';
 
@@ -119,6 +121,74 @@ void main() {
 
       final refMd = CadenceFiles.defaultReferenceContent();
       expect(refMd, contains('type: reference'));
+    });
+
+    test('bridges horizon links across disabled cadences (B-12, QY-04)', () {
+      final date = DateTime(2026, 10, 28);
+      // When Monthly is disabled, Weekly links down to Daily and bridges up to Quarterly
+      final links = CadenceFiles.horizonLinksForCadence(
+        CadenceKind.weekly,
+        date,
+        {
+          CadenceKind.daily,
+          CadenceKind.weekly,
+          CadenceKind.quarterly,
+          CadenceKind.yearly,
+        },
+      );
+      expect(links, ['[[daily/2026-10-28]]', '[[quarterly/2026-Q4]]']);
+    });
+
+    test('saves, expands, and resets custom cadence templates while preserving frontmatter (B-11)', () async {
+      final tempDir = await Directory.systemTemp.createTemp('citrinium_tpl_');
+      addTearDown(() => tempDir.delete(recursive: true));
+
+      final date = DateTime(2026, 10, 28);
+      expect(
+        CadenceFiles.hasCustomTemplate(
+          vaultRootPath: tempDir.path,
+          cadence: CadenceKind.weekly,
+        ),
+        isFalse,
+      );
+
+      // Save a custom template WITHOUT YAML frontmatter -> defaultContentForCadence
+      // must prepend citrinium.type so the underlying feature is never disabled (B-11)
+      await CadenceFiles.saveCustomTemplateForCadence(
+        vaultRootPath: tempDir.path,
+        cadence: CadenceKind.weekly,
+        templateText: '# Custom Week {{week}}\nHorizons: {{horizons}}\n- [ ] Custom priority\n',
+      );
+
+      expect(
+        CadenceFiles.hasCustomTemplate(
+          vaultRootPath: tempDir.path,
+          cadence: CadenceKind.weekly,
+        ),
+        isTrue,
+      );
+
+      final rendered = CadenceFiles.defaultContentForCadence(
+        CadenceKind.weekly,
+        date,
+        vaultRootPath: tempDir.path,
+        enabledCadences: {CadenceKind.daily, CadenceKind.weekly, CadenceKind.monthly},
+      );
+      expect(rendered, contains('type: weeklyLog'));
+      expect(rendered, contains('# Custom Week 2026-W44'));
+      expect(rendered, contains('[[daily/2026-10-28]] · [[monthly/2026-10]]'));
+
+      await CadenceFiles.resetTemplateForCadence(
+        vaultRootPath: tempDir.path,
+        cadence: CadenceKind.weekly,
+      );
+      expect(
+        CadenceFiles.hasCustomTemplate(
+          vaultRootPath: tempDir.path,
+          cadence: CadenceKind.weekly,
+        ),
+        isFalse,
+      );
     });
   });
 }

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:citrinium_core/citrinium_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../workspace/workspace_state.dart';
 import 'app_services.dart';
 
 /// The full document list, per `docs/milestones/m0.md` W4's "document list
@@ -200,11 +201,13 @@ class VaultMutationService {
     bool includeStarterTutorial = false,
   }) async {
     final services = await _requireServices();
+    final enabledCadences = _ref.read(workspaceStateProvider).enabledCadences;
     final relPath = CadenceFiles.relPathForCadence(cadence, date);
     final initialContent = CadenceFiles.defaultContentForCadence(
       cadence,
       date,
       vaultRootPath: services.vaultPath,
+      enabledCadences: enabledCadences,
       includeStarterTutorial: includeStarterTutorial,
     );
     await CadenceFiles.ensureVaultFile(
@@ -215,6 +218,47 @@ class VaultMutationService {
     );
     await _notifyFileUpdated(services, relPath);
     return relPath;
+  }
+
+  /// Reads the current template (custom or built-in default) for [cadence] (`B-11`).
+  Future<({String text, bool isCustom})> readCadenceTemplate(
+    CadenceKind cadence,
+  ) async {
+    final services = await _requireServices();
+    final enabledCadences = _ref.read(workspaceStateProvider).enabledCadences;
+    final isCustom = CadenceFiles.hasCustomTemplate(
+      vaultRootPath: services.vaultPath,
+      cadence: cadence,
+    );
+    final text = CadenceFiles.readTemplateForCadence(
+      vaultRootPath: services.vaultPath,
+      cadence: cadence,
+      enabledCadences: enabledCadences,
+    );
+    return (text: text, isCustom: isCustom);
+  }
+
+  /// Saves a user-customized template for [cadence] (`B-11`).
+  Future<void> saveCadenceTemplate(
+    CadenceKind cadence,
+    String templateText,
+  ) async {
+    final services = await _requireServices();
+    await CadenceFiles.saveCustomTemplateForCadence(
+      vaultRootPath: services.vaultPath,
+      cadence: cadence,
+      templateText: templateText,
+      watcher: services.watcher,
+    );
+  }
+
+  /// Resets the template for [cadence] back to the built-in default (`B-11`).
+  Future<void> resetCadenceTemplate(CadenceKind cadence) async {
+    final services = await _requireServices();
+    await CadenceFiles.resetTemplateForCadence(
+      vaultRootPath: services.vaultPath,
+      cadence: cadence,
+    );
   }
 
   /// Updates a task's checkbox state in-place inside its owning `.md` file (`D-19`, `B-05`).

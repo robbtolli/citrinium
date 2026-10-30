@@ -68,9 +68,12 @@ class _DocumentListScreenState extends ConsumerState<DocumentListScreen> {
     }
   }
 
-  void _openCreateNoteOrCollectionDialog(BuildContext context) {
+  void _openCreateNoteOrCollectionDialog(
+    BuildContext context, {
+    String initialType = 'note',
+  }) {
     final titleCtrl = TextEditingController();
-    var selectedType = 'note';
+    var selectedType = initialType;
 
     showDialog<void>(
       context: context,
@@ -136,6 +139,28 @@ class _DocumentListScreenState extends ConsumerState<DocumentListScreen> {
   @override
   Widget build(BuildContext context) {
     final documentsAsync = ref.watch(documentListProvider);
+    final allDocs = documentsAsync.value ?? const [];
+    final collectionCount = allDocs
+        .where(
+          (d) =>
+              d.docType == 'collection' || d.relPath.startsWith('collections/'),
+        )
+        .length;
+    final projectCount = allDocs
+        .where((d) => d.docType == 'project' || d.relPath.startsWith('projects/'))
+        .length;
+    final logCount = allDocs
+        .where(
+          (d) =>
+              d.docType.endsWith('Log') ||
+              d.relPath.startsWith('daily/') ||
+              d.relPath.startsWith('weekly/') ||
+              d.relPath.startsWith('monthly/') ||
+              d.relPath.startsWith('quarterly/') ||
+              d.relPath.startsWith('yearly/') ||
+              d.relPath == 'future.md',
+        )
+        .length;
 
     final content = Column(
       children: [
@@ -155,10 +180,34 @@ class _DocumentListScreenState extends ConsumerState<DocumentListScreen> {
                 ),
               ),
               const SizedBox(width: 8),
+              OutlinedButton.icon(
+                onPressed: () => _openCreateNoteOrCollectionDialog(
+                  context,
+                  initialType: 'collection',
+                ),
+                icon: const Icon(Icons.collections_bookmark_outlined, size: 16),
+                label: const Text('+ Collection'),
+              ),
+              const SizedBox(width: 6),
               FilledButton.icon(
                 onPressed: () => _openCreateNoteOrCollectionDialog(context),
                 icon: const Icon(Icons.note_add_outlined, size: 16),
                 label: const Text('New Note'),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+          child: Row(
+            children: [
+              const Icon(Icons.menu_book_outlined, size: 15),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Auto-Index (B-04): ${allDocs.length} total · $collectionCount collections · $projectCount projects · $logCount logs',
+                  style: Theme.of(context).textTheme.labelSmall,
+                ),
               ),
             ],
           ),

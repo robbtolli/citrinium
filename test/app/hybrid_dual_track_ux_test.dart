@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:citrinium/app/citrinium_app.dart';
 import 'package:citrinium/core/vault/vault_path_provider.dart';
 import 'package:citrinium/core/workspace/workspace_state.dart';
+import 'package:citrinium_core/citrinium_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -237,6 +238,109 @@ void main() {
         await _waitUntil(
           tester,
           () => File(p.join(vault.path, 'projects', 'launch-website.md'))
+              .existsSync(),
+        );
+      });
+    },
+  );
+
+  testWidgets(
+    'M4 & M5: Daily Migration (B-06, R-02), Cadence Templates (B-11), and On-Demand Collections (B-04, B-10)',
+    (tester) async {
+      await tester.runAsync(() async {
+        final dailyDir = Directory(p.join(vault.path, 'daily'));
+        await dailyDir.create(recursive: true);
+        await File(p.join(dailyDir.path, '2020-01-01.md')).writeAsString(
+          '---\ncitrinium:\n  type: dailyLog\n---\n# Old Day\n- [ ] Carry forward tax receipt @home\n',
+        );
+
+        SharedPreferences.setMockInitialValues({'vaultPath': vault.path});
+        final prefs = await SharedPreferences.getInstance();
+
+        final container = ProviderContainer(
+          overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        );
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const CitriniumApp(),
+          ),
+        );
+        await tester.pump();
+
+        // Wait for past daily migration banner (B-06, B-09)
+        await _waitUntil(
+          tester,
+          () => find.text('Review & Migrate').evaluate().isNotEmpty,
+        );
+
+        await tester.tap(find.text('Review & Migrate'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Carry forward tax receipt @home'), findsWidgets);
+        expect(find.text('Migrate to Today (>)'), findsOneWidget);
+
+        await tester.tap(find.text('Migrate to Today (>)'));
+        await tester.pump();
+
+        final todayRel = CadenceFiles.dailyRelPath(DateTime.now());
+        await _waitUntil(
+          tester,
+          () => File(p.join(vault.path, todayRel)).existsSync(),
+        );
+
+        final oldDayContent =
+            await File(p.join(vault.path, 'daily', '2020-01-01.md'))
+                .readAsString();
+        expect(oldDayContent, contains('- [>] Carry forward tax receipt @home'));
+
+        // Switch to Notes & Index (B-04) and create an on-demand Collection (B-10)
+        await tester.pump(const Duration(milliseconds: 400));
+        await tester.tap(find.text('Notes & Index'));
+        await tester.pump(const Duration(milliseconds: 400));
+
+        await _waitUntil(
+          tester,
+          () => find.textContaining('Auto-Index (B-04):').evaluate().isNotEmpty,
+        );
+        await tester.tap(find.text('+ Collection'));
+        await tester.pump(const Duration(milliseconds: 400));
+
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Title'),
+          'Reading List',
+        );
+        await tester.tap(find.text('Create'));
+        await tester.pump();
+
+        await _waitUntil(
+          tester,
+          () => File(p.join(vault.path, 'collections', 'reading-list.md'))
+              .existsSync(),
+        );
+
+        // Switch to Horizons & Review and open Templates dialog (B-11)
+        await tester.pump(const Duration(milliseconds: 400));
+        await tester.tap(find.text('Horizons & Review'));
+        await tester.pump(const Duration(milliseconds: 400));
+
+        expect(find.text('Templates'), findsOneWidget);
+        await tester.tap(find.text('Templates'));
+        await _waitUntil(
+          tester,
+          () => find.text('Save Template').evaluate().isNotEmpty,
+        );
+        await tester.pump(const Duration(milliseconds: 200));
+
+        expect(find.text('Cadence Templates (B-11)'), findsOneWidget);
+        await tester.tap(find.text('Save Template'));
+        await tester.pump();
+
+        await _waitUntil(
+          tester,
+          () => File(p.join(vault.path, '.citrinium', 'templates', 'weekly.md'))
               .existsSync(),
         );
       });

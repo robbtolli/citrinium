@@ -35,11 +35,19 @@ class TodayCombinedScreen extends ConsumerWidget {
     final todayDoc = docs.where((d) => d.relPath == todayRelPath).firstOrNull;
 
     // 1. Identify open tasks from past Daily Logs (`daily/*.md` where relPath < todayRelPath)
+    // and open tasks in Today's Daily Log for Guided Daily Review / Migration (`B-06`, `B-07`, `R-02`)
     final pastDailyOpenTasks = allEntries.where((e) {
       return e.isOpenTask &&
           e.document.relPath.startsWith('daily/') &&
           e.document.relPath.compareTo(todayRelPath) < 0;
     }).toList();
+    final todayOpenTasks = allEntries.where((e) {
+      return e.isOpenTask && e.document.relPath == todayRelPath;
+    }).toList();
+    final dailyReviewCandidates = [
+      ...pastDailyOpenTasks,
+      ...todayOpenTasks,
+    ];
 
     // 2. Check existing-vault 14-day historical task safeguard (A-06)
     final cutoffMs =
@@ -230,15 +238,34 @@ class TodayCombinedScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
                   child: Row(
                     children: [
                       const Icon(Icons.edit_calendar_outlined, size: 16),
                       const SizedBox(width: 6),
-                      Text(
-                        'Daily Log ($todayRelPath)',
-                        style: Theme.of(context).textTheme.labelLarge,
+                      Expanded(
+                        child: Text(
+                          'Daily Log ($todayRelPath)',
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
                       ),
+                      if (dailyReviewCandidates.isNotEmpty)
+                        TextButton.icon(
+                          onPressed: () {
+                            showModalBottomSheet<void>(
+                              context: context,
+                              isScrollControlled: true,
+                              builder: (ctx) => _DailyMigrationDeckSheet(
+                                tasks: dailyReviewCandidates,
+                                todayRelPath: todayRelPath,
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.fact_check_outlined, size: 16),
+                          label: Text(
+                            'Daily Review & Migrate (${dailyReviewCandidates.length})',
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -518,11 +545,12 @@ class _DailyMigrationDeckSheetState
           children: [
             Row(
               children: [
-                Text(
-                  'Daily Migration (${_index + 1} of ${widget.tasks.length})',
-                  style: theme.textTheme.titleMedium,
+                Expanded(
+                  child: Text(
+                    'Daily Migration (${_index + 1} of ${widget.tasks.length})',
+                    style: theme.textTheme.titleMedium,
+                  ),
                 ),
-                const Spacer(),
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
                   child: const Text('Pause for later'),
@@ -564,25 +592,61 @@ class _DailyMigrationDeckSheetState
               spacing: 8,
               runSpacing: 8,
               children: [
-                FilledButton.icon(
-                  onPressed: () async {
-                    await ref
-                        .read(vaultMutationProvider)
-                        .migrateOrScheduleEntry(
-                          current,
-                          targetRelPath: widget.todayRelPath,
-                          targetInitialContent:
-                              CadenceFiles.defaultContentForCadence(
-                                CadenceKind.daily,
-                                now,
-                              ),
-                          sourceMarker: TaskStateKind.migrated,
-                        );
-                    _advance();
-                  },
-                  icon: const Icon(Icons.keyboard_arrow_right),
-                  label: const Text('Migrate to Today (>)'),
-                ),
+                if (current.document.relPath != widget.todayRelPath)
+                  FilledButton.icon(
+                    onPressed: () async {
+                      await ref
+                          .read(vaultMutationProvider)
+                          .migrateOrScheduleEntry(
+                            current,
+                            targetRelPath: widget.todayRelPath,
+                            targetInitialContent:
+                                CadenceFiles.defaultContentForCadence(
+                                  CadenceKind.daily,
+                                  now,
+                                ),
+                            sourceMarker: TaskStateKind.migrated,
+                          );
+                      _advance();
+                    },
+                    icon: const Icon(Icons.keyboard_arrow_right),
+                    label: const Text('Migrate to Today (>)'),
+                  )
+                else ...[
+                  FilledButton.tonalIcon(
+                    onPressed: () async {
+                      await ref
+                          .read(vaultMutationProvider)
+                          .setTaskStateInPlace(
+                            current,
+                            TaskStateKind.completed,
+                          );
+                      _advance();
+                    },
+                    icon: const Icon(Icons.check),
+                    label: const Text('Mark Done ([x])'),
+                  ),
+                  FilledButton.icon(
+                    onPressed: () async {
+                      final tomorrow = now.add(const Duration(days: 1));
+                      await ref
+                          .read(vaultMutationProvider)
+                          .migrateOrScheduleEntry(
+                            current,
+                            targetRelPath: CadenceFiles.dailyRelPath(tomorrow),
+                            targetInitialContent:
+                                CadenceFiles.defaultContentForCadence(
+                                  CadenceKind.daily,
+                                  tomorrow,
+                                ),
+                            sourceMarker: TaskStateKind.migrated,
+                          );
+                      _advance();
+                    },
+                    icon: const Icon(Icons.keyboard_arrow_right),
+                    label: const Text('Migrate to Tomorrow (>)'),
+                  ),
+                ],
                 OutlinedButton.icon(
                   onPressed: () async {
                     await ref

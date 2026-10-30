@@ -216,6 +216,71 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
     }
   }
 
+  Future<void> _scheduleToFutureLog() async {
+    final now = DateTime.now();
+    await ref.read(vaultMutationProvider).migrateOrScheduleEntry(
+      widget.item,
+      targetRelPath: CadenceFiles.futureLogRelPath,
+      targetInitialContent: CadenceFiles.defaultContentForCadence(
+        CadenceKind.future,
+        now,
+      ),
+      sourceMarker: TaskStateKind.scheduled,
+    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Scheduled to Future Log (future.md) (<).'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _promoteToCollection(BuildContext context) async {
+    final titleCtrl =
+        TextEditingController(text: widget.item.entry.textContent);
+    final chosenTitle = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Create Collection from Item (B-10, D-10)'),
+        content: TextField(
+          controller: titleCtrl,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Collection Title',
+            border: OutlineInputBorder(),
+          ),
+          onSubmitted: (v) => Navigator.of(ctx).pop(v),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(titleCtrl.text),
+            child: const Text('Create Collection'),
+          ),
+        ],
+      ),
+    );
+    titleCtrl.dispose();
+    if (chosenTitle != null && chosenTitle.trim().isNotEmpty) {
+      final relPath = await ref
+          .read(vaultMutationProvider)
+          .createNoteOrProject(
+            title: chosenTitle.trim(),
+            docType: 'collection',
+            promoteFromEntry: widget.item,
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(this.context).showSnackBar(
+          SnackBar(content: Text('Created Collection $relPath')),
+        );
+      }
+    }
+  }
+
   Future<void> _dropTask() async {
     await ref.read(vaultMutationProvider).setTaskStateInPlace(
       widget.item,
@@ -553,9 +618,22 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
                         label: const Text('Migrate → Today'),
                       ),
                       OutlinedButton.icon(
+                        onPressed: _scheduleToFutureLog,
+                        icon: const Icon(Icons.keyboard_arrow_left, size: 16),
+                        label: const Text('Future Log (<)'),
+                      ),
+                      OutlinedButton.icon(
                         onPressed: _moveToSomeday,
                         icon: const Icon(Icons.spa_outlined, size: 16),
                         label: const Text('Someday'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () => _promoteToCollection(context),
+                        icon: const Icon(
+                          Icons.collections_bookmark_outlined,
+                          size: 16,
+                        ),
+                        label: const Text('Collection'),
                       ),
                       TextButton.icon(
                         onPressed: _dropTask,

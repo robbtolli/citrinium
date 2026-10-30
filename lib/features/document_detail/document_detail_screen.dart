@@ -121,6 +121,11 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
                     : widget.document.title),
                 actions: [
                   IconButton(
+                    icon: const Icon(Icons.collections_bookmark_outlined),
+                    tooltip: 'Create Collection from this Note/Log (B-10)',
+                    onPressed: () => _openCreateCollectionFromDocDialog(context),
+                  ),
+                  IconButton(
                     icon: Icon(isSourceMode ? Icons.remove_red_eye : Icons.code),
                     tooltip: isSourceMode ? 'Live Preview' : 'Source Mode',
                     onPressed: () {
@@ -317,6 +322,47 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
       error: (err, _) => Scaffold(
         appBar: AppBar(title: Text(widget.document.relPath)),
         body: Center(child: Text('Error loading document: $err')),
+      ),
+    );
+  }
+
+  void _openCreateCollectionFromDocDialog(BuildContext context) {
+    final titleCtrl = TextEditingController();
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('New Collection (B-10, D-10)'),
+        content: TextField(
+          controller: titleCtrl,
+          decoration: const InputDecoration(
+            labelText: 'Collection Title',
+            hintText: 'e.g. Books to Read or Trip Packing List',
+            border: OutlineInputBorder(),
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final title = titleCtrl.text.trim();
+              if (title.isEmpty) return;
+              final relPath = await ref
+                  .read(vaultMutationProvider)
+                  .createNoteOrProject(title: title, docType: 'collection');
+              final linkTarget = relPath.replaceAll('.md', '');
+              await ref.read(vaultMutationProvider).appendLineToDocument(
+                relPath: widget.document.relPath,
+                lineText: '- – [[$linkTarget|$title]]',
+              );
+              if (ctx.mounted) Navigator.of(ctx).pop();
+            },
+            child: const Text('Create & Link'),
+          ),
+        ],
       ),
     );
   }

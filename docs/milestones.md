@@ -67,9 +67,13 @@ Adds the `weekly/YYYY-Www.md` and `monthly/YYYY-MM.md` planning surfaces, `futur
 **Requirements:** **B-02, B-12**.
 **Cheap-adjacent:** B-03 (Future Log), B-04 (auto Index of collections/projects/notes), B-10 / D-10 (on-demand Collections).
 
+**Status:** Completed
+
 ## M5 — Migration Ritual & Daily Review
 
 **Requirements:** **B-06, B-07, B-09, B-11, R-02**.
+
+**Status:** Completed
 
 ## M6 — Full Live Preview Editor
 

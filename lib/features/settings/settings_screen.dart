@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/index/index_providers.dart';
 import '../../core/vault/vault_path_provider.dart';
 import '../../core/workspace/workspace_state.dart';
+import '../horizons/horizons_review_screen.dart';
 
 /// Settings screen (`docs/milestones/m0.md` W4): vault path, index stats,
 /// and the "Rebuild index" button -- the manual escape hatch that proves
@@ -132,6 +133,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     .toggleCadence(cadence, enabled);
               },
             ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: OutlinedButton.icon(
+              onPressed: () => showCadenceTemplatesDialog(context),
+              icon: const Icon(Icons.description_outlined),
+              label: const Text('Customize Cadence Templates (B-11)'),
+            ),
+          ),
           const Divider(height: 32),
 
           // Historical Task Filter Safeguard (A-06)

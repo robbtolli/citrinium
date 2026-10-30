@@ -161,9 +161,122 @@ class CadenceFiles {
     return (year: thursday.year, week: weekNumber);
   }
 
+  /// Ordered hierarchy of dated planning cadences from shortest to longest
+  /// (`QY-04`, `B-12`).
+  static const List<CadenceKind> datedHierarchy = [
+    CadenceKind.daily,
+    CadenceKind.weekly,
+    CadenceKind.monthly,
+    CadenceKind.quarterly,
+    CadenceKind.yearly,
+  ];
+
+  /// Computes dynamic horizon wikilinks (`[[...]]`) for [cadence] at [date],
+  /// bridging across any disabled cadences in [enabledCadences] (`B-12`, `QY-04`).
+  static List<String> horizonLinksForCadence(
+    CadenceKind cadence,
+    DateTime date,
+    Set<CadenceKind> enabledCadences,
+  ) {
+    final idx = datedHierarchy.indexOf(cadence);
+    if (idx < 0) return const [];
+
+    final links = <String>[];
+    // Find nearest enabled lower cadence
+    for (var i = idx - 1; i >= 0; i--) {
+      final lower = datedHierarchy[i];
+      if (enabledCadences.contains(lower)) {
+        final target = relPathForCadence(lower, date).replaceAll('.md', '');
+        links.add('[[$target]]');
+        break;
+      }
+    }
+    // Find nearest enabled higher cadence
+    for (var i = idx + 1; i < datedHierarchy.length; i++) {
+      final higher = datedHierarchy[i];
+      if (enabledCadences.contains(higher)) {
+        final target = relPathForCadence(higher, date).replaceAll('.md', '');
+        links.add('[[$target]]');
+        break;
+      }
+    }
+    return links;
+  }
+
+  /// Relative path inside the vault for a user-customized cadence template (`B-11`).
+  static String templateRelPath(CadenceKind cadence) =>
+      '.citrinium/templates/${cadence.id}.md';
+
+  /// Returns true if the user has saved a custom template for [cadence] (`B-11`).
+  static bool hasCustomTemplate({
+    required String vaultRootPath,
+    required CadenceKind cadence,
+  }) {
+    final file = File(
+      VaultPath(templateRelPath(cadence)).toAbsolute(vaultRootPath),
+    );
+    return file.existsSync();
+  }
+
+  /// Reads the current template (custom if saved, otherwise built-in default)
+  /// for [cadence] (`B-11`).
+  static String readTemplateForCadence({
+    required String vaultRootPath,
+    required CadenceKind cadence,
+    DateTime? sampleDate,
+    Set<CadenceKind>? enabledCadences,
+  }) {
+    final file = File(
+      VaultPath(templateRelPath(cadence)).toAbsolute(vaultRootPath),
+    );
+    if (file.existsSync()) {
+      return readVaultFileSync(file).text;
+    }
+    return defaultContentForCadence(
+      cadence,
+      sampleDate ?? DateTime.now(),
+      enabledCadences: enabledCadences,
+    );
+  }
+
+  /// Saves a user-edited template for [cadence] to `.citrinium/templates/<id>.md`
+  /// (`B-11`).
+  static Future<void> saveCustomTemplateForCadence({
+    required String vaultRootPath,
+    required CadenceKind cadence,
+    required String templateText,
+    VaultWatcher? watcher,
+  }) async {
+    final relPath = templateRelPath(cadence);
+    final absPath = VaultPath(relPath).toAbsolute(vaultRootPath);
+    final file = File(absPath);
+    await file.parent.create(recursive: true);
+    watcher?.suppressSelfWrite(VaultPath(absPath));
+    await writeVaultFileAtomic(
+      file,
+      VaultFileContents(text: templateText, hadBom: false),
+    );
+  }
+
+  /// Deletes any custom template for [cadence], restoring the built-in
+  /// functional default (`B-11`).
+  static Future<void> resetTemplateForCadence({
+    required String vaultRootPath,
+    required CadenceKind cadence,
+  }) async {
+    final file = File(
+      VaultPath(templateRelPath(cadence)).toAbsolute(vaultRootPath),
+    );
+    if (await file.exists()) {
+      await file.delete();
+    }
+  }
+
   /// Returns the initial Markdown content for a newly-created cadence file,
   /// checking `.citrinium/templates/<id>.md` first so user-customized templates
-  /// (`B-11`) are honored automatically.
+  /// (`B-11`) are honored automatically while guaranteeing `citrinium.type`
+  /// frontmatter is preserved so editing a template never disables the
+  /// underlying feature (`B-11`).
   static String defaultContentForCadence(
     CadenceKind cadence,
     DateTime date, {
@@ -171,22 +284,44 @@ class CadenceFiles {
     Set<CadenceKind>? enabledCadences,
     bool includeStarterTutorial = false,
   }) {
-    if (vaultRootPath != null) {
-      final customTemplateFile = File(
-        VaultPath('.citrinium/templates/${cadence.id}.md')
-            .toAbsolute(vaultRootPath),
-      );
-      if (customTemplateFile.existsSync()) {
-        return readVaultFileSync(customTemplateFile).text;
-      }
-    }
-
+    final activeCadences = enabledCadences ??
+        {
+          for (final c in CadenceKind.values)
+            if (c.defaultEnabled) c,
+        };
     final y = date.year.toString().padLeft(4, '0');
     final m = date.month.toString().padLeft(2, '0');
     final d = date.day.toString().padLeft(2, '0');
     final q = ((date.month - 1) ~/ 3) + 1;
     final iso = isoWeekYearAndNumber(date);
     final w = iso.week.toString().padLeft(2, '0');
+    final horizonLinks = horizonLinksForCadence(cadence, date, activeCadences);
+    final horizonLine =
+        horizonLinks.isEmpty ? '' : 'Horizon: ${horizonLinks.join(' · ')}\n\n';
+
+    if (vaultRootPath != null) {
+      final customTemplateFile = File(
+        VaultPath(templateRelPath(cadence)).toAbsolute(vaultRootPath),
+      );
+      if (customTemplateFile.existsSync()) {
+        var raw = readVaultFileSync(customTemplateFile).text;
+        raw = raw
+            .replaceAll('{{date}}', '$y-$m-$d')
+            .replaceAll('{{year}}', y)
+            .replaceAll('{{month}}', '$y-$m')
+            .replaceAll('{{week}}', '${iso.year}-W$w')
+            .replaceAll('{{quarter}}', '$y-Q$q')
+            .replaceAll('{{horizons}}', horizonLinks.join(' · '));
+        if (!raw.trimLeft().startsWith('---')) {
+          return '---\n'
+              'citrinium:\n'
+              '  type: ${cadence.docType}\n'
+              '---\n'
+              '$raw';
+        }
+        return raw;
+      }
+    }
 
     switch (cadence) {
       case CadenceKind.daily:
@@ -212,7 +347,7 @@ class CadenceFiles {
             '  type: weeklyLog\n'
             '---\n'
             '# Weekly Plan — ${iso.year}-W$w\n\n'
-            'Horizon: [[monthly/$y-$m]]\n\n'
+            '$horizonLine'
             '## This Week\'s Focus Outcomes\n'
             '- [ ] \n\n'
             '## Notes & Review Reflections\n'
@@ -224,6 +359,7 @@ class CadenceFiles {
             '  type: monthlyLog\n'
             '---\n'
             '# Monthly Log — $y-$m\n\n'
+            '$horizonLine'
             '## Key Dates & Events\n'
             '- ○ \n\n'
             '## Monthly Focus & Open Loops\n'
@@ -235,6 +371,7 @@ class CadenceFiles {
             '  type: quarterlyLog\n'
             '---\n'
             '# Quarterly Plan — $y-Q$q\n\n'
+            '$horizonLine'
             '## Quarter Themes & Outcomes (Horizon 3)\n'
             '- [ ] \n\n'
             '## Areas of Focus Check-in (Horizon 2)\n'
@@ -248,6 +385,7 @@ class CadenceFiles {
             '  type: yearlyLog\n'
             '---\n'
             '# Yearly Log — $y\n\n'
+            '$horizonLine'
             '## Annual Themes & Vision (Horizon 4)\n'
             '- – \n\n'
             '## Core Goals for $y\n'
