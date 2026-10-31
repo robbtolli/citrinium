@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/index/index_providers.dart';
 import '../../core/workspace/workspace_state.dart';
+import '../../shared/widgets/citrinium_help_sheet.dart';
 import '../../shared/widgets/embedded_markdown_editor.dart';
 import '../../shared/widgets/in_place_task_tile.dart';
 
@@ -108,6 +109,10 @@ class TodayCombinedScreen extends ConsumerWidget {
           _HistoricalTaskSafeguardBanner(
             oldTaskCount: oldUndatedOpenTasks.length,
           ),
+
+        // Getting Started progressive checklist banner (A-06, P-07)
+        if (!workspace.onboardingChecklistDismissed)
+          const _OnboardingChecklistBanner(),
 
         // Past Daily Log Migration / Fresh Start banner (B-06, B-09, P-04)
         if (pastDailyOpenTasks.isNotEmpty)
@@ -223,13 +228,17 @@ class TodayCombinedScreen extends ConsumerWidget {
     );
 
     if (todayDoc != null) {
+      final maxTopHeight = MediaQuery.of(context).size.height * 0.42;
       return Column(
         children: [
           Flexible(
             flex: 0,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-              child: topSection,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: maxTopHeight),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                child: topSection,
+              ),
             ),
           ),
           const Divider(height: 1),
@@ -363,20 +372,39 @@ class _HabitCheckChip extends ConsumerWidget {
     final workspace = ref.watch(workspaceStateProvider);
     final completedToday =
         workspace.isHabitCompletedOn(habit.uniqueKey, todayIso);
-    final totalCompletions =
-        workspace.habitCompletionsByDate[habit.uniqueKey]?.length ?? 0;
+    final completedDates =
+        workspace.habitCompletionsByDate[habit.uniqueKey] ?? const [];
+    final rule = RecurrenceRule.tryParse(habit.entry.recurrenceRaw);
+    final summary = HabitTrackerEngine.summarize(
+      rule: rule,
+      completedIsoDates: completedDates,
+      referenceDate: DateTime.now(),
+      windowDays: 7,
+    );
+    final rhythmDots = summary.recentDays
+        .map(
+          (d) => switch (d.state) {
+            HabitDayState.completed => '●',
+            HabitDayState.unloggedScheduled => '·',
+            HabitDayState.restDay => '○',
+          },
+        )
+        .join();
 
-    return FilterChip(
-      selected: completedToday,
-      label: Text(
-        '${habit.entry.textContent} ($totalCompletions days logged)',
-        style: const TextStyle(fontSize: 12),
+    return Tooltip(
+      message: summary.supportiveSummaryText,
+      child: FilterChip(
+        selected: completedToday,
+        label: Text(
+          '${habit.entry.textContent} [$rhythmDots] (${summary.totalCompletions}d)',
+          style: const TextStyle(fontSize: 12),
+        ),
+        onSelected: (_) {
+          ref
+              .read(workspaceStateProvider.notifier)
+              .toggleHabitCompletion(habit.uniqueKey, todayIso);
+        },
       ),
-      onSelected: (_) {
-        ref
-            .read(workspaceStateProvider.notifier)
-            .toggleHabitCompletion(habit.uniqueKey, todayIso);
-      },
     );
   }
 }
@@ -698,6 +726,146 @@ class _DailyMigrationDeckSheetState
                 ),
               ],
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OnboardingChecklistBanner extends ConsumerStatefulWidget {
+  const _OnboardingChecklistBanner();
+
+  @override
+  ConsumerState<_OnboardingChecklistBanner> createState() =>
+      _OnboardingChecklistBannerState();
+}
+
+class _OnboardingChecklistBannerState
+    extends ConsumerState<_OnboardingChecklistBanner> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final workspace = ref.watch(workspaceStateProvider);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    const steps = [
+      ('quick_capture', 'Capture a thought with Quick Capture'),
+      ('focus_shelf_pin', 'Pin a task to Today\'s Top 3'),
+      ('in_place_edit', 'Edit a task in-place or try a 2m Sprint'),
+      ('clarify_inbox', 'Clarify an item in Actions & Inbox'),
+      ('explore_guides', 'Browse notes, guides, or collections'),
+    ];
+
+    final completedCount = steps
+        .where((s) => workspace.completedOnboardingSteps.contains(s.$1))
+        .length;
+
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 8),
+      color: colorScheme.secondaryContainer.withValues(alpha: 0.4),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: colorScheme.secondary.withValues(alpha: 0.25),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  completedCount == steps.length
+                      ? Icons.check_circle_outline
+                      : Icons.lightbulb_outline,
+                  size: 20,
+                  color: colorScheme.secondary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Getting Started with Citrinium ($completedCount/${steps.length})',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.onSecondaryContainer,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => showCitriniumHelpSheet(context),
+                  child: const Text('Field Guide'),
+                ),
+                IconButton(
+                  icon: Icon(
+                    _expanded ? Icons.expand_less : Icons.expand_more,
+                    size: 20,
+                  ),
+                  tooltip: _expanded ? 'Show less' : 'Show checklist',
+                  onPressed: () => setState(() => _expanded = !_expanded),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 18),
+                  tooltip: 'Dismiss checklist',
+                  onPressed: () {
+                    ref
+                        .read(workspaceStateProvider.notifier)
+                        .dismissOnboardingChecklist(dismissed: true);
+                  },
+                ),
+              ],
+            ),
+            if (_expanded) ...[
+              const Divider(height: 12),
+              for (final step in steps) ...[
+                InkWell(
+                  onTap: () {
+                    final isDone = workspace.completedOnboardingSteps.contains(
+                      step.$1,
+                    );
+                    ref
+                        .read(workspaceStateProvider.notifier)
+                        .toggleOnboardingStep(step.$1, !isDone);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        Icon(
+                          workspace.completedOnboardingSteps.contains(step.$1)
+                              ? Icons.check_box
+                              : Icons.check_box_outline_blank,
+                          size: 18,
+                          color: workspace.completedOnboardingSteps.contains(
+                            step.$1,
+                          )
+                              ? colorScheme.primary
+                              : colorScheme.outline,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            step.$2,
+                            style: TextStyle(
+                              fontSize: 13,
+                              decoration: workspace.completedOnboardingSteps
+                                      .contains(step.$1)
+                                  ? TextDecoration.lineThrough
+                                  : null,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ],
         ),
       ),

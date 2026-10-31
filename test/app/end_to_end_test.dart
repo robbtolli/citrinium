@@ -139,6 +139,7 @@ void main() {
       await tester.runAsync(() async {
         await pumpAppWithVault(tester);
 
+        await tester.ensureVisible(find.text('A Note'));
         await tester.tap(find.text('A Note'));
         await _waitUntil(
           tester,

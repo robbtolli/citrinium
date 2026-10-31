@@ -39,6 +39,9 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
         title: widget.document.title,
         docType: widget.document.docType,
       );
+      ref
+          .read(workspaceStateProvider.notifier)
+          .completeOnboardingStep('explore_guides');
     });
   }
 

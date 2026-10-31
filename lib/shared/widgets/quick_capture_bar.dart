@@ -93,6 +93,10 @@ class _QuickCaptureBarState extends ConsumerState<QuickCaptureBar> {
       defaultPrefix: _kind.prefix,
     );
 
+    ref
+        .read(workspaceStateProvider.notifier)
+        .completeOnboardingStep('quick_capture');
+
     if (mounted && relPath.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

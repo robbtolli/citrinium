@@ -70,6 +70,12 @@ class WorkspaceState {
     required this.historicalTaskCutoffDays,
     required this.dismissedHistoricalPrompt,
     required this.focusShelfExpanded,
+    this.snoozedUntilMsByTaskKey = const {},
+    this.reminderLeadMinutesByTaskKey = const {},
+    this.defaultReminderLeadMinutes = 0,
+    this.notificationPermissionGranted = false,
+    this.onboardingChecklistDismissed = false,
+    this.completedOnboardingSteps = const {},
   });
 
   factory WorkspaceState.initial() {
@@ -87,6 +93,12 @@ class WorkspaceState {
       historicalTaskCutoffDays: 14,
       dismissedHistoricalPrompt: false,
       focusShelfExpanded: true,
+      snoozedUntilMsByTaskKey: const {},
+      reminderLeadMinutesByTaskKey: const {},
+      defaultReminderLeadMinutes: 0,
+      notificationPermissionGranted: false,
+      onboardingChecklistDismissed: false,
+      completedOnboardingSteps: const {},
     );
   }
 
@@ -112,6 +124,24 @@ class WorkspaceState {
   final bool dismissedHistoricalPrompt;
   final bool focusShelfExpanded;
 
+  /// Map of `taskKey` -> epoch milliseconds until which a task reminder is snoozed (`E-12`).
+  final Map<String, int> snoozedUntilMsByTaskKey;
+
+  /// Map of `taskKey` -> custom reminder lead-time minutes (`E-10`).
+  final Map<String, int> reminderLeadMinutesByTaskKey;
+
+  /// Default reminder lead time in minutes across tasks (`E-08`, `E-10`).
+  final int defaultReminderLeadMinutes;
+
+  /// Whether native notification permission has been contextually granted on this device (`E-11`).
+  final bool notificationPermissionGranted;
+
+  /// Whether the user dismissed the Getting Started progress checklist card (`A-06`).
+  final bool onboardingChecklistDismissed;
+
+  /// IDs of completed onboarding steps (e.g. `quick_capture`, `top_three_pin`).
+  final Set<String> completedOnboardingSteps;
+
   /// True if the user was active within the last 2 hours (`A-08`).
   bool isWithinTwoHourWindow(DateTime now) {
     if (lastActiveTimestampMs == null) return false;
@@ -129,6 +159,17 @@ class WorkspaceState {
     return dates != null && dates.contains(isoDate);
   }
 
+  DateTime? snoozedUntil(String uniqueKey) {
+    final ms = snoozedUntilMsByTaskKey[uniqueKey];
+    return ms == null ? null : DateTime.fromMillisecondsSinceEpoch(ms);
+  }
+
+  ReminderLeadTime reminderLeadTimeFor(String uniqueKey) {
+    final mins =
+        reminderLeadMinutesByTaskKey[uniqueKey] ?? defaultReminderLeadMinutes;
+    return ReminderLeadTime.fromStoredMinutes(mins);
+  }
+
   WorkspaceState copyWith({
     CaptureDestination? captureDestination,
     Set<CadenceKind>? enabledCadences,
@@ -140,6 +181,12 @@ class WorkspaceState {
     int? historicalTaskCutoffDays,
     bool? dismissedHistoricalPrompt,
     bool? focusShelfExpanded,
+    Map<String, int>? snoozedUntilMsByTaskKey,
+    Map<String, int>? reminderLeadMinutesByTaskKey,
+    int? defaultReminderLeadMinutes,
+    bool? notificationPermissionGranted,
+    bool? onboardingChecklistDismissed,
+    Set<String>? completedOnboardingSteps,
   }) {
     return WorkspaceState(
       captureDestination: captureDestination ?? this.captureDestination,
@@ -157,6 +204,18 @@ class WorkspaceState {
       dismissedHistoricalPrompt:
           dismissedHistoricalPrompt ?? this.dismissedHistoricalPrompt,
       focusShelfExpanded: focusShelfExpanded ?? this.focusShelfExpanded,
+      snoozedUntilMsByTaskKey:
+          snoozedUntilMsByTaskKey ?? this.snoozedUntilMsByTaskKey,
+      reminderLeadMinutesByTaskKey:
+          reminderLeadMinutesByTaskKey ?? this.reminderLeadMinutesByTaskKey,
+      defaultReminderLeadMinutes:
+          defaultReminderLeadMinutes ?? this.defaultReminderLeadMinutes,
+      notificationPermissionGranted:
+          notificationPermissionGranted ?? this.notificationPermissionGranted,
+      onboardingChecklistDismissed:
+          onboardingChecklistDismissed ?? this.onboardingChecklistDismissed,
+      completedOnboardingSteps:
+          completedOnboardingSteps ?? this.completedOnboardingSteps,
     );
   }
 
@@ -194,6 +253,28 @@ class WorkspaceState {
         buf.writeln('- [[${item.relPath}|${item.displayLabel}]] (${item.docType})');
       }
     }
+    buf.writeln('\n## Active Snoozes & Reminder Lead Times');
+    if (snoozedUntilMsByTaskKey.isEmpty && reminderLeadMinutesByTaskKey.isEmpty) {
+      buf.writeln('- *(Default lead time: ${ReminderLeadTime.fromStoredMinutes(defaultReminderLeadMinutes).label})*');
+    } else {
+      for (final e in snoozedUntilMsByTaskKey.entries) {
+        final dt = DateTime.fromMillisecondsSinceEpoch(e.value).toIso8601String();
+        buf.writeln('- **Snoozed `${e.key}`** until `$dt`');
+      }
+      for (final e in reminderLeadMinutesByTaskKey.entries) {
+        final lt = ReminderLeadTime.fromStoredMinutes(e.value);
+        buf.writeln('- **Lead time `${e.key}`**: ${lt.label}');
+      }
+    }
+    buf.writeln('\n## Onboarding & Getting Started');
+    buf.writeln('- **Checklist Dismissed**: $onboardingChecklistDismissed');
+    if (completedOnboardingSteps.isEmpty) {
+      buf.writeln('- *(No onboarding checklist steps completed yet)*');
+    } else {
+      for (final step in completedOnboardingSteps) {
+        buf.writeln('- [x] `$step`');
+      }
+    }
     return buf.toString();
   }
 
@@ -207,6 +288,12 @@ class WorkspaceState {
       'lastActiveTimestampMs': lastActiveTimestampMs,
       'filterOlderUndatedTasks': filterOlderUndatedTasks,
       'historicalTaskCutoffDays': historicalTaskCutoffDays,
+      'snoozedUntilMsByTaskKey': snoozedUntilMsByTaskKey,
+      'reminderLeadMinutesByTaskKey': reminderLeadMinutesByTaskKey,
+      'defaultReminderLeadMinutes': defaultReminderLeadMinutes,
+      'notificationPermissionGranted': notificationPermissionGranted,
+      'onboardingChecklistDismissed': onboardingChecklistDismissed,
+      'completedOnboardingSteps': completedOnboardingSteps.toList(),
     });
   }
 }
@@ -264,6 +351,23 @@ class WorkspaceStateNotifier extends Notifier<WorkspaceState> {
         }
       }
 
+      final snoozeRaw = map['snoozedUntilMsByTaskKey'] as Map<String, Object?>?;
+      final snoozeMap = <String, int>{};
+      if (snoozeRaw != null) {
+        for (final e in snoozeRaw.entries) {
+          if (e.value is int) snoozeMap[e.key] = e.value! as int;
+        }
+      }
+
+      final leadRaw =
+          map['reminderLeadMinutesByTaskKey'] as Map<String, Object?>?;
+      final leadMap = <String, int>{};
+      if (leadRaw != null) {
+        for (final e in leadRaw.entries) {
+          if (e.value is int) leadMap[e.key] = e.value! as int;
+        }
+      }
+
       return WorkspaceState(
         captureDestination: captureDestination,
         enabledCadences: enabledCadences.isEmpty
@@ -280,6 +384,18 @@ class WorkspaceStateNotifier extends Notifier<WorkspaceState> {
         dismissedHistoricalPrompt:
             (map['dismissedHistoricalPrompt'] as bool?) ?? false,
         focusShelfExpanded: (map['focusShelfExpanded'] as bool?) ?? true,
+        snoozedUntilMsByTaskKey: snoozeMap,
+        reminderLeadMinutesByTaskKey: leadMap,
+        defaultReminderLeadMinutes:
+            (map['defaultReminderLeadMinutes'] as int?) ?? 0,
+        notificationPermissionGranted:
+            (map['notificationPermissionGranted'] as bool?) ?? false,
+        onboardingChecklistDismissed:
+            (map['onboardingChecklistDismissed'] as bool?) ?? false,
+        completedOnboardingSteps: (map['completedOnboardingSteps'] as List<Object?>?)
+                ?.whereType<String>()
+                .toSet() ??
+            const {},
       );
     } on Object {
       return WorkspaceState.initial();
@@ -302,6 +418,12 @@ class WorkspaceStateNotifier extends Notifier<WorkspaceState> {
         'historicalTaskCutoffDays': next.historicalTaskCutoffDays,
         'dismissedHistoricalPrompt': next.dismissedHistoricalPrompt,
         'focusShelfExpanded': next.focusShelfExpanded,
+        'snoozedUntilMsByTaskKey': next.snoozedUntilMsByTaskKey,
+        'reminderLeadMinutesByTaskKey': next.reminderLeadMinutesByTaskKey,
+        'defaultReminderLeadMinutes': next.defaultReminderLeadMinutes,
+        'notificationPermissionGranted': next.notificationPermissionGranted,
+        'onboardingChecklistDismissed': next.onboardingChecklistDismissed,
+        'completedOnboardingSteps': next.completedOnboardingSteps.toList(),
       }),
     );
   }
@@ -333,7 +455,14 @@ class WorkspaceStateNotifier extends Notifier<WorkspaceState> {
       return false;
     }
     current.add(uniqueKey);
-    await _persist(state.copyWith(topThreePinnedKeys: current));
+    final nextSteps = Set<String>.from(state.completedOnboardingSteps)
+      ..add('focus_shelf_pin');
+    await _persist(
+      state.copyWith(
+        topThreePinnedKeys: current,
+        completedOnboardingSteps: nextSteps,
+      ),
+    );
     return true;
   }
 
@@ -398,6 +527,65 @@ class WorkspaceStateNotifier extends Notifier<WorkspaceState> {
 
   Future<void> setFocusShelfExpanded(bool expanded) async {
     await _persist(state.copyWith(focusShelfExpanded: expanded));
+  }
+
+  /// Snoozes a task reminder until [snoozeUntil] (`E-12`, `A-03`).
+  Future<void> snoozeTask(String uniqueKey, DateTime snoozeUntil) async {
+    final nextMap = Map<String, int>.from(state.snoozedUntilMsByTaskKey);
+    nextMap[uniqueKey] = snoozeUntil.millisecondsSinceEpoch;
+    await _persist(state.copyWith(snoozedUntilMsByTaskKey: nextMap));
+  }
+
+  /// Clears any active snooze for [uniqueKey] (`E-12`).
+  Future<void> clearSnooze(String uniqueKey) async {
+    final nextMap = Map<String, int>.from(state.snoozedUntilMsByTaskKey);
+    nextMap.remove(uniqueKey);
+    await _persist(state.copyWith(snoozedUntilMsByTaskKey: nextMap));
+  }
+
+  /// Sets or clears a per-task reminder lead time in minutes (`E-10`).
+  Future<void> setTaskReminderLeadMinutes(
+    String uniqueKey,
+    int? minutesBefore,
+  ) async {
+    final nextMap = Map<String, int>.from(state.reminderLeadMinutesByTaskKey);
+    if (minutesBefore == null) {
+      nextMap.remove(uniqueKey);
+    } else {
+      nextMap[uniqueKey] = minutesBefore;
+    }
+    await _persist(state.copyWith(reminderLeadMinutesByTaskKey: nextMap));
+  }
+
+  Future<void> setDefaultReminderLeadMinutes(int minutes) async {
+    await _persist(state.copyWith(defaultReminderLeadMinutes: minutes));
+  }
+
+  Future<void> setNotificationPermissionGranted(bool granted) async {
+    await _persist(state.copyWith(notificationPermissionGranted: granted));
+  }
+
+  Future<void> dismissOnboardingChecklist({bool dismissed = true}) async {
+    await _persist(state.copyWith(onboardingChecklistDismissed: dismissed));
+  }
+
+  Future<void> completeOnboardingStep(String stepId) async {
+    final next = Set<String>.from(state.completedOnboardingSteps)..add(stepId);
+    await _persist(state.copyWith(completedOnboardingSteps: next));
+  }
+
+  Future<void> toggleOnboardingStep(String stepId, bool completed) async {
+    final next = Set<String>.from(state.completedOnboardingSteps);
+    if (completed) {
+      next.add(stepId);
+    } else {
+      next.remove(stepId);
+    }
+    await _persist(state.copyWith(completedOnboardingSteps: next));
+  }
+
+  Future<void> setTopThreePinnedKeys(List<String> keys) async {
+    await _persist(state.copyWith(topThreePinnedKeys: List<String>.from(keys)));
   }
 }
 

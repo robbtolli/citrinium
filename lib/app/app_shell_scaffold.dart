@@ -4,11 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/index/index_providers.dart';
+import '../core/notifications/notification_service.dart';
 import '../core/workspace/workspace_state.dart';
 import '../features/actions/actions_inbox_screen.dart';
 import '../features/documents/document_list_screen.dart';
 import '../features/horizons/horizons_review_screen.dart';
 import '../features/today/today_combined_screen.dart';
+import '../shared/widgets/citrinium_help_sheet.dart';
 import '../shared/widgets/quick_capture_bar.dart';
 
 enum AppPillar {
@@ -178,6 +180,7 @@ class _AppShellScaffoldState extends ConsumerState<AppShellScaffold> {
   Widget build(BuildContext context) {
     final workspace = ref.watch(workspaceStateProvider);
     final docsAsync = ref.watch(documentListProvider);
+    final reminders = ref.watch(rollingReminderWindowProvider);
     final allDocs = docsAsync.value ?? const [];
 
     if (docsAsync.hasValue) {
@@ -208,9 +211,23 @@ class _AppShellScaffoldState extends ConsumerState<AppShellScaffold> {
             ),
           ),
           IconButton(
+            icon: Badge(
+              isLabelVisible: reminders.isNotEmpty,
+              label: Text('${reminders.length}'),
+              child: const Icon(Icons.notifications_outlined),
+            ),
+            tooltip: 'Reminders & Snooze (E-08, E-12)',
+            onPressed: () => showRemindersCenterSheet(context),
+          ),
+          IconButton(
             icon: const Icon(Icons.search),
             tooltip: 'Quick Switcher & Search (N-04)',
             onPressed: () => _openQuickSwitcherDialog(context, allDocs),
+          ),
+          IconButton(
+            icon: const Icon(Icons.help_outline),
+            tooltip: 'Field Guide & Cheat Sheet (A-06)',
+            onPressed: () => showCitriniumHelpSheet(context),
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),

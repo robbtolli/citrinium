@@ -85,18 +85,26 @@ final documentRawTextProvider =
   final absolutePath = VaultPath(relPath).toAbsolute(services.vaultPath);
   final file = File(absolutePath);
 
-  if (await file.exists()) {
-    final contents = await readVaultFile(file);
-    yield contents.text;
+  try {
+    if (await file.exists()) {
+      final contents = await readVaultFile(file);
+      yield contents.text;
+    }
+  } on FileSystemException {
+    // Handled gracefully if file is concurrently modified or deleted
   }
 
   final targetNormalized = VaultPath(relPath).value;
 
   await for (final event in services.watcher.events) {
     if (event.path.value == relPath || event.path.value == targetNormalized) {
-      if (await file.exists()) {
-        final contents = await readVaultFile(file);
-        yield contents.text;
+      try {
+        if (await file.exists()) {
+          final contents = await readVaultFile(file);
+          yield contents.text;
+        }
+      } on FileSystemException {
+        // Handled gracefully if file is deleted concurrently
       }
     }
   }
@@ -284,7 +292,67 @@ class VaultMutationService {
     await _notifyFileUpdated(services, relPath);
   }
 
-  /// Edits an entry's text content, inline metadata (`📅`, `⏰`, `@context`,
+  /// Completes a task in-place (`D-02`, `D-19`), or if the task is a recurring
+  /// task/habit (`D-16`, `D-17`), logs habit completion and/or advances its
+  /// `📅` date to the next scheduled occurrence without polluting the Markdown
+  /// file with duplicate cloned rows (`D-15`).
+  Future<String?> completeOrAdvanceTask(
+    IndexedEntryWithDocument item, {
+    DateTime? now,
+  }) async {
+    final currentNow = now ?? DateTime.now();
+    final todayIso = NlDateParser.formatIsoDate(currentNow);
+    final rule = RecurrenceRule.tryParse(item.entry.recurrenceRaw);
+
+    if (item.isHabit) {
+      await _ref
+          .read(workspaceStateProvider.notifier)
+          .toggleHabitCompletion(item.uniqueKey, todayIso);
+    }
+
+    if (rule != null && !item.isCompletedTask) {
+      DateTime baseDate = currentNow;
+      if (item.entry.dueDate != null) {
+        final parts = item.entry.dueDate!.split('-');
+        if (parts.length == 3) {
+          final y = int.tryParse(parts[0]);
+          final m = int.tryParse(parts[1]);
+          final d = int.tryParse(parts[2]);
+          if (y != null && m != null && d != null) {
+            baseDate = DateTime(y, m, d);
+          }
+        }
+      }
+      final nextDate = rule.nextOccurrenceAfter(
+        baseDate.isBefore(currentNow) ? currentNow : baseDate,
+        anchorDate: baseDate,
+      );
+      final nextIso = NlDateParser.formatIsoDate(nextDate);
+      await updateEntryInPlace(
+        item,
+        newState: TaskStateKind.open,
+        dueDate: nextIso,
+      );
+      await _ref.read(workspaceStateProvider.notifier).clearSnooze(
+        item.uniqueKey,
+      );
+      return nextIso;
+    }
+
+    final isDone = item.isCompletedTask;
+    await setTaskStateInPlace(
+      item,
+      isDone ? TaskStateKind.open : TaskStateKind.completed,
+    );
+    if (!isDone) {
+      await _ref.read(workspaceStateProvider.notifier).clearSnooze(
+        item.uniqueKey,
+      );
+    }
+    return null;
+  }
+
+  /// Edits an entry's text content, inline metadata (`📅`, `⏰`, `🔁`, `@context`,
   /// `#tag`), and/or indented child note/comment block (`D-14`, `D-18`) in-place
   /// inside its source `.md` file without navigating away (`D-19`).
   Future<void> updateEntryInPlace(
@@ -296,6 +364,8 @@ class VaultMutationService {
     bool clearDueDate = false,
     String? dueTime,
     bool clearDueTime = false,
+    String? recurrence,
+    bool clearRecurrence = false,
     String? addContext,
     String? removeContext,
     String? addTag,
@@ -339,6 +409,22 @@ class VaultMutationService {
             InlineMetadataKind.time,
             dueTime.trim(),
           );
+        }
+        if (clearRecurrence) {
+          updated = updated.removeInlineField(
+            idx,
+            InlineMetadataKind.recurrence,
+          );
+        } else if (recurrence != null && recurrence.trim().isNotEmpty) {
+          final cleanRec =
+              recurrence.trim().replaceFirst(RegExp(r'^🔁\s*'), '').trim();
+          if (cleanRec.isNotEmpty) {
+            updated = updated.upsertInlineField(
+              idx,
+              InlineMetadataKind.recurrence,
+              cleanRec,
+            );
+          }
         }
         if (removeContext != null) {
           updated = updated.removeInlineField(

@@ -93,12 +93,16 @@ Domain-layer recurrence engine (daily/weekly/monthly/custom rules) and habit/str
 
 **Requirements:** **D-16, D-17**.
 
+**Status:** Completed
+
 ## M8 — Reminders & Native Notifications
 
 Re-derives reminders from vault metadata each launch; per-platform native scheduling with graceful degradation (iOS pending-notification cap, Android exact-alarm gating). Also implements the snooze affordance M1 stubbed out (E-12).
 
 **Requirements:** **E-08, E-10, E-11, FR-05**.
 **Cheap-adjacent:** E-12 (snooze/reschedule from the notification itself).
+
+**Status:** Completed
 
 ## M9 — Notes Linking & Full-Text Search
 

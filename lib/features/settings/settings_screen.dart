@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/index/index_providers.dart';
 import '../../core/vault/vault_path_provider.dart';
 import '../../core/workspace/workspace_state.dart';
+import '../../shared/widgets/citrinium_help_sheet.dart';
 import '../horizons/horizons_review_screen.dart';
 
 /// Settings screen (`docs/milestones/m0.md` W4): vault path, index stats,
@@ -154,6 +155,36 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ref
                   .read(workspaceStateProvider.notifier)
                   .setHistoricalTaskFilter(filterOlderUndatedTasks: val);
+            },
+          ),
+          const Divider(height: 32),
+
+          // Help & Starter Guides (A-06)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'Field Guide & Learning (A-06)',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.help_outline),
+            title: const Text('Citrinium Field Guide & Cheat Sheet'),
+            subtitle: const Text(
+              'Browse 4 Pillars, workflow recipes, and syntax guides',
+            ),
+            onTap: () => showCitriniumHelpSheet(context),
+          ),
+          SwitchListTile(
+            title: const Text('Show Getting Started Checklist on Today'),
+            subtitle: const Text(
+              'Displays a learning checklist card at the top of Today',
+            ),
+            value: !workspace.onboardingChecklistDismissed,
+            onChanged: (visible) {
+              ref
+                  .read(workspaceStateProvider.notifier)
+                  .dismissOnboardingChecklist(dismissed: !visible);
             },
           ),
           const Divider(height: 32),

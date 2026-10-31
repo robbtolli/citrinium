@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/index/index_providers.dart';
+import '../../core/notifications/notification_service.dart';
 import '../../core/workspace/workspace_state.dart';
 
 /// Displays an indexed task/entry in any aggregated list (Today's Focus Shelf,
@@ -83,11 +84,17 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
 
   Future<void> _toggleCompleted() async {
     final mutations = ref.read(vaultMutationProvider);
-    final isDone = widget.item.isCompletedTask;
-    await mutations.setTaskStateInPlace(
-      widget.item,
-      isDone ? TaskStateKind.open : TaskStateKind.completed,
-    );
+    final nextIso = await mutations.completeOrAdvanceTask(widget.item);
+    if (nextIso != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Completed occurrence! Next scheduled for 📅 $nextIso (🔁 ${widget.item.entry.recurrenceRaw}).',
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   Future<void> _saveEditedText() async {
@@ -179,6 +186,76 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
         addContext: added.trim(),
       );
     }
+  }
+
+  Future<void> _setQuickRecurrence(String? ruleText) async {
+    await ref.read(vaultMutationProvider).updateEntryInPlace(
+      widget.item,
+      recurrence: ruleText,
+      clearRecurrence: ruleText == null,
+    );
+  }
+
+  Future<void> _toggleHabitTag() async {
+    final isHabit = widget.item.tags.contains('habit');
+    await ref.read(vaultMutationProvider).updateEntryInPlace(
+      widget.item,
+      addTag: isHabit ? null : 'habit',
+      removeTag: isHabit ? 'habit' : null,
+      recurrence:
+          (!isHabit && widget.item.entry.recurrenceRaw == null)
+              ? 'every day'
+              : null,
+    );
+  }
+
+  Future<void> _promptCustomRecurrence(BuildContext context) async {
+    final controller = TextEditingController(
+      text: widget.item.entry.recurrenceRaw ?? '',
+    );
+    final chosen = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Custom Recurrence Rule (D-16)'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'e.g. every weekday, every 1st Monday, every 2 weeks',
+            prefixText: '🔁 ',
+            border: OutlineInputBorder(),
+          ),
+          onSubmitted: (v) => Navigator.of(ctx).pop(v),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text),
+            child: const Text('Apply'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (chosen != null && chosen.trim().isNotEmpty) {
+      await _setQuickRecurrence(chosen.trim());
+    }
+  }
+
+  Future<void> _openReminderAndSnoozeDialog(BuildContext context) async {
+    final permitted = await ensureContextualNotificationPermission(
+      context,
+      ref,
+    );
+    if (!permitted || !context.mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => _ReminderAndSnoozeDialog(item: widget.item),
+    );
   }
 
   Future<void> _migrateToToday() async {
@@ -389,6 +466,9 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
                 if (_expanded) {
                   _textController.text = widget.item.entry.textContent;
                   _loadChildNoteFromDisk();
+                  ref
+                      .read(workspaceStateProvider.notifier)
+                      .completeOnboardingStep('in_place_edit');
                 }
               });
             },
@@ -422,6 +502,10 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
                           ),
                         ),
                         if (widget.item.entry.dueDate != null ||
+                            widget.item.entry.dueTime != null ||
+                            widget.item.entry.recurrenceRaw != null ||
+                            workspace.snoozedUntil(widget.item.uniqueKey) !=
+                                null ||
                             widget.item.contexts.isNotEmpty ||
                             widget.item.tags.isNotEmpty) ...[
                           const SizedBox(height: 4),
@@ -429,12 +513,28 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
                             spacing: 6,
                             runSpacing: 4,
                             children: [
-                              if (widget.item.entry.dueDate != null)
+                              if (widget.item.entry.dueDate != null ||
+                                  widget.item.entry.dueTime != null)
                                 _MetadataPill(
                                   label:
-                                      '📅 ${widget.item.entry.dueDate}${widget.item.entry.dueTime != null ? ' ${widget.item.entry.dueTime}' : ''}',
+                                      '📅 ${widget.item.entry.dueDate ?? 'today'}${widget.item.entry.dueTime != null ? ' ⏰ ${widget.item.entry.dueTime}' : ''}',
                                   color: colorScheme.primaryContainer,
                                   textColor: colorScheme.onPrimaryContainer,
+                                ),
+                              if (widget.item.entry.recurrenceRaw != null)
+                                _MetadataPill(
+                                  label: '🔁 ${widget.item.entry.recurrenceRaw}',
+                                  color: colorScheme.tertiaryContainer,
+                                  textColor: colorScheme.onTertiaryContainer,
+                                ),
+                              if (workspace.snoozedUntil(
+                                    widget.item.uniqueKey,
+                                  ) !=
+                                  null)
+                                _MetadataPill(
+                                  label: '🔔 Snoozed',
+                                  color: colorScheme.secondaryContainer,
+                                  textColor: colorScheme.onSecondaryContainer,
                                 ),
                               for (final ctx in widget.item.contexts)
                                 _MetadataPill(
@@ -467,13 +567,19 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
                     ActionChip(
                       visualDensity: VisualDensity.compact,
                       avatar: const Icon(Icons.description_outlined, size: 14),
-                      label: Text(
-                        widget.item.document.title.isNotEmpty
-                            ? widget.item.document.title
-                            : widget.item.document.relPath,
-                        style: const TextStyle(fontSize: 11),
+                      label: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 140),
+                        child: Text(
+                          widget.item.document.title.isNotEmpty
+                              ? widget.item.document.title
+                              : widget.item.document.relPath,
+                          style: const TextStyle(fontSize: 11),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                      tooltip: 'Peek surrounding context in ${widget.item.document.relPath}',
+                      tooltip:
+                          'Peek surrounding context in ${widget.item.document.relPath}',
                       onPressed: () => _openSourcePeekSheet(context),
                     ),
                   Icon(
@@ -578,6 +684,38 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
                         label: const Text('+ @context'),
                         onPressed: () => _promptCustomContext(context),
                       ),
+                      ActionChip(
+                        visualDensity: VisualDensity.compact,
+                        label: const Text('🔁 Daily'),
+                        onPressed: () => _setQuickRecurrence('every day'),
+                      ),
+                      ActionChip(
+                        visualDensity: VisualDensity.compact,
+                        label: const Text('🔁 Weekday'),
+                        onPressed: () => _setQuickRecurrence('every weekday'),
+                      ),
+                      ActionChip(
+                        visualDensity: VisualDensity.compact,
+                        label: const Text('🔁 Weekly'),
+                        onPressed: () => _setQuickRecurrence('every week'),
+                      ),
+                      ActionChip(
+                        visualDensity: VisualDensity.compact,
+                        label: const Text('+ 🔁 Rule'),
+                        onPressed: () => _promptCustomRecurrence(context),
+                      ),
+                      if (widget.item.entry.recurrenceRaw != null)
+                        ActionChip(
+                          visualDensity: VisualDensity.compact,
+                          label: const Text('Clear 🔁'),
+                          onPressed: () => _setQuickRecurrence(null),
+                        ),
+                      FilterChip(
+                        visualDensity: VisualDensity.compact,
+                        label: const Text('#habit'),
+                        selected: widget.item.tags.contains('habit'),
+                        onSelected: (_) => _toggleHabitTag(),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -613,6 +751,14 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
                         label: Text(isPinned ? 'Unpin Today' : 'Pin Top 3'),
                       ),
                       OutlinedButton.icon(
+                        onPressed: () => _openReminderAndSnoozeDialog(context),
+                        icon: const Icon(
+                          Icons.notifications_active_outlined,
+                          size: 16,
+                        ),
+                        label: const Text('⏰ Snooze / Remind'),
+                      ),
+                      OutlinedButton.icon(
                         onPressed: _migrateToToday,
                         icon: const Icon(Icons.keyboard_arrow_right, size: 16),
                         label: const Text('Migrate → Today'),
@@ -639,14 +785,6 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
                         onPressed: _dropTask,
                         icon: const Icon(Icons.close, size: 16),
                         label: const Text('Drop'),
-                      ),
-                      const Tooltip(
-                        message:
-                            'Time-based Snooze depends on native reminders infrastructure (Milestone 8). Use 📅 Tomorrow / +1 Week to reschedule now.',
-                        child: OutlinedButton(
-                          onPressed: null,
-                          child: Text('Snooze (M8)'),
-                        ),
                       ),
                     ],
                   ),
@@ -930,6 +1068,203 @@ class _TwoMinuteFocusDialogState extends ConsumerState<_TwoMinuteFocusDialog> {
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Reminder Lead-Time & Snooze Dialog (`E-08`, `E-10`, `E-12`, `A-03`).
+class _ReminderAndSnoozeDialog extends ConsumerStatefulWidget {
+  const _ReminderAndSnoozeDialog({required this.item});
+
+  final IndexedEntryWithDocument item;
+
+  @override
+  ConsumerState<_ReminderAndSnoozeDialog> createState() =>
+      _ReminderAndSnoozeDialogState();
+}
+
+class _ReminderAndSnoozeDialogState
+    extends ConsumerState<_ReminderAndSnoozeDialog> {
+  late TextEditingController _timeCtrl;
+  late int _selectedLeadMinutes;
+
+  @override
+  void initState() {
+    super.initState();
+    _timeCtrl = TextEditingController(
+      text: widget.item.entry.dueTime ?? '09:00',
+    );
+    final workspace = ref.read(workspaceStateProvider);
+    _selectedLeadMinutes =
+        workspace.reminderLeadMinutesByTaskKey[widget.item.uniqueKey] ??
+        workspace.defaultReminderLeadMinutes;
+  }
+
+  @override
+  void dispose() {
+    _timeCtrl.dispose();
+    super.dispose();
+  }
+
+  void _applySnooze(Duration offset) {
+    final until = DateTime.now().add(offset);
+    unawaited(
+      ref
+          .read(workspaceStateProvider.notifier)
+          .snoozeTask(widget.item.uniqueKey, until),
+    );
+    Navigator.of(context).pop();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Snoozed "${widget.item.entry.textContent}" until ${until.hour.toString().padLeft(2, '0')}:${until.minute.toString().padLeft(2, '0')}.',
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final workspace = ref.watch(workspaceStateProvider);
+    final snoozedUntil = workspace.snoozedUntil(widget.item.uniqueKey);
+    final theme = Theme.of(context);
+
+    return AlertDialog(
+      title: const Text('Reminder & Snooze (E-08, E-10, E-12)'),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 440),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                widget.item.entry.textContent,
+                style: theme.textTheme.titleSmall,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Quick Snooze (E-12, A-03)',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  ActionChip(
+                    visualDensity: VisualDensity.compact,
+                    label: const Text('Snooze +15m'),
+                    onPressed: () =>
+                        _applySnooze(const Duration(minutes: 15)),
+                  ),
+                  ActionChip(
+                    visualDensity: VisualDensity.compact,
+                    label: const Text('Snooze +1h'),
+                    onPressed: () => _applySnooze(const Duration(hours: 1)),
+                  ),
+                  ActionChip(
+                    visualDensity: VisualDensity.compact,
+                    label: const Text('Snooze +3h'),
+                    onPressed: () => _applySnooze(const Duration(hours: 3)),
+                  ),
+                  ActionChip(
+                    visualDensity: VisualDensity.compact,
+                    label: const Text('Tomorrow (+24h)'),
+                    onPressed: () => _applySnooze(const Duration(hours: 24)),
+                  ),
+                  if (snoozedUntil != null)
+                    ActionChip(
+                      visualDensity: VisualDensity.compact,
+                      label: const Text('Clear Snooze'),
+                      onPressed: () async {
+                        await ref
+                            .read(workspaceStateProvider.notifier)
+                            .clearSnooze(widget.item.uniqueKey);
+                        if (context.mounted) Navigator.of(context).pop();
+                      },
+                    ),
+                ],
+              ),
+              const Divider(height: 24),
+              Text(
+                'Reminder Time & Lead Offset (E-10)',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _timeCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Reminder Time (⏰ HH:MM)',
+                  hintText: '09:00',
+                  isDense: true,
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final preset in ReminderLeadTime.presets)
+                    ChoiceChip(
+                      visualDensity: VisualDensity.compact,
+                      label: Text(
+                        preset.label,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      selected: _selectedLeadMinutes == preset.minutesBefore,
+                      onSelected: (_) {
+                        setState(
+                          () => _selectedLeadMinutes = preset.minutesBefore,
+                        );
+                      },
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton.icon(
+          onPressed: () async {
+            final cleanTime = _timeCtrl.text.trim();
+            final effectiveDate = widget.item.entry.dueDate ??
+                NlDateParser.formatIsoDate(DateTime.now());
+            await ref.read(vaultMutationProvider).updateEntryInPlace(
+              widget.item,
+              dueDate: effectiveDate,
+              dueTime: cleanTime.isEmpty ? null : cleanTime,
+            );
+            await ref
+                .read(workspaceStateProvider.notifier)
+                .setTaskReminderLeadMinutes(
+                  widget.item.uniqueKey,
+                  _selectedLeadMinutes,
+                );
+            if (!context.mounted) return;
+            Navigator.of(context).pop();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Reminder set for 📅 $effectiveDate ⏰ $cleanTime (${ReminderLeadTime.fromStoredMinutes(_selectedLeadMinutes).label}).',
+                ),
+              ),
+            );
+          },
+          icon: const Icon(Icons.notifications_active_outlined, size: 16),
+          label: const Text('Save Reminder'),
         ),
       ],
     );

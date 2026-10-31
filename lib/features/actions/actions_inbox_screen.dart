@@ -962,6 +962,9 @@ class _ClarifyDeckModalState extends ConsumerState<_ClarifyDeckModal> {
   int _index = 0;
 
   void _advance() {
+    ref
+        .read(workspaceStateProvider.notifier)
+        .completeOnboardingStep('clarify_inbox');
     if (_index + 1 >= widget.items.length) {
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(

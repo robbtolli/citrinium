@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:citrinium/app/citrinium_app.dart';
 import 'package:citrinium/core/vault/vault_path_provider.dart';
+import 'package:citrinium/core/vault/vault_setup.dart';
 import 'package:citrinium/core/workspace/workspace_state.dart';
 import 'package:citrinium_core/citrinium_core.dart';
 import 'package:flutter/material.dart';
@@ -343,6 +344,151 @@ void main() {
           () => File(p.join(vault.path, '.citrinium', 'templates', 'weekly.md'))
               .existsSync(),
         );
+      });
+    },
+  );
+
+  testWidgets(
+    'M7 & M8: Recurrence & Habit Tracking (D-16, D-17) and Contextual Reminders & Snooze (E-08, E-10, E-11, E-12)',
+    (tester) async {
+      await tester.runAsync(() async {
+        SharedPreferences.setMockInitialValues({'vaultPath': vault.path});
+        final prefs = await SharedPreferences.getInstance();
+
+        final container = ProviderContainer(
+          overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        );
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const CitriniumApp(),
+          ),
+        );
+        await tester.pump();
+
+        await _waitUntil(
+          tester,
+          () => find.text('Meeting Notes').evaluate().isNotEmpty,
+        );
+
+        await tester.tap(find.text('Actions & Inbox'));
+        await tester.pumpAndSettle();
+
+        // Expand "Send summary @computer" in-place editor
+        await tester.tap(find.text('Send summary @computer'));
+        await tester.pumpAndSettle();
+
+        // Set 🔁 Weekday recurrence in-place (D-16)
+        await tester.ensureVisible(find.text('🔁 Weekday'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('🔁 Weekday'));
+        await tester.pump();
+
+        await _waitUntil(
+          tester,
+          () => File(p.join(vault.path, 'note.md'))
+              .readAsStringSync()
+              .contains('🔁 every weekday'),
+        );
+
+        // Tap ⏰ Snooze / Remind -> triggers contextual permission prompt (E-11)
+        await tester.ensureVisible(find.text('⏰ Snooze / Remind'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('⏰ Snooze / Remind'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Enable Gentle Reminders? (E-11)'), findsOneWidget);
+        await tester.tap(find.text('Enable Notifications'));
+        await tester.pumpAndSettle();
+
+        // Now inside Reminder & Snooze dialog (E-08, E-10, E-12)
+        expect(find.text('Reminder & Snooze (E-08, E-10, E-12)'), findsOneWidget);
+        await tester.tap(find.text('Snooze +15m'));
+        await tester.pumpAndSettle();
+
+        // Open 🔔 Reminders center from AppBar and verify snoozed reminder with direct actions (E-12)
+        await tester.tap(find.byTooltip('Reminders & Snooze (E-08, E-12)'));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.textContaining('/64 rolling window)'),
+          findsOneWidget,
+        );
+        expect(find.text('Snoozed'), findsOneWidget);
+        expect(find.text('Tomorrow'), findsWidgets);
+      });
+    },
+  );
+
+  testWidgets(
+    'NUX: First-launch "Get Started" provisions Starter Vault with sample tasks, Top-3 Focus Shelf pin, and Getting Started banner',
+    (tester) async {
+      await tester.runAsync(() async {
+        final starterTemp = await Directory.systemTemp.createTemp(
+          'citrinium_nux_starter',
+        );
+        addTearDown(() => starterTemp.delete(recursive: true));
+        debugSetDefaultStarterVaultPath(starterTemp.path);
+        addTearDown(() => debugSetDefaultStarterVaultPath(null));
+
+        SharedPreferences.setMockInitialValues({});
+        final prefs = await SharedPreferences.getInstance();
+
+        final starterContainer = ProviderContainer(
+          overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        );
+        addTearDown(starterContainer.dispose);
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: starterContainer,
+            child: const CitriniumApp(),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Intro screen verification: 4 pillars
+        expect(find.text('Welcome to Citrinium'), findsOneWidget);
+        expect(find.text('Today'), findsOneWidget);
+        expect(find.text('Actions & Inbox'), findsOneWidget);
+        expect(find.text('Horizons & Review'), findsOneWidget);
+        expect(find.text('Notes & Index'), findsOneWidget);
+
+        // Tap "Get Started"
+        await tester.ensureVisible(find.text('Get Started'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Get Started'));
+        await tester.pump();
+
+        // Wait for indexer and Today screen to mount
+        await _waitUntil(
+          tester,
+          () => find.textContaining('Today\'s Focus Shelf').evaluate().isNotEmpty,
+        );
+
+        // Today's Focus Shelf has the pre-pinned tutorial task
+        expect(find.textContaining('Today\'s Focus Shelf (1/3 Top Focus)'), findsOneWidget);
+        expect(find.textContaining('Tap this task to edit it in-place'), findsOneWidget);
+
+        // Getting Started checklist banner is visible
+        expect(find.textContaining('Getting Started with Citrinium'), findsOneWidget);
+
+        // Tap Field Guide button in banner
+        await tester.tap(find.text('Field Guide'));
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(find.text('Citrinium Field Guide & Help'), findsOneWidget);
+        expect(find.text('Hands-On Learning Checklist'), findsOneWidget);
+        expect(find.text('4 Pillars & Recipes'), findsOneWidget);
+        expect(find.text('Syntax Cheat Sheet'), findsOneWidget);
+
+        // Close Field Guide
+        await tester.tap(find.byTooltip('Close'));
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump(const Duration(milliseconds: 300));
       });
     },
   );
