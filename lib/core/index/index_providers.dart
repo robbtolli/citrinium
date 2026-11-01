@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:citrinium_core/citrinium_core.dart';
+import 'package:citrine_core/citrine_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../workspace/workspace_state.dart';
@@ -553,7 +553,7 @@ class VaultMutationService {
     final buffer = StringBuffer();
     buffer.writeln('---');
     buffer.writeln('title: "${title.replaceAll('"', '\\"')}"');
-    buffer.writeln('citrinium:');
+    buffer.writeln('citrine:');
     buffer.writeln('  type: $docType');
     if (docType == 'project') {
       buffer.writeln('  status: active');

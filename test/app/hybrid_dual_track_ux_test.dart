@@ -1,13 +1,14 @@
 import 'dart:io';
 
-import 'package:citrinium/app/citrinium_app.dart';
-import 'package:citrinium/core/vault/vault_path_provider.dart';
-import 'package:citrinium/core/vault/vault_setup.dart';
-import 'package:citrinium/core/workspace/workspace_state.dart';
-import 'package:citrinium/features/plugins/plugin_consent_dialog.dart';
-import 'package:citrinium/features/plugins/plugins_screen.dart';
-import 'package:citrinium/features/settings/settings_screen.dart';
-import 'package:citrinium_core/citrinium_core.dart';
+import 'package:citrine/app/citrine_app.dart';
+import 'package:citrine/core/plugins/plugin_providers.dart';
+import 'package:citrine/core/vault/vault_path_provider.dart';
+import 'package:citrine/core/vault/vault_setup.dart';
+import 'package:citrine/core/workspace/workspace_state.dart';
+import 'package:citrine/features/plugins/plugin_consent_dialog.dart';
+import 'package:citrine/features/plugins/plugins_screen.dart';
+import 'package:citrine/features/settings/settings_screen.dart';
+import 'package:citrine_core/citrine_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -48,9 +49,9 @@ void main() {
   late Directory appSupport;
 
   setUp(() async {
-    vault = await Directory.systemTemp.createTemp('citrinium_ux_vault');
+    vault = await Directory.systemTemp.createTemp('citrine_ux_vault');
     appSupport = await Directory.systemTemp.createTemp(
-      'citrinium_ux_appsupport',
+      'citrine_ux_appsupport',
     );
     PathProviderPlatform.instance = _FakePathProviderPlatform(appSupport);
 
@@ -83,7 +84,7 @@ void main() {
         await tester.pumpWidget(
           UncontrolledProviderScope(
             container: container,
-            child: const CitriniumApp(),
+            child: const CitrineApp(),
           ),
         );
         await tester.pump();
@@ -173,7 +174,7 @@ void main() {
         await tester.pumpWidget(
           UncontrolledProviderScope(
             container: container,
-            child: const CitriniumApp(),
+            child: const CitrineApp(),
           ),
         );
         await tester.pump();
@@ -255,7 +256,7 @@ void main() {
         final dailyDir = Directory(p.join(vault.path, 'daily'));
         await dailyDir.create(recursive: true);
         await File(p.join(dailyDir.path, '2020-01-01.md')).writeAsString(
-          '---\ncitrinium:\n  type: dailyLog\n---\n# Old Day\n- [ ] Carry forward tax receipt @home\n',
+          '---\ncitrine:\n  type: dailyLog\n---\n# Old Day\n- [ ] Carry forward tax receipt @home\n',
         );
 
         SharedPreferences.setMockInitialValues({'vaultPath': vault.path});
@@ -269,7 +270,7 @@ void main() {
         await tester.pumpWidget(
           UncontrolledProviderScope(
             container: container,
-            child: const CitriniumApp(),
+            child: const CitrineApp(),
           ),
         );
         await tester.pump();
@@ -344,7 +345,7 @@ void main() {
 
         await _waitUntil(
           tester,
-          () => File(p.join(vault.path, '.citrinium', 'templates', 'weekly.md'))
+          () => File(p.join(vault.path, '.citrine', 'templates', 'weekly.md'))
               .existsSync(),
         );
       });
@@ -366,7 +367,7 @@ void main() {
         await tester.pumpWidget(
           UncontrolledProviderScope(
             container: container,
-            child: const CitriniumApp(),
+            child: const CitrineApp(),
           ),
         );
         await tester.pump();
@@ -430,7 +431,7 @@ void main() {
     (tester) async {
       await tester.runAsync(() async {
         final starterTemp = await Directory.systemTemp.createTemp(
-          'citrinium_nux_starter',
+          'citrine_nux_starter',
         );
         addTearDown(() => starterTemp.delete(recursive: true));
         debugSetDefaultStarterVaultPath(starterTemp.path);
@@ -447,13 +448,13 @@ void main() {
         await tester.pumpWidget(
           UncontrolledProviderScope(
             container: starterContainer,
-            child: const CitriniumApp(),
+            child: const CitrineApp(),
           ),
         );
         await tester.pumpAndSettle();
 
         // Intro screen verification: 4 pillars
-        expect(find.text('Welcome to Citrinium'), findsOneWidget);
+        expect(find.text('Welcome to Citrine'), findsOneWidget);
         expect(find.text('Today'), findsOneWidget);
         expect(find.text('Actions & Inbox'), findsOneWidget);
         expect(find.text('Horizons & Review'), findsOneWidget);
@@ -476,14 +477,14 @@ void main() {
         expect(find.textContaining('Tap this task to edit it in-place'), findsOneWidget);
 
         // Getting Started checklist banner is visible
-        expect(find.textContaining('Getting Started with Citrinium'), findsOneWidget);
+        expect(find.textContaining('Getting Started with Citrine'), findsOneWidget);
 
         // Tap Field Guide button in banner
         await tester.tap(find.text('Field Guide'));
         await tester.pump(const Duration(milliseconds: 300));
         await tester.pump(const Duration(milliseconds: 300));
 
-        expect(find.text('Citrinium Field Guide & Help'), findsOneWidget);
+        expect(find.text('Citrine Field Guide & Help'), findsOneWidget);
         expect(find.text('Hands-On Learning Checklist'), findsOneWidget);
         expect(find.text('4 Pillars & Recipes'), findsOneWidget);
         expect(find.text('Syntax Cheat Sheet'), findsOneWidget);
@@ -513,7 +514,7 @@ void main() {
     );
 
     final md = state.exportToMarkdown();
-    expect(md, contains('# Citrinium Operational Data Export'));
+    expect(md, contains('# Citrine Operational Data Export'));
     expect(md, contains('note.md:2'));
     expect(md, contains('2026-10-28'));
     expect(md, contains('[[note.md|Meeting Notes]]'));
@@ -544,7 +545,7 @@ void main() {
         await tester.pumpWidget(
           UncontrolledProviderScope(
             container: container,
-            child: const CitriniumApp(),
+            child: const CitrineApp(),
           ),
         );
         await tester.pump();
@@ -631,7 +632,7 @@ void main() {
         await tester.pumpWidget(
           UncontrolledProviderScope(
             container: container,
-            child: const CitriniumApp(),
+            child: const CitrineApp(),
           ),
         );
         await tester.pump();
@@ -702,7 +703,7 @@ void main() {
         // Enter key outcome and finish
         await tester.enterText(
           find.byType(TextField).last,
-          'Ship Citrinium M9 & M10 @computer',
+          'Ship Citrine M9 & M10 @computer',
         );
         await tester.tap(find.textContaining('Finish Weekly Review'));
         await _waitUntil(
@@ -769,7 +770,7 @@ void main() {
         await tester.pumpWidget(
           UncontrolledProviderScope(
             container: container,
-            child: const CitriniumApp(),
+            child: const CitrineApp(),
           ),
         );
         await tester.pump();
@@ -825,11 +826,13 @@ void main() {
           // Wait for community plugins async discovery to finish
           await _waitUntil(
             tester,
-            () => find.byType(CircularProgressIndicator).evaluate().isEmpty,
+            () => container.read(installedPluginsProvider).hasValue &&
+                  container.read(installedPluginsProvider).value!.isNotEmpty,
           );
+          await tester.pumpAndSettle();
 
           final installWordCounterBtn =
-              find.byKey(const ValueKey('install_btn_com.citrinium.word-counter'));
+              find.byKey(const ValueKey('install_btn_com.citrine.word-counter'));
           await tester.scrollUntilVisible(
             installWordCounterBtn,
             150,
@@ -853,10 +856,10 @@ void main() {
           // 6. Verify plugin is now installed and has Run & Revoke actions (PL-04)
           await _waitUntil(
             tester,
-            () => find.byKey(const ValueKey('run_btn_com.citrinium.word-counter')).evaluate().isNotEmpty,
+            () => find.byKey(const ValueKey('run_btn_com.citrine.word-counter')).evaluate().isNotEmpty,
           );
-          expect(find.byKey(const ValueKey('run_btn_com.citrinium.word-counter')), findsOneWidget);
-          expect(find.byKey(const ValueKey('revoke_btn_com.citrinium.word-counter')), findsOneWidget);
+          expect(find.byKey(const ValueKey('run_btn_com.citrine.word-counter')), findsOneWidget);
+          expect(find.byKey(const ValueKey('revoke_btn_com.citrine.word-counter')), findsOneWidget);
 
           // Clear any active SnackBars so they don't intercept hit tests
           ScaffoldMessenger.of(tester.element(find.byType(PluginsScreen))).clearSnackBars();
@@ -864,7 +867,7 @@ void main() {
 
           // 7. Revoke plugin (PL-04)
           final revokeBtn =
-              find.byKey(const ValueKey('revoke_btn_com.citrinium.word-counter'));
+              find.byKey(const ValueKey('revoke_btn_com.citrine.word-counter'));
           await tester.ensureVisible(revokeBtn);
           await tester.pumpAndSettle();
           await tester.tap(revokeBtn);

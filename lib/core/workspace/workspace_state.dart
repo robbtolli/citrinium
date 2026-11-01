@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:citrinium_core/citrinium_core.dart';
+import 'package:citrine_core/citrine_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -342,7 +342,7 @@ class WorkspaceState {
   /// data (`P-11`, `D-15`, `T-02`).
   String exportToMarkdown() {
     final buf = StringBuffer();
-    buf.writeln('# Citrinium Operational Data Export\n');
+    buf.writeln('# Citrine Operational Data Export\n');
     buf.writeln('## Enabled Planning & Review Cadences');
     for (final c in CadenceKind.values) {
       final mark = enabledCadences.contains(c) ? 'x' : ' ';
@@ -442,7 +442,7 @@ class WorkspaceState {
   }
 }
 
-const _prefsKeyWorkspace = 'citrinium_workspace_state_v1';
+const _prefsKeyWorkspace = 'citrine_workspace_state_v1';
 
 class WorkspaceStateNotifier extends Notifier<WorkspaceState> {
   @override

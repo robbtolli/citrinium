@@ -1,4 +1,4 @@
-import 'package:citrinium_core/citrinium_core.dart';
+import 'package:citrine_core/citrine_core.dart';
 import 'package:flutter/material.dart';
 
 /// All-or-nothing plugin install consent dialog (PL-02, PL-03).
@@ -66,7 +66,7 @@ class PluginConsentDialog extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'Install is all-or-nothing. Citrinium isolates community plugins inside a sandboxed QuickJS runtime with no direct filesystem access; only the granted capabilities below are exposed.',
+                'Install is all-or-nothing. Citrine isolates community plugins inside a sandboxed QuickJS runtime with no direct filesystem access; only the granted capabilities below are exposed.',
                 style: theme.textTheme.bodySmall,
               ),
               const SizedBox(height: 12),

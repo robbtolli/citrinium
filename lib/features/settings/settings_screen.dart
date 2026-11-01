@@ -1,4 +1,4 @@
-import 'package:citrinium_core/citrinium_core.dart';
+import 'package:citrine_core/citrine_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/index/index_providers.dart';
 import '../../core/vault/vault_path_provider.dart';
 import '../../core/workspace/workspace_state.dart';
-import '../../shared/widgets/citrinium_help_sheet.dart';
+import '../../shared/widgets/citrine_help_sheet.dart';
 import '../horizons/horizons_review_screen.dart';
 
 /// Settings screen (`docs/milestones/m0.md` W4): vault path, index stats,
@@ -180,11 +180,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           ListTile(
             leading: const Icon(Icons.help_outline),
-            title: const Text('Citrinium Field Guide & Cheat Sheet'),
+            title: const Text('Citrine Field Guide & Cheat Sheet'),
             subtitle: const Text(
               'Browse 4 Pillars, workflow recipes, and syntax guides',
             ),
-            onTap: () => showCitriniumHelpSheet(context),
+            onTap: () => showCitrineHelpSheet(context),
           ),
           SwitchListTile(
             title: const Text('Show Getting Started Checklist on Today'),

@@ -37,9 +37,9 @@ Review themes are directional rather than prevalence claims: ratings measure gen
 **Recurring complaint and risk themes**
 
 * **Pricing and paywalled essentials:** users report that reminders and more than a small number of projects are important personal-organization basics, yet expensive or unavailable on the free tier. A 2026 Google Play reviewer specifically objected to paying for reminders and more than five projects. Do not make the external-memory features required by E-08 through E-12 dependent on a premium tier.
-* **Scheduling is less rich than capture:** users and review summaries still ask for start dates, duration, timeboxing, and better calendar planning rather than relying on a due date that becomes overdue. This validates Citrinium's separate soft-task, defer/start-date, duration, and hard-calendar model (P-09, G-05, E-06 through E-09).
+* **Scheduling is less rich than capture:** users and review summaries still ask for start dates, duration, timeboxing, and better calendar planning rather than relying on a due date that becomes overdue. This validates Citrine's separate soft-task, defer/start-date, duration, and hard-calendar model (P-09, G-05, E-06 through E-09).
 * **Reliability failures destroy system trust:** some reviews report weak notifications, recurring-task problems, or sync/offline discrepancies. These reports are anecdotal and may be fixed, but a missed medication or invisible completion is disproportionately harmful; reminders, recurrence, local persistence, and audit/history need stronger guarantees than a productivity graph.
-* **Task manager, not knowledge base:** Todoist is praised for action management but its task-first structure provides little place for long-form thinking and supporting reference material. Citrinium should keep task capture as fast as Todoist while retaining notes, links, and task context in the same vault (N-01, N-02, D-07, D-14).
+* **Task manager, not knowledge base:** Todoist is praised for action management but its task-first structure provides little place for long-form thinking and supporting reference material. Citrine should keep task capture as fast as Todoist while retaining notes, links, and task context in the same vault (N-01, N-02, D-07, D-14).
 
 ### 7. Review sources
 * Apple App Store: ratings, product description, and individual reviews: https://apps.apple.com/us/app/todoist-to-do-list-planner/id572688855
@@ -85,9 +85,9 @@ Review themes are directional rather than prevalence claims: high ratings do not
 **Recurring complaint and risk themes**
 
 * **Learning, setup, and plugin overload:** the same flexibility that power users value makes a blank vault, Markdown, links, plugin selection, and custom workflows intimidating. Users report that the product is easy for plain notes but becomes much steeper when they attempt a full "second brain." For ADHD-oriented onboarding, do not require customization before the first useful capture (P-01, P-07, A-06).
-* **Configuration can become productivity procrastination:** community plugins add capability but can create incompatible conventions, maintenance burden, uneven quality, and an urge to design a system instead of use one. Citrinium should provide a complete, calm core workflow and editable defaults; plugins must extend it rather than be required to obtain daily capture, tasks, review, or reminders (PL-01 through PL-08, A-07).
+* **Configuration can become productivity procrastination:** community plugins add capability but can create incompatible conventions, maintenance burden, uneven quality, and an urge to design a system instead of use one. Citrine should provide a complete, calm core workflow and editable defaults; plugins must extend it rather than be required to obtain daily capture, tasks, review, or reminders (PL-01 through PL-08, A-07).
 * **Mobile and collaboration friction:** reviewers describe desktop as the stronger experience; mobile navigation, tables/outlines, and some plugin workflows are less polished. Users also report that real-time shared editing and cross-device sync need workarounds or paid Sync and may risk conflicts when poorly managed. Preserve cross-platform core behavior and make sync/backup safety explicit (A-08, T-03, FR-01, FR-07).
-* **Too much structure can hide the next action:** Obsidian's links, files, tags, and graph are excellent for reference and reflection, but do not inherently clarify a commitment, surface a next action, or make time concrete. Citrinium must pair the vault's knowledge affordances with explicit task states, Today/Now, time/energy/context filters, and review rituals (D-02 through D-09, E-01 through E-07, R-01 through R-05).
+* **Too much structure can hide the next action:** Obsidian's links, files, tags, and graph are excellent for reference and reflection, but do not inherently clarify a commitment, surface a next action, or make time concrete. Citrine must pair the vault's knowledge affordances with explicit task states, Today/Now, time/energy/context filters, and review rituals (D-02 through D-09, E-01 through E-07, R-01 through R-05).
 
 ### 7. Review sources
 * Apple App Store: ratings, local-vault description, and individual reviews: https://apps.apple.com/us/app/obsidian-connected-notes/id1557175442
@@ -98,7 +98,7 @@ Review themes are directional rather than prevalence claims: high ratings do not
 ## Amplenote
 
 ### 1. Product model: an "Idea Execution Funnel"
-Amplenote combines four work modes that are commonly separate apps: **Jots** (capture), **Notes** (refine and organize), **Tasks** (make work actionable), and **Calendar** (schedule). Its central interaction model is that an item should move from an unstructured thought to an action and, when useful, a time block without re-entering it in another tool. This is a useful model for Citrinium's capture -> clarify/migrate -> engage path, but Amplenote is an account- and cloud-sync-based product, not a local Markdown vault model.
+Amplenote combines four work modes that are commonly separate apps: **Jots** (capture), **Notes** (refine and organize), **Tasks** (make work actionable), and **Calendar** (schedule). Its central interaction model is that an item should move from an unstructured thought to an action and, when useful, a time block without re-entering it in another tool. This is a useful model for Citrine's capture -> clarify/migrate -> engage path, but Amplenote is an account- and cloud-sync-based product, not a local Markdown vault model.
 
 ### 2. Work modes
 
@@ -112,11 +112,11 @@ Amplenote combines four work modes that are commonly separate apps: **Jots** (ca
 ### 3. Bullet Journal-style rapid logging
 Amplenote enables a **BuJo-adjacent digital daily log**, rather than reproducing the canonical method. Jots make today's page the default capture location; a line may be plain text, a `[]` task, or a link to a new/refined note. That supports rapid, chronological mixed capture of observations, actions, and emerging projects without mandatory folders or forms. Future date expressions can create future Jots, which provides a digital analogue of a Future Log.
 
-Important differences matter for Citrinium:
+Important differences matter for Citrine:
 
 * Amplenote has no first-class BuJo task-state vocabulary for migrate, schedule, and drop, and no core ritual that asks the user to decide what to carry forward. Completed tasks disappear from the active list; defer/snooze and unscheduling exist, but do not provide BuJo's deliberate migration friction.
 * A community "Bullet Journal" plugin creates a prompted daily reflection/gratitude template. It is optional and should not be mistaken for core support for rapid logging, collections, or migration.
-* The dated Jot model is valuable, but Citrinium should keep B-01/B-09's create-on-use and missed-day-forgiving behavior. Virtual or pre-created daily pages must never make an absence look like failure.
+* The dated Jot model is valuable, but Citrine should keep B-01/B-09's create-on-use and missed-day-forgiving behavior. Virtual or pre-created daily pages must never make an absence look like failure.
 
 **Design conclusion:** use the daily log as the zero-friction front door and preserve mixed task/event/note capture (C-03, B-01), while adding the stateful migration and review decision that Amplenote's flow lacks (B-05 through B-07).
 
@@ -129,9 +129,9 @@ This makes several GTD ideas easy to practice:
 * Use tags, note-based projects, shortcuts, and Task Domains to separate active areas of work.
 * Use duration, urgency, importance, and a unified list to decide what to do; the calendar can make a chosen task concrete through timeboxing.
 
-It leaves important GTD discipline to the user: there is no first-class Clarify decision tree, guaranteed project outcome/next-action check, Waiting For list, or guided Weekly Review. Its Calendar also encourages scheduling tasks, whereas strict GTD reserves the calendar for hard landscape commitments. Timeboxing can help users with time blindness, but Citrinium should retain P-09/G-05: a soft next action must not become a false appointment merely because it is visible in planning.
+It leaves important GTD discipline to the user: there is no first-class Clarify decision tree, guaranteed project outcome/next-action check, Waiting For list, or guided Weekly Review. Its Calendar also encourages scheduling tasks, whereas strict GTD reserves the calendar for hard landscape commitments. Timeboxing can help users with time blindness, but Citrine should retain P-09/G-05: a soft next action must not become a false appointment merely because it is visible in planning.
 
-**Design conclusion:** combine Amplenote's context-preserving capture-to-task transition with Citrinium's explicit G-01 Clarify flow, project/next-action safeguards, and guided review rather than assuming scores and tags replace them.
+**Design conclusion:** combine Amplenote's context-preserving capture-to-task transition with Citrine's explicit G-01 Clarify flow, project/next-action safeguards, and guided review rather than assuming scores and tags replace them.
 
 ### 5. ADHD relevance and design lessons
 These are feature-to-need hypotheses, not clinical evidence that Amplenote treats ADHD. They align with the executive-function challenges and product implications in the ADHD section above:
@@ -139,7 +139,7 @@ These are feature-to-need hypotheses, not clinical evidence that Amplenote treat
 * **Working memory and friction:** Jots let a thought be written into today's chronological stream before the user decides whether it is a note, task, or project. Keeping a task in the note where it arose avoids retyping context and reduces app-switching; reviewers repeatedly describe the one-app workflow as its main value.
 * **Overwhelm and initiation:** Task View turns note-embedded checkboxes into a filtered action list. Task Score uses visible, editable factors such as importance, urgency, start/deadline, duration, blocking, and recent attention to promote a small number of candidates. This can reduce the "where do I start?" decision, but an opaque or overconfident ranking must never replace user judgment, energy, or context.
 * **Time blindness:** the calendar exposes tasks beside existing commitments and supports drag-to-timebox planning, fuzzy time options, start times, durations, and reminders via synced calendars. This makes intention more concrete than a floating task list.
-* **Trust and non-shaming recovery:** users can unschedule/snooze instead of deleting a task. However, overdue highlighting and a score that rises with age could feel punitive or create red-list anxiety. Citrinium should surface stale work for a conscious keep/schedule/drop decision in supportive language, not escalate it indefinitely (P-04, A-02, A-03, B-06).
+* **Trust and non-shaming recovery:** users can unschedule/snooze instead of deleting a task. However, overdue highlighting and a score that rises with age could feel punitive or create red-list anxiety. Citrine should surface stale work for a conscious keep/schedule/drop decision in supportive language, not escalate it indefinitely (P-04, A-02, A-03, B-06).
 * **Avoid administrative overload:** Task Domains, tag hierarchies, default task destinations, and score settings are powerful after habits form, but they impose setup and categorization work before the system is useful. For ADHD users, start with one capture surface, an inbox/default destination, and a short Today/Now list; progressively disclose domains, contexts, filters, and scoring (P-01, P-07, A-01, A-06).
 
 ### 6. What users value and complain about

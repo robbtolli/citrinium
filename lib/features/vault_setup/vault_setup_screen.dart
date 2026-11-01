@@ -1,4 +1,4 @@
-import 'package:citrinium_core/citrinium_core.dart';
+import 'package:citrine_core/citrine_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
@@ -10,7 +10,7 @@ import '../../core/workspace/workspace_state.dart';
 
 /// First-run intro screen (`A-06`, `P-07`, `P-11`).
 ///
-/// Introduces Citrinium's 4 main areas:
+/// Introduces Citrine's 4 main areas:
 /// 1. "Today"
 /// 2. "Actions & Inbox"
 /// 3. "Horizons & Review"
@@ -159,7 +159,7 @@ class _VaultSetupScreenState extends ConsumerState<VaultSetupScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Welcome to Citrinium',
+                    'Welcome to Citrine',
                     style: theme.textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -447,7 +447,7 @@ class _VaultNamePromptDialogState extends State<_VaultNamePromptDialog> {
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: 'citrinium-vault');
+    _controller = TextEditingController(text: 'citrine-vault');
   }
 
   @override

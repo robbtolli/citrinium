@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:citrinium_core/citrinium_core.dart';
+import 'package:citrine_core/citrine_core.dart';
 import 'package:crypto/crypto.dart' show sha256;
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

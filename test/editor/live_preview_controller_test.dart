@@ -1,4 +1,4 @@
-import 'package:citrinium/core/editor/live_preview_controller.dart';
+import 'package:citrine/core/editor/live_preview_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

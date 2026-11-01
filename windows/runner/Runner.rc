@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.tollitech" "\0"
-            VALUE "FileDescription", "citrinium" "\0"
+            VALUE "FileDescription", "citrine" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "citrinium" "\0"
+            VALUE "InternalName", "citrine" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.tollitech. All rights reserved." "\0"
-            VALUE "OriginalFilename", "citrinium.exe" "\0"
-            VALUE "ProductName", "citrinium" "\0"
+            VALUE "OriginalFilename", "citrine.exe" "\0"
+            VALUE "ProductName", "citrine" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

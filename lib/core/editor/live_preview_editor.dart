@@ -1,4 +1,4 @@
-import 'package:citrinium_core/citrinium_core.dart';
+import 'package:citrine_core/citrine_core.dart';
 import 'package:flutter/material.dart' hide Decoration;
 import 'package:flutter/services.dart';
 

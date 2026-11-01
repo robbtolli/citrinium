@@ -1,6 +1,6 @@
 # High-Level Design
 
-This document describes the technical architecture for Citrinium, derived from `requirements.md`. It is written at the same level of detail as the requirements — component boundaries and rationale, not a full implementation spec. Concrete schemas (FR-04), a plugin host-bridge API reference, and a notification scheduling spec are follow-up documents once this design is accepted.
+This document describes the technical architecture for Citrine, derived from `requirements.md`. It is written at the same level of detail as the requirements — component boundaries and rationale, not a full implementation spec. Concrete schemas (FR-04), a plugin host-bridge API reference, and a notification scheduling spec are follow-up documents once this design is accepted.
 
 Non-goals X-01–X-06 from `requirements.md` are assumed and not re-litigated here.
 
@@ -8,14 +8,14 @@ Non-goals X-01–X-06 from `requirements.md` are assumed and not re-litigated he
 
 ## 1. Architecture overview
 
-Citrinium is a layered, offline-first Flutter application. The guiding principle (P-11, D-15) centers on three user goals:
+Citrine is a layered, offline-first Flutter application. The guiding principle (P-11, D-15) centers on three user goals:
 1. **User data ownership & portability:** All data belongs to the user, can be exported to an easy-to-read/parse text format (Markdown/JSON) at any time, and existing Obsidian/Markdown vaults can be opened or imported non-destructively.
 2. **Rapid logging alongside notes:** Tasks, events, and notes can be captured inline in the same stream.
 3. **First-class Markdown viewing & editing:** Users view and edit standard Markdown notes directly.
 
-To achieve these goals without polluting Markdown notes with noisy operational state ("emoji soup" or hundreds of cloned recurring-task rows), Citrinium uses a **clean hybrid storage boundary**:
+To achieve these goals without polluting Markdown notes with noisy operational state ("emoji soup" or hundreds of cloned recurring-task rows), Citrine uses a **clean hybrid storage boundary**:
 - **Markdown files on disk** are the source of truth for all user prose, notes, projects, collections, cadence logs (`daily/`, `weekly/`, `monthly/`, `quarterly/`, `yearly/`, `future.md`, `inbox.md`), and inline rapid-logged tasks/events/notes. The search/task index over these files is a **derived, rebuildable cache**.
-- **Structured operational & history storage** (SQLite + `.citrinium/` sidecar JSON) holds data that would otherwise degrade Markdown readability: habit/recurrence completion history (`D-17`), Today's Top-3 Focus pins (`E-02`), snooze timestamps (`E-12`), multi-step review ritual checkpoints (`R-04`), user cadence preferences (`B-12`), and recent view/document history (`N-04`, `A-08`). All structured operational data is included in human-readable exports (`T-02`, `FR-07`).
+- **Structured operational & history storage** (SQLite + `.citrine/` sidecar JSON) holds data that would otherwise degrade Markdown readability: habit/recurrence completion history (`D-17`), Today's Top-3 Focus pins (`E-02`), snooze timestamps (`E-12`), multi-step review ritual checkpoints (`R-04`), user cadence preferences (`B-12`), and recent view/document history (`N-04`, `A-08`). All structured operational data is included in human-readable exports (`T-02`, `FR-07`).
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -42,7 +42,7 @@ To achieve these goals without polluting Markdown notes with noisy operational s
 ├──────────────────────────┴──────────────────────────────────┤
 │ Vault                                                       │
 │  Plain Markdown files on disk (Obsidian-compatible schema)  │
-│  + .citrinium/ templates & portable config                  │
+│  + .citrine/ templates & portable config                  │
 │  File watcher · offset-preserving parser/serializer         │
 ├─────────────────────────────────────────────────────────────┤
 │ Platform services                                           │
@@ -84,7 +84,7 @@ The vault is a folder of plain-text Markdown files. Schema is an **Obsidian-comp
 | `- [>]` | migrated |
 | `- [<]` | scheduled |
 | `- [-]` | dropped/canceled |
-| `- [w]` | waiting-for (Citrinium extension; still a valid checkbox line for any generic Markdown/Obsidian reader, and configurable as a custom status in the Obsidian Tasks plugin) |
+| `- [w]` | waiting-for (Citrine extension; still a valid checkbox line for any generic Markdown/Obsidian reader, and configurable as a custom status in the Obsidian Tasks plugin) |
 
 ### 3.2 Inline metadata
 
@@ -101,11 +101,11 @@ Rapid-log lines carry inline metadata rather than requiring a form, per C-03/C-0
 
 ### 3.3 Frontmatter (notes, projects, collections)
 
-Standalone files (notes, projects, collections, Areas of Focus) use YAML frontmatter. Citrinium-specific fields are namespaced under `citrinium:` so the file stays meaningful to any other Markdown tool that ignores unknown keys:
+Standalone files (notes, projects, collections, Areas of Focus) use YAML frontmatter. Citrine-specific fields are namespaced under `citrine:` so the file stays meaningful to any other Markdown tool that ignores unknown keys:
 
 ```yaml
 ---
-citrinium:
+citrine:
   type: project
   id: 7f3a2b1c
   outcome: "Ship v1.0 to TestFlight"
@@ -119,21 +119,21 @@ tags: [project, health]
 
 Planning and log surfaces (B-01–B-03, D-11, Q-01, Y-01) are stored as one Markdown file per period, created lazily on first use — never pre-generated — satisfying B-09/P-04:
 
-- `inbox.md` — perpetual GTD capture inbox at vault root (`citrinium.type: inbox`).
-- `daily/YYYY-MM-DD.md` — Daily Log (`citrinium.type: dailyLog`).
-- `weekly/YYYY-Www.md` — Weekly Plan & Review log (`citrinium.type: weeklyLog`).
-- `monthly/YYYY-MM.md` — Monthly Log (`citrinium.type: monthlyLog`).
-- `quarterly/YYYY-QN.md` — Quarterly Log (`citrinium.type: quarterlyLog`).
-- `yearly/YYYY.md` — Yearly Log (`citrinium.type: yearlyLog`).
-- `future.md` — BuJo Future Log (`citrinium.type: futureLog`).
-- `someday.md` — GTD Someday/Maybe list (`citrinium.type: someday`).
-- `.citrinium/templates/` — editable Markdown templates for each enabled cadence (B-11).
+- `inbox.md` — perpetual GTD capture inbox at vault root (`citrine.type: inbox`).
+- `daily/YYYY-MM-DD.md` — Daily Log (`citrine.type: dailyLog`).
+- `weekly/YYYY-Www.md` — Weekly Plan & Review log (`citrine.type: weeklyLog`).
+- `monthly/YYYY-MM.md` — Monthly Log (`citrine.type: monthlyLog`).
+- `quarterly/YYYY-QN.md` — Quarterly Log (`citrine.type: quarterlyLog`).
+- `yearly/YYYY.md` — Yearly Log (`citrine.type: yearlyLog`).
+- `future.md` — BuJo Future Log (`citrine.type: futureLog`).
+- `someday.md` — GTD Someday/Maybe list (`citrine.type: someday`).
+- `.citrine/templates/` — editable Markdown templates for each enabled cadence (B-11).
 
 ### 3.5 Clean Markdown vs. operational metadata boundary (P-11, D-15, D-17)
 
 To keep Markdown files clean and readable in any editor (avoiding the "emoji soup" and duplicated recurring-task clutter common in Obsidian plugins):
 - **Stored inline in `.md` files:** Task state marker (`[ ]`, `[/]`, `[x]`, `[>]`, `[<]`, `[-]`, `[w]`), BuJo signifiers (`○`, `–`, `*`), `📅` date, `⏰` time, `🔁` recurrence rule, `@context`, `#tag`, `^blockid`, and indented note/comment lines (`D-14`, `D-18`).
-- **Stored in structured local storage (SQLite / `.citrinium/`) with portable text/JSON export (`T-02`):**
+- **Stored in structured local storage (SQLite / `.citrine/`) with portable text/JSON export (`T-02`):**
   - **Habit & recurring-task completion logs (`D-16`, `D-17`):** Completing a recurring habit records a completion entry in the habit log table rather than appending hundreds of duplicate `- [x]` lines into the user's note.
   - **Extended task operational state:** Today's Top-3 Focus Shelf pins (`E-02`), snooze-until timestamps (`E-12`), optional duration/energy metadata when not written inline (`D-09`), migration counters, and historical-task cutoff filters (`A-06`).
   - **Workspace & ritual state:** Resumable review ritual progress (`R-04`), enabled cadence toggles (`B-12`), and recent views/documents history (`N-04`, `A-08`).
@@ -153,11 +153,11 @@ Full grammar details are specified in [`docs/file-schema.md`](file-schema.md) (F
 
 ## 5. Plugin architecture (PL-01–PL-09)
 
-**Decision: embedded QuickJS, not WASM**, given Citrinium's plugin-author audience (per requirements.md's ADHD/BuJo/GTD knowledge-worker focus) most resembles Obsidian/Figma/VS Code's JS/TS-only ecosystems rather than the systems-programmer-adjacent audiences where multi-language WASM plugin ecosystems (Shopify Extism, Zellij) have taken hold. Multi-language support is deferred, not ruled out.
+**Decision: embedded QuickJS, not WASM**, given Citrine's plugin-author audience (per requirements.md's ADHD/BuJo/GTD knowledge-worker focus) most resembles Obsidian/Figma/VS Code's JS/TS-only ecosystems rather than the systems-programmer-adjacent audiences where multi-language WASM plugin ecosystems (Shopify Extism, Zellij) have taken hold. Multi-language support is deferred, not ruled out.
 
 ### 5.1 Why this is enforceable (unlike Obsidian)
 
-Obsidian's plugins share the *same JS realm* as the Electron host (Node integration enabled, same process/global scope) — Obsidian's own docs concede they cannot restrict plugins to specific permissions because of this. Citrinium's host is Dart (AOT-compiled); QuickJS is a separate embedded engine with **no filesystem, network, DOM, or `require` unless explicitly linked in**. This gives Citrinium a real capability boundary Obsidian structurally cannot have.
+Obsidian's plugins share the *same JS realm* as the Electron host (Node integration enabled, same process/global scope) — Obsidian's own docs concede they cannot restrict plugins to specific permissions because of this. Citrine's host is Dart (AOT-compiled); QuickJS is a separate embedded engine with **no filesystem, network, DOM, or `require` unless explicitly linked in**. This gives Citrine a real capability boundary Obsidian structurally cannot have.
 
 ### 5.2 Enforcement mechanism
 
@@ -184,13 +184,13 @@ Install is all-or-nothing (PL-03): the user reviews the full permission list onc
 
 ```js
 // Present only if "tasks:read" granted
-citrinium.tasks.list({ context: "@errands" });
+citrine.tasks.list({ context: "@errands" });
 
 // Present only if "tasks:write" granted
-citrinium.tasks.setState(taskId, "completed");
+citrine.tasks.setState(taskId, "completed");
 
 // Present only if "network:fetch" granted
-citrinium.net.fetch(url);
+citrine.net.fetch(url);
 ```
 
 Plugins operate on the same Markdown files as the core app via this bridge (PL-05), never a private store.
@@ -207,7 +207,7 @@ Core plugins (Daily Notes, Templates, Graph View, Canvas) ship compiled into the
 
 ## 6. State management & app structure
 
-**Riverpod** is the single state-management framework app-wide — chosen over Bloc because the majority of Citrinium's surfaces (Daily/Monthly/Future Log, Inbox, Someday/Maybe, Waiting For, Reference, Contexts, search, Graph View) are read-mostly views over the drift reactive streams from §4, which map directly onto `StreamProvider`/`AsyncNotifierProvider`/`family` providers with minimal glue code.
+**Riverpod** is the single state-management framework app-wide — chosen over Bloc because the majority of Citrine's surfaces (Daily/Monthly/Future Log, Inbox, Someday/Maybe, Waiting For, Reference, Contexts, search, Graph View) are read-mostly views over the drift reactive streams from §4, which map directly onto `StreamProvider`/`AsyncNotifierProvider`/`family` providers with minimal glue code.
 
 The handful of genuinely multi-step, stateful flows — **Clarify** (G-01), **Migration** (B-06/B-07), and the guided **Weekly/Quarterly/Annual Review** rituals (R-01, R-04, Q-02, Y-02, resumable per R-04) — are modeled as `Notifier`s holding a `freezed` sealed-class state, giving Bloc-style explicit transition discipline and testability without a second framework.
 
@@ -239,7 +239,7 @@ Feature-first under `features/`, with `core/` as the platform-agnostic domain/da
 
 ### 6.2 UX architecture & core workflows ("The Hybrid Dual-Track")
 
-Citrinium's UI uses a **Hybrid Dual-Track** architecture that supports Bullet Journal rapid logging, GTD list/clarify workflows, and ADHD executive-function scaffolds without forcing users into a single rigid method (P-06, X-04):
+Citrine's UI uses a **Hybrid Dual-Track** architecture that supports Bullet Journal rapid logging, GTD list/clarify workflows, and ADHD executive-function scaffolds without forcing users into a single rigid method (P-06, X-04):
 
 1. **Four Primary Navigation Pillars** (bottom navigation bar on mobile, left navigation rail on desktop):
    - **☀️ Today (Default Home):** Combines a collapsible **Today's Focus Shelf** at the top (today's hard-landscape calendar events `G-05`, up to **Top 3** pinned focus tasks `E-02` with a 1-tap **2-Minute Start** timer `E-05`, and daily habits `D-17`) directly above today's **Daily Log** (`daily/YYYY-MM-DD.md`) rendered in the Live Preview editor (§7).
@@ -253,13 +253,13 @@ Citrinium's UI uses a **Hybrid Dual-Track** architecture that supports Bullet Jo
 
 3. **Launch, Onboarding & Session Continuity (`A-06`, `A-08`, `B-09`, `P-04`):**
    - **First launch (new vault):** 1-step folder setup + optional cadence toggle selection, seeding only `daily/YYYY-MM-DD.md` with 3 interactive tutorial lines.
-   - **First launch (existing Obsidian/Markdown vault):** Non-destructive background indexing (`IndexService` modifies zero files). If >10 undated open `- [ ]` tasks exist in files older than 14 days, Citrinium prompts to **surface only open tasks from the last 14 days by default** in Action Lists so the user is not overwhelmed by old notes on day one.
+   - **First launch (existing Obsidian/Markdown vault):** Non-destructive background indexing (`IndexService` modifies zero files). If >10 undated open `- [ ]` tasks exist in files older than 14 days, Citrine prompts to **surface only open tasks from the last 14 days by default** in Action Lists so the user is not overwhelmed by old notes on day one.
    - **Return within <2 hours:** Restores the user's **exact last open view/document and cursor/scroll position**.
    - **Return after ≥2 hours (same day):** Opens **Today's Combined View** with a prominent `↩ Resume [[Last Open Note/View]]` chip at the top.
    - **Return on a new day (1–3 days) or after an absence (4+ days):** Never shows punitive red overdue badges or broken-streak alerts (`P-04`, `A-02`). Surfaces a calm migration pill (1–3 days) or a **"Fresh Start" card** (4+ days) to pick 1–3 focus items for today and sweep remaining open items into the review queue.
 
 4. **In-Place Task Editing Everywhere (`D-19`, `B-05`):**
-   - Unlike Obsidian's Tasks plugin (where clicking a task in a query navigates away to the source document and leaves a trail of open past notes), clicking/tapping any task in *any* Citrinium list, Focus Shelf, or review card expands an **inline task editor** right inside the current view.
+   - Unlike Obsidian's Tasks plugin (where clicking a task in a query navigates away to the source document and leaves a trail of open past notes), clicking/tapping any task in *any* Citrine list, Focus Shelf, or review card expands an **inline task editor** right inside the current view.
    - Edits to task text, state, `📅` date, `⏰` time, `@context`, `#tags`, or indented note body (`D-14`) are spliced directly into the owning `.md` file in the background via `(documentId, lineIndex, charStart, charEnd)` without changing the active route.
    - A dedicated source badge (`[📄 source-note ↗]`) lets the user peek at surrounding lines or jump to the full document only when they explicitly want note context.
 

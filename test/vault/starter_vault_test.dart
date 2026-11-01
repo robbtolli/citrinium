@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:citrinium/core/vault/starter_vault_seeder.dart';
-import 'package:citrinium/core/vault/vault_setup.dart';
+import 'package:citrine/core/vault/starter_vault_seeder.dart';
+import 'package:citrine/core/vault/vault_setup.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
@@ -10,7 +10,7 @@ void main() {
     late Directory tempDir;
 
     setUp(() async {
-      tempDir = await Directory.systemTemp.createTemp('citrinium_starter_test');
+      tempDir = await Directory.systemTemp.createTemp('citrine_starter_test');
     });
 
     tearDown(() async {
@@ -31,17 +31,17 @@ void main() {
       final dailyFile = File(p.join(tempDir.path, 'daily', '2026-10-31.md'));
       expect(await dailyFile.exists(), isTrue);
       final dailyContent = await dailyFile.readAsString();
-      expect(dailyContent, contains('citrinium.type: daily'));
+      expect(dailyContent, contains('citrine.type: daily'));
       expect(dailyContent, contains('Tap this task to edit it in-place'));
       expect(dailyContent, contains('#habit 🔁 daily'));
-      expect(dailyContent, contains('- ○ Welcome to Citrinium'));
+      expect(dailyContent, contains('- ○ Welcome to Citrine'));
       expect(dailyContent, contains('[[guides/getting-started]]'));
 
       // Check inbox
       final inboxFile = File(p.join(tempDir.path, 'inbox.md'));
       expect(await inboxFile.exists(), isTrue);
       final inboxContent = await inboxFile.readAsString();
-      expect(inboxContent, contains('citrinium.type: inbox'));
+      expect(inboxContent, contains('citrine.type: inbox'));
       expect(inboxContent, contains('Practice GTD Clarify'));
 
       // Check project
@@ -50,7 +50,7 @@ void main() {
       );
       expect(await projectFile.exists(), isTrue);
       final projectContent = await projectFile.readAsString();
-      expect(projectContent, contains('citrinium.type: project'));
+      expect(projectContent, contains('citrine.type: project'));
       expect(
         projectContent,
         contains('outcome: Have a calm, trusted place for my daily tasks and notes'),
@@ -71,7 +71,7 @@ void main() {
       expect(await collectionFile.exists(), isTrue);
       expect(
         await collectionFile.readAsString(),
-        contains('citrinium.type: collection'),
+        contains('citrine.type: collection'),
       );
 
       // Check reference and guides
@@ -119,7 +119,7 @@ void main() {
     late Directory tempDir;
 
     setUp(() async {
-      tempDir = await Directory.systemTemp.createTemp('citrinium_setup_test');
+      tempDir = await Directory.systemTemp.createTemp('citrine_setup_test');
     });
 
     tearDown(() async {
@@ -164,7 +164,7 @@ void main() {
       final defaultPath = await resolveDefaultStarterVaultPath();
       expect(defaultPath.isNotEmpty, isTrue);
       expect(
-        defaultPath.endsWith('citrinium') || defaultPath.endsWith('vault'),
+        defaultPath.endsWith('citrine') || defaultPath.endsWith('vault'),
         isTrue,
       );
     });

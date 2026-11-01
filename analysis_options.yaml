@@ -1,4 +1,4 @@
-# Shared analysis options for the whole citrinium pub workspace (root app
+# Shared analysis options for the whole citrine pub workspace (root app
 # and every package/ member). Package-level analysis_options.yaml files
 # should `include` this file (with a relative path) rather than duplicate it.
 #

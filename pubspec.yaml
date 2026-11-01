@@ -1,6 +1,6 @@
-name: citrinium
+name: citrine
 description: >
-  Citrinium is a local-first, file-based task/notes app combining Bullet
+  Citrine is a local-first, file-based task/notes app combining Bullet
   Journal and GTD workflows over a plain-Markdown vault.
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -24,7 +24,7 @@ environment:
   sdk: ^3.12.2
 
 workspace:
-  - packages/citrinium_core
+  - packages/citrine_core
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -40,8 +40,8 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
 
-  citrinium_core:
-    path: packages/citrinium_core
+  citrine_core:
+    path: packages/citrine_core
   crypto: ^3.0.6
   drift: ^2.34.3
   drift_flutter: ^0.3.1
@@ -68,7 +68,7 @@ dev_dependencies:
   # `custom_lint` (its lint plugin). All four are skipped for now: the
   # newest `custom_lint` (0.8.1) caps `analyzer ^8.0.0`, which can't
   # resolve alongside `drift_dev`'s `analyzer >=10.0.0 <13.0.0` requirement
-  # in this single-workspace lockfile (see `packages/citrinium_core/pubspec.yaml`'s
+  # in this single-workspace lockfile (see `packages/citrine_core/pubspec.yaml`'s
   # `drift_dev` comment for the matching constraint on the other side).
   # Providers below are hand-written (`Provider`/`StreamProvider`/
   # `NotifierProvider`), which is fully idiomatic Riverpod without the

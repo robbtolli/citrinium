@@ -1,4 +1,4 @@
-import 'package:citrinium_core/citrinium_core.dart';
+import 'package:citrine_core/citrine_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -273,7 +273,7 @@ class _DocumentListScreenState extends ConsumerState<DocumentListScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Citrinium'),
+        title: const Text('Citrine'),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings_outlined),

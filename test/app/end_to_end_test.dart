@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:citrinium/app/citrinium_app.dart';
-import 'package:citrinium/core/vault/vault_path_provider.dart';
+import 'package:citrine/app/citrine_app.dart';
+import 'package:citrine/core/vault/vault_path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -73,9 +73,9 @@ void main() {
   late Directory appSupport;
 
   setUp(() async {
-    vault = await Directory.systemTemp.createTemp('citrinium_e2e_vault');
+    vault = await Directory.systemTemp.createTemp('citrine_e2e_vault');
     appSupport = await Directory.systemTemp.createTemp(
-      'citrinium_e2e_appsupport',
+      'citrine_e2e_appsupport',
     );
     PathProviderPlatform.instance = _FakePathProviderPlatform(appSupport);
 
@@ -104,7 +104,7 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const CitriniumApp(),
+        child: const CitrineApp(),
       ),
     );
     await tester.pump();

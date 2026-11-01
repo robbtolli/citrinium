@@ -1,5 +1,5 @@
-import 'package:citrinium/app/citrinium_app.dart';
-import 'package:citrinium/core/vault/vault_path_provider.dart';
+import 'package:citrine/app/citrine_app.dart';
+import 'package:citrine/core/vault/vault_path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,13 +15,13 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
-          child: const CitriniumApp(),
+          child: const CitrineApp(),
         ),
       );
       await tester.pumpAndSettle();
 
       // Header & welcome
-      expect(find.text('Welcome to Citrinium'), findsOneWidget);
+      expect(find.text('Welcome to Citrine'), findsOneWidget);
       expect(find.byType(MaterialApp), findsOneWidget);
 
       // The 4 Main Areas / Pillars

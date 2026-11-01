@@ -1,4 +1,4 @@
-import 'package:citrinium_core/citrinium_core.dart';
+import 'package:citrine_core/citrine_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -485,7 +485,7 @@ class _CadenceTemplatesDialogState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Customize or replace the default Markdown template for any cadence (.citrinium/templates/<id>.md). Editing a template never disables the underlying cadence or review ritual.',
+                'Customize or replace the default Markdown template for any cadence (.citrine/templates/<id>.md). Editing a template never disables the underlying cadence or review ritual.',
                 style: theme.textTheme.bodySmall,
               ),
               const SizedBox(height: 10),

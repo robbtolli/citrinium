@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:citrinium_core/citrinium_core.dart';
+import 'package:citrine_core/citrine_core.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -205,7 +205,7 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Community plugins execute in pure-bytecode QuickJS engines without filesystem or OS access. Only capabilities you explicitly grant are exposed via the Citrinium host bridge.',
+                          'Community plugins execute in pure-bytecode QuickJS engines without filesystem or OS access. Only capabilities you explicitly grant are exposed via the Citrine host bridge.',
                           style: theme.textTheme.bodySmall,
                         ),
                       ],
@@ -266,7 +266,7 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Sandboxed JavaScript plugins in .citrinium/plugins/',
+                      'Sandboxed JavaScript plugins in .citrine/plugins/',
                       style: theme.textTheme.bodySmall,
                     ),
                   ],

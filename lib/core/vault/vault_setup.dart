@@ -35,7 +35,7 @@ void debugSetDefaultStarterVaultPath(String? path) {
 }
 
 /// Resolves the default location for the Starter Vault:
-/// - Desktop: `~/Documents/citrinium` (or `<appDocuments>/citrinium` fallback)
+/// - Desktop: `~/Documents/citrine` (or `<appDocuments>/citrine` fallback)
 /// - Mobile: `<appDocuments>/vault`
 Future<String> resolveDefaultStarterVaultPath() async {
   if (_customDefaultVaultPathOverride != null) {
@@ -45,10 +45,10 @@ Future<String> resolveDefaultStarterVaultPath() async {
     final home =
         Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
     if (home != null && home.trim().isNotEmpty) {
-      return p.join(home.trim(), 'Documents', 'citrinium');
+      return p.join(home.trim(), 'Documents', 'citrine');
     }
     final documentsDir = await getApplicationDocumentsDirectory();
-    return p.join(documentsDir.path, 'citrinium');
+    return p.join(documentsDir.path, 'citrine');
   } else {
     final documentsDir = await getApplicationDocumentsDirectory();
     return p.join(documentsDir.path, 'vault');

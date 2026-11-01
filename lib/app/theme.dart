@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 /// typography/iconography, nothing that competes with the content for
 /// attention. Both light and dark variants exist so the OS-level
 /// preference is honored out of the box.
-ThemeData buildCitriniumTheme(Brightness brightness) {
+ThemeData buildCitrineTheme(Brightness brightness) {
   final colorScheme = ColorScheme.fromSeed(
     seedColor: const Color(0xFFAD8B00), // muted amber -- matches the app icon
     brightness: brightness,

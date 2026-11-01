@@ -1,5 +1,5 @@
-import 'package:citrinium_core/decoration.dart' hide DecorationRole;
-import 'package:citrinium_core/decoration.dart' as markdown_dec;
+import 'package:citrine_core/decoration.dart' hide DecorationRole;
+import 'package:citrine_core/decoration.dart' as markdown_dec;
 import 'package:flutter/material.dart' hide Decoration;
 
 import 'decoration_theme.dart';

@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:citrinium_core/citrinium_core.dart';
+import 'package:citrine_core/citrine_core.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

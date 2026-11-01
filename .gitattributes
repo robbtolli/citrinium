@@ -4,4 +4,4 @@
 # exactly. Without this, Git's line-ending normalization (core.autocrlf)
 # would silently rewrite CRLF -> LF on commit/checkout and quietly
 # invalidate the fixtures. Mark them binary so Git never touches them.
-packages/citrinium_core/test/fixtures/** -text
+packages/citrine_core/test/fixtures/** -text

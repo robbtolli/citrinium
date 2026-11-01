@@ -1,9 +1,9 @@
-# Citrinium File Schema (FR-04)
+# Citrine File Schema (FR-04)
 
-> **Status: DRAFT.** Written against `packages/citrinium_core`'s M0 parser/vault
+> **Status: DRAFT.** Written against `packages/citrine_core`'s M0 parser/vault
 > implementation (W1/W2/W3) and `design.md` §3. Frozen at M12 (`milestones.md`), per
 > the "1.0 Release Readiness" milestone. Until then, this document changes whenever
-> the parser's grammar does — `citrinium_core`'s `currentParserVersion`
+> the parser's grammar does — `citrine_core`'s `currentParserVersion`
 > (`lib/src/parser/parser_version.dart`) is bumped alongside any change here that
 > could alter how an existing file parses.
 
@@ -12,10 +12,10 @@ Parent: [`design.md`](design.md) §3 (Vault & file schema), [`milestones.md`](mi
 
 ## 0. Why this document exists
 
-Per P-11/D-15, user data belongs to the user: notes, projects, collections, cadence logs, and inline rapid-logged tasks/events/notes live in plain-text Markdown files on disk so they are readable and editable in Citrinium, Obsidian, or any text editor. Operational and history data that would otherwise pollute Markdown lines with "emoji soup" or hundreds of cloned recurring-task rows (e.g. habit completion logs, Today's Top-3 pins, snooze state, review ritual checkpoints, recent-view history) lives in Citrinium's structured local store (SQLite / `.citrinium/`) and is 100% exportable to human-readable Markdown/JSON (`T-02`).
+Per P-11/D-15, user data belongs to the user: notes, projects, collections, cadence logs, and inline rapid-logged tasks/events/notes live in plain-text Markdown files on disk so they are readable and editable in Citrine, Obsidian, or any text editor. Operational and history data that would otherwise pollute Markdown lines with "emoji soup" or hundreds of cloned recurring-task rows (e.g. habit completion logs, Today's Top-3 pins, snooze state, review ritual checkpoints, recent-view history) lives in Citrine's structured local store (SQLite / `.citrine/`) and is 100% exportable to human-readable Markdown/JSON (`T-02`).
 
 This is a **grammar/schema reference**, not a tutorial. It documents what
-`packages/citrinium_core`'s parser (`lib/src/parser/`) and vault layer
+`packages/citrine_core`'s parser (`lib/src/parser/`) and vault layer
 (`lib/src/vault/`) actually implement, plus the conventions for cadence files,
 frontmatter field names, and the boundary between inline Markdown syntax and operational
 storage.
@@ -26,7 +26,7 @@ storage.
   as found: a file with a BOM keeps its BOM on every write; a file without one never
   gains one (`vault_file_io.dart`'s `VaultFileContents.hadBom`).
 - Line endings (`\n`, `\r\n`, `\r`, or a mix of these within one file) are preserved
-  verbatim, per line, forever. Citrinium does not normalize a `CRLF` file to `LF` (or
+  verbatim, per line, forever. Citrine does not normalize a `CRLF` file to `LF` (or
   vice versa) on save, and does not "fix" a file with mixed line endings — that's a
   human/tool decision, not the app's to make silently.
 - Trailing-newline presence (or absence) at end-of-file is preserved.
@@ -51,10 +51,10 @@ storage.
   invisible to the scanner/watcher/index.
 - **Ignored paths**, pruned entirely from scanning/watching/indexing
   (`ignore_rules.dart`'s `defaultIgnoredDirNames` + generic dotfile rule):
-  - `.git/`, `.obsidian/`, `.citrinium/`, `.trash/`, `node_modules/`
+  - `.git/`, `.obsidian/`, `.citrine/`, `.trash/`, `node_modules/`
   - Any file or directory whose name starts with `.` (so `.DS_Store`, `.hidden.md`,
     `.anything/`, etc. are all invisible too)
-- **`.citrinium/`** is reserved for future app-level vault configuration (per
+- **`.citrine/`** is reserved for future app-level vault configuration (per
   `milestones/m0.md`'s "Vault config" decision: portable, travels with the vault,
   excluded from scan/index). **Nothing is written there yet as of M0** — this is a
   reserved namespace, not an active feature.
@@ -66,15 +66,15 @@ storage.
   requires a particular directory layout for user notes — a flat vault and a deeply-nested one are
   equally valid.
 - **Default cadence & GTD file paths** (created lazily on first use, never pre-generated; user-configurable cadences per `B-12`):
-  - `inbox.md` — perpetual GTD capture inbox at vault root (`citrinium.type: inbox`).
-  - `daily/YYYY-MM-DD.md` — Daily Log (`citrinium.type: dailyLog`).
-  - `weekly/YYYY-Www.md` — Weekly Plan & Review log, ISO week format e.g. `weekly/2026-W44.md` (`citrinium.type: weeklyLog`).
-  - `monthly/YYYY-MM.md` — Monthly Log (`citrinium.type: monthlyLog`).
-  - `quarterly/YYYY-QN.md` — Quarterly Log, e.g. `quarterly/2026-Q4.md` (`citrinium.type: quarterlyLog`).
-  - `yearly/YYYY.md` — Yearly Log, e.g. `yearly/2026.md` (`citrinium.type: yearlyLog`).
-  - `future.md` — BuJo Future Log (`citrinium.type: futureLog`).
-  - `someday.md` — GTD Someday/Maybe list (`citrinium.type: someday`).
-  - `.citrinium/templates/` — user-editable Markdown templates for each planning/review cadence (`B-11`).
+  - `inbox.md` — perpetual GTD capture inbox at vault root (`citrine.type: inbox`).
+  - `daily/YYYY-MM-DD.md` — Daily Log (`citrine.type: dailyLog`).
+  - `weekly/YYYY-Www.md` — Weekly Plan & Review log, ISO week format e.g. `weekly/2026-W44.md` (`citrine.type: weeklyLog`).
+  - `monthly/YYYY-MM.md` — Monthly Log (`citrine.type: monthlyLog`).
+  - `quarterly/YYYY-QN.md` — Quarterly Log, e.g. `quarterly/2026-Q4.md` (`citrine.type: quarterlyLog`).
+  - `yearly/YYYY.md` — Yearly Log, e.g. `yearly/2026.md` (`citrine.type: yearlyLog`).
+  - `future.md` — BuJo Future Log (`citrine.type: futureLog`).
+  - `someday.md` — GTD Someday/Maybe list (`citrine.type: someday`).
+  - `.citrine/templates/` — user-editable Markdown templates for each planning/review cadence (`B-11`).
 
 ## 3. Frontmatter
 
@@ -90,13 +90,13 @@ or table-adjacent text, not frontmatter — this matches CommonMark/Obsidian con
   substring*, never by re-serializing a parsed structure — untouched keys, comments,
   quoting style, and key order elsewhere in the block survive every edit
   (`MarkdownDocument.setFrontmatterValue`/`removeFrontmatterValue`).
-- **Citrinium-specific fields are namespaced under a top-level `citrinium:` map**, so
+- **Citrine-specific fields are namespaced under a top-level `citrine:` map**, so
   the file stays meaningful to any other Markdown/frontmatter-aware tool that ignores
   unknown keys:
 
   ```yaml
   ---
-  citrinium:
+  citrine:
     type: project
     id: 7f3a2b1c
     outcome: "Ship v1.0 to TestFlight"
@@ -106,7 +106,7 @@ or table-adjacent text, not frontmatter — this matches CommonMark/Obsidian con
   ---
   ```
 
-- **`citrinium.type`** is how the index (`documents.docType`, W3) classifies a file.
+- **`citrine.type`** is how the index (`documents.docType`, W3) classifies a file.
   Recognized/planned values (only `note` and `project` are meaningfully exercised as
   of M0 — the rest are named here so future milestones don't need to invent the field
   again):
@@ -127,11 +127,11 @@ or table-adjacent text, not frontmatter — this matches CommonMark/Obsidian con
   | `collection` | A BuJo collection (D-10) | M2/M4 |
   | `areaOfFocus` | GTD Horizon 2 (D-13) | M2+ |
 
-  Unrecognized `citrinium.type` values are stored and indexed as-is (`docType` is a
+  Unrecognized `citrine.type` values are stored and indexed as-is (`docType` is a
   free-text column, not an enum at the SQL layer) rather than rejected — forward
   compatibility with a future type the current app version doesn't know about yet is
   more important than validation.
-- **Top-level `title:`** (outside the `citrinium:` namespace, i.e. plain frontmatter
+- **Top-level `title:`** (outside the `citrine:` namespace, i.e. plain frontmatter
   YAML that any static-site generator or Obsidian itself would also recognize) is used
   as `documents.title` in the index if present, ahead of falling back to the first `#`
   heading line, then an empty string (see `document_indexer.dart`'s `_title`). An
@@ -154,12 +154,12 @@ Tasks are `- `/`* `/`+ ` bullet lines with a `[x]`-style checkbox
 | `- [>]` | migrated | `migrated` |
 | `- [<]` | scheduled | `scheduled` |
 | `- [-]` | dropped/canceled | `dropped` |
-| `- [w]` or `- [W]` | waiting-for (Citrinium extension) | `waitingFor` |
+| `- [w]` or `- [W]` | waiting-for (Citrine extension) | `waitingFor` |
 | any other single character | preserved verbatim, **not** normalized | `unknown` |
 
 Notes:
 
-- The bullet character itself (`-`, `*`, or `+`) is preserved as written; Citrinium
+- The bullet character itself (`-`, `*`, or `+`) is preserved as written; Citrine
   never rewrites `*` bullets to `-` or vice versa.
 - **The marker character between `[` and `]` must be exactly one character.**
   Multi-character or empty bracket contents (`- []`, `- [ab]`) don't match the task
@@ -167,11 +167,11 @@ Notes:
 - **Unknown marker characters are preserved verbatim, never normalized away.** This is
   deliberate, not a gap: a vault edited by a third-party tool with its own custom
   checkbox statuses (e.g. Obsidian's Tasks plugin, which supports arbitrary custom
-  status characters) must round-trip through Citrinium without losing that
-  information, even though Citrinium doesn't understand what the custom character
+  status characters) must round-trip through Citrine without losing that
+  information, even though Citrine doesn't understand what the custom character
   means. The index stores these as `"unknown:<char>"` in `entries.taskState`
   (`document_indexer.dart`) rather than discarding the character.
-- `[w]`/`[W]` (waiting-for) is a **Citrinium extension** to the standard
+- `[w]`/`[W]` (waiting-for) is a **Citrine extension** to the standard
   Obsidian-Tasks-plugin-compatible set — it's still a syntactically valid checkbox
   line for any generic Markdown or Obsidian reader (it just renders as an unchecked
   box with a stray letter to a tool that doesn't know about it), and is configurable
@@ -246,7 +246,7 @@ Notes on the grammar as actually implemented (`inline_metadata.dart`):
   `^blockid` stays anchored at the end as new fields accumulate. This is convention
   enforced by the edit API, not something the parser rejects if violated by hand-edited
   content — a block ID in the middle of a line still parses correctly, it's just not
-  what Citrinium itself will produce.
+  what Citrine itself will produce.
 - **No escaping mechanism exists yet.** There is currently no way to write a literal
   `#`, `@`, `📅`, etc. in rapid-log body text without it being parsed as metadata (e.g.
   "call about the #1 issue" *will* extract `#1` as a tag). This is a known gap, not a
@@ -274,7 +274,7 @@ runs, and are excluded from all of it:
   line kind (`codeFenceDelimiter`), distinct from the code content between them.
 
 This is treated as a data-integrity bug class, not a cosmetic one (per
-`milestones/m0.md`'s risk table): a false positive here would mean Citrinium
+`milestones/m0.md`'s risk table): a false positive here would mean Citrine
 silently reinterprets someone's code sample as task/link data.
 
 ## 8. Wikilinks & embeds (N-02)
@@ -300,7 +300,7 @@ every component:
   **index-layer (W3) concern, not a parser concern** — the parser only extracts the
   literal target string. `IndexService`'s resolution (`index_operations.dart`) tries,
   in order: (1) exact relative path match (with or without a `.md` suffix, so
-  `[[Projects/Citrinium]]` matches `Projects/Citrinium.md`), then (2) a case-insensitive
+  `[[Projects/Citrine]]` matches `Projects/Citrine.md`), then (2) a case-insensitive
   match on a *unique* filename anywhere in the vault (Obsidian-style shortest-path
   linking). A link that matches zero or more-than-one candidate is left unresolved
   (`links.targetDocumentId = NULL`) — this is expected, not an error: a link to a note

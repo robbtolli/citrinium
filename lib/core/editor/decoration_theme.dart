@@ -1,5 +1,5 @@
-import 'package:citrinium_core/decoration.dart';
-import 'package:citrinium_core/decoration.dart' as markdown_dec;
+import 'package:citrine_core/decoration.dart';
+import 'package:citrine_core/decoration.dart' as markdown_dec;
 import 'package:flutter/material.dart' hide Decoration;
 
 /// Styling rules for Live Preview decorations (m6).

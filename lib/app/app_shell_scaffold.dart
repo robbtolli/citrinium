@@ -1,4 +1,4 @@
-import 'package:citrinium_core/citrinium_core.dart';
+import 'package:citrine_core/citrine_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,7 +11,7 @@ import '../features/documents/document_list_screen.dart';
 import '../features/horizons/horizons_review_screen.dart';
 import '../features/search/search_dialog.dart';
 import '../features/today/today_combined_screen.dart';
-import '../shared/widgets/citrinium_help_sheet.dart';
+import '../shared/widgets/citrine_help_sheet.dart';
 import '../shared/widgets/quick_capture_bar.dart';
 
 enum AppPillar {
@@ -196,7 +196,7 @@ class _AppShellScaffoldState extends ConsumerState<AppShellScaffold> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Citrinium'),
+        title: const Text('Citrine'),
         actions: [
           // Recent Views / Documents switcher (N-04, A-08)
           TextButton.icon(
@@ -225,7 +225,7 @@ class _AppShellScaffoldState extends ConsumerState<AppShellScaffold> {
           IconButton(
             icon: const Icon(Icons.help_outline),
             tooltip: 'Field Guide & Cheat Sheet (A-06)',
-            onPressed: () => showCitriniumHelpSheet(context),
+            onPressed: () => showCitrineHelpSheet(context),
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),

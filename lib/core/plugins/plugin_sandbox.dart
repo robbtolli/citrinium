@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:citrinium_core/citrinium_core.dart';
+import 'package:citrine_core/citrine_core.dart';
 import 'package:flutter_qjs_next/flutter_qjs.dart';
 
 import 'plugin_models.dart';
@@ -58,7 +58,7 @@ class PluginSandbox {
   JavascriptRuntime? _runtime;
   bool _isDisposed = false;
 
-  /// Initializes the QuickJS engine and injects the `citrinium` host API shim.
+  /// Initializes the QuickJS engine and injects the `citrine` host API shim.
   Future<void> initialize() async {
     if (_isDisposed) return;
     try {
@@ -69,7 +69,7 @@ class PluginSandbox {
       _runtime = rt;
 
       // Register host communication bridge
-      rt.onMessage('citrinium_bridge', (rawArgs) {
+      rt.onMessage('citrine_bridge', (rawArgs) {
         return _handleBridgeCall(rawArgs);
       });
 
@@ -255,7 +255,7 @@ class PluginSandbox {
     (function() {
       const __manifest = $manifestJson;
       function __call(action, payload) {
-        var resp = sendMessage('citrinium_bridge', JSON.stringify({ action: action, payload: payload || {} }));
+        var resp = sendMessage('citrine_bridge', JSON.stringify({ action: action, payload: payload || {} }));
         try {
           var parsed = (typeof resp === 'string') ? JSON.parse(resp) : resp;
           if (parsed && parsed.error) {
@@ -267,7 +267,7 @@ class PluginSandbox {
         }
       }
 
-      globalThis.citrinium = {
+      globalThis.citrine = {
         manifest: Object.freeze(__manifest),
         tasks: {
           list: function(filter) { return __call('tasks.list', filter); },
@@ -297,7 +297,7 @@ class PluginSandbox {
   /// Fallback interpreter for environments where QuickJS shared libraries are not precompiled.
   Future<PluginExecutionResult> _executeInFallbackEngine(String jsCode) async {
     // Check for obvious API calls and enforce permissions
-    if (jsCode.contains('citrinium.tasks.list') &&
+    if (jsCode.contains('citrine.tasks.list') &&
         !grantedPermissions.contains(PluginPermission.tasksRead)) {
       return PluginExecutionResult(
         pluginId: manifest.id,
@@ -305,8 +305,8 @@ class PluginSandbox {
         errorMessage: 'SecurityException: Permission "tasks:read" not granted',
       );
     }
-    if ((jsCode.contains('citrinium.tasks.setState') ||
-            jsCode.contains('citrinium.tasks.append')) &&
+    if ((jsCode.contains('citrine.tasks.setState') ||
+            jsCode.contains('citrine.tasks.append')) &&
         !grantedPermissions.contains(PluginPermission.tasksWrite)) {
       return PluginExecutionResult(
         pluginId: manifest.id,
@@ -314,8 +314,8 @@ class PluginSandbox {
         errorMessage: 'SecurityException: Permission "tasks:write" not granted',
       );
     }
-    if ((jsCode.contains('citrinium.notes.read') ||
-            jsCode.contains('citrinium.notes.list')) &&
+    if ((jsCode.contains('citrine.notes.read') ||
+            jsCode.contains('citrine.notes.list')) &&
         !grantedPermissions.contains(PluginPermission.notesRead)) {
       return PluginExecutionResult(
         pluginId: manifest.id,
@@ -323,7 +323,7 @@ class PluginSandbox {
         errorMessage: 'SecurityException: Permission "notes:read" not granted',
       );
     }
-    if (jsCode.contains('citrinium.notes.write') &&
+    if (jsCode.contains('citrine.notes.write') &&
         !grantedPermissions.contains(PluginPermission.notesWrite)) {
       return PluginExecutionResult(
         pluginId: manifest.id,
@@ -331,8 +331,8 @@ class PluginSandbox {
         errorMessage: 'SecurityException: Permission "notes:write" not granted',
       );
     }
-    if ((jsCode.contains('citrinium.files.create') ||
-            jsCode.contains('citrinium.files.delete')) &&
+    if ((jsCode.contains('citrine.files.create') ||
+            jsCode.contains('citrine.files.delete')) &&
         !grantedPermissions.contains(PluginPermission.filesCreateDelete)) {
       return PluginExecutionResult(
         pluginId: manifest.id,
@@ -341,7 +341,7 @@ class PluginSandbox {
             'SecurityException: Permission "files:create_delete" not granted',
       );
     }
-    if (jsCode.contains('citrinium.net.fetch') &&
+    if (jsCode.contains('citrine.net.fetch') &&
         !grantedPermissions.contains(PluginPermission.networkFetch)) {
       return PluginExecutionResult(
         pluginId: manifest.id,
@@ -350,7 +350,7 @@ class PluginSandbox {
       );
     }
 
-    if (jsCode.contains('citrinium.ui.showToast')) {
+    if (jsCode.contains('citrine.ui.showToast')) {
       callbacks.showToast('Plugin executed successfully');
     }
 

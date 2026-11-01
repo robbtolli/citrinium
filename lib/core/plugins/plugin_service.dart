@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:citrinium_core/citrinium_core.dart';
+import 'package:citrine_core/citrine_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
@@ -10,7 +10,7 @@ import '../workspace/workspace_state.dart';
 import 'plugin_models.dart';
 import 'plugin_sandbox.dart';
 
-/// Service managing discovery, installation, and sandboxed execution of Citrinium plugins (PL-01–PL-08).
+/// Service managing discovery, installation, and sandboxed execution of Citrine plugins (PL-01–PL-08).
 class PluginService {
   PluginService({
     required this.vaultDir,
@@ -27,9 +27,9 @@ class PluginService {
   final void Function(String message) showToastCallback;
 
   Directory get _pluginsDir =>
-      Directory(p.join(vaultDir.path, '.citrinium', 'plugins'));
+      Directory(p.join(vaultDir.path, '.citrine', 'plugins'));
 
-  /// Discovers all community plugins located in `<vault>/.citrinium/plugins/`.
+  /// Discovers all community plugins located in `<vault>/.citrine/plugins/`.
   Future<List<PluginInfo>> discoverPlugins(WorkspaceState state) async {
     final results = <PluginInfo>[];
     if (!await _pluginsDir.exists()) {
@@ -275,16 +275,16 @@ class PluginService {
   Future<void> seedStarterCommunityPlugins() async {
     // 1. Document Stats & Word Counter (requires notes:read)
     final wordCounterDir =
-        Directory(p.join(_pluginsDir.path, 'com.citrinium.word-counter'));
+        Directory(p.join(_pluginsDir.path, 'com.citrine.word-counter'));
     if (!wordCounterDir.existsSync()) {
       wordCounterDir.createSync(recursive: true);
       final manifest = {
-        'id': 'com.citrinium.word-counter',
+        'id': 'com.citrine.word-counter',
         'name': 'Document Stats & Word Counter',
         'version': '1.0.0',
         'description':
             'Counts indexed notes and calculates total vault words across all Markdown files.',
-        'author': 'Citrinium Team',
+        'author': 'Citrine Team',
         'permissions': ['notes:read'],
         'entry': 'main.js',
       };
@@ -292,9 +292,9 @@ class PluginService {
           .writeAsStringSync(const JsonEncoder.withIndent('  ').convert(manifest));
       File(p.join(wordCounterDir.path, 'main.js')).writeAsStringSync('''
       (function() {
-        var notes = citrinium.notes.list();
+        var notes = citrine.notes.list();
         var count = notes ? notes.length : 0;
-        citrinium.ui.showToast('Vault contains ' + count + ' Markdown notes indexed.');
+        citrine.ui.showToast('Vault contains ' + count + ' Markdown notes indexed.');
         return 'Found ' + count + ' notes.';
       })();
       ''');
@@ -302,16 +302,16 @@ class PluginService {
 
     // 2. Task Hygiene Sweeper (requires tasks:read and tasks:write)
     final taskSweeperDir =
-        Directory(p.join(_pluginsDir.path, 'com.citrinium.task-hygiene'));
+        Directory(p.join(_pluginsDir.path, 'com.citrine.task-hygiene'));
     if (!taskSweeperDir.existsSync()) {
       taskSweeperDir.createSync(recursive: true);
       final manifest = {
-        'id': 'com.citrinium.task-hygiene',
+        'id': 'com.citrine.task-hygiene',
         'name': 'Task Hygiene Sweeper',
         'version': '1.0.0',
         'description':
             'Audits active vault tasks and reports rapid open/completed statistics.',
-        'author': 'Citrinium Team',
+        'author': 'Citrine Team',
         'permissions': ['tasks:read', 'tasks:write'],
         'entry': 'main.js',
       };
@@ -319,9 +319,9 @@ class PluginService {
           .writeAsStringSync(const JsonEncoder.withIndent('  ').convert(manifest));
       File(p.join(taskSweeperDir.path, 'main.js')).writeAsStringSync('''
       (function() {
-        var tasks = citrinium.tasks.list({});
+        var tasks = citrine.tasks.list({});
         var count = tasks ? tasks.length : 0;
-        citrinium.ui.showToast('Task Hygiene: ' + count + ' active tasks in vault.');
+        citrine.ui.showToast('Task Hygiene: ' + count + ' active tasks in vault.');
         return count + ' tasks evaluated.';
       })();
       ''');

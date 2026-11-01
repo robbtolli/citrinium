@@ -1,5 +1,5 @@
-import 'package:citrinium/core/plugins/plugin_sandbox.dart';
-import 'package:citrinium_core/citrinium_core.dart';
+import 'package:citrine/core/plugins/plugin_sandbox.dart';
+import 'package:citrine_core/citrine_core.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -51,8 +51,8 @@ void main() {
       await sandbox.initialize();
 
       final result = await sandbox.executeScript('''
-        const tasks = citrinium.tasks.list({});
-        citrinium.ui.showToast('Tasks found: ' + tasks.length);
+        const tasks = citrine.tasks.list({});
+        citrine.ui.showToast('Tasks found: ' + tasks.length);
         tasks.length;
       ''');
 
@@ -96,7 +96,7 @@ void main() {
       await sandbox.initialize();
 
       final result = await sandbox.executeScript('''
-        citrinium.tasks.append('daily/2026-10-31.md', 'Malicious task insertion');
+        citrine.tasks.append('daily/2026-10-31.md', 'Malicious task insertion');
       ''');
 
       expect(result.success, isFalse);
@@ -137,7 +137,7 @@ void main() {
       await sandbox.initialize();
 
       final result = await sandbox.executeScript('''
-        citrinium.net.fetch('https://example.com/api', {});
+        citrine.net.fetch('https://example.com/api', {});
       ''');
 
       expect(result.success, isFalse);

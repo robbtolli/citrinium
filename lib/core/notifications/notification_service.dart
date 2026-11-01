@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:citrinium_core/citrinium_core.dart';
+import 'package:citrine_core/citrine_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -37,7 +37,7 @@ enum NotificationActionKind {
 /// Android, iOS, macOS, Windows, and Linux (`FR-05`, `E-08`–`E-12`, `design.md` §8).
 class PlatformNotificationBridge {
   static const MethodChannel _channel = MethodChannel(
-    'citrinium/native_notifications',
+    'citrine/native_notifications',
   );
 
   List<ScheduledReminder> _lastScheduledWindow = const [];
@@ -222,7 +222,7 @@ Future<bool> ensureContextualNotificationPermission(
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 420),
         child: const Text(
-          'Citrinium uses your device\'s native notification center to deliver reminders and snoozes at the times you choose.\n\n'
+          'Citrine uses your device\'s native notification center to deliver reminders and snoozes at the times you choose.\n\n'
           'Reminders are calm and non-punitive — you can snooze or reschedule directly from any notification.',
         ),
       ),

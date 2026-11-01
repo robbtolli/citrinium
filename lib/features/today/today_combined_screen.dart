@@ -1,11 +1,11 @@
-import 'package:citrinium_core/citrinium_core.dart';
+import 'package:citrine_core/citrine_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/index/index_providers.dart';
 import '../../core/workspace/workspace_state.dart';
-import '../../shared/widgets/citrinium_help_sheet.dart';
+import '../../shared/widgets/citrine_help_sheet.dart';
 import '../../shared/widgets/embedded_markdown_editor.dart';
 import '../../shared/widgets/in_place_task_tile.dart';
 
@@ -434,7 +434,7 @@ class _HistoricalTaskSafeguardBanner extends ConsumerWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'To keep your action lists calm on day one, Citrinium can surface only open tasks from the last 14 days by default. Your older notes are never modified.',
+              'To keep your action lists calm on day one, Citrine can surface only open tasks from the last 14 days by default. Your older notes are never modified.',
               style: TextStyle(
                 fontSize: 12,
                 color: colorScheme.onSecondaryContainer,
@@ -786,7 +786,7 @@ class _OnboardingChecklistBannerState
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Getting Started with Citrinium ($completedCount/${steps.length})',
+                    'Getting Started with Citrine ($completedCount/${steps.length})',
                     style: theme.textTheme.labelLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: colorScheme.onSecondaryContainer,
@@ -794,7 +794,7 @@ class _OnboardingChecklistBannerState
                   ),
                 ),
                 TextButton(
-                  onPressed: () => showCitriniumHelpSheet(context),
+                  onPressed: () => showCitrineHelpSheet(context),
                   child: const Text('Field Guide'),
                 ),
                 IconButton(
