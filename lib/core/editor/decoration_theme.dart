@@ -119,6 +119,12 @@ class DecorationTheme {
       case DecorationKind.strikethrough:
         style = const TextStyle(decoration: TextDecoration.lineThrough);
         break;
+      case DecorationKind.cancelledTaskText:
+        style = TextStyle(
+          decoration: TextDecoration.lineThrough,
+          color: colorScheme.outline,
+        );
+        break;
       case DecorationKind.highlight:
         style = TextStyle(
           backgroundColor: colorScheme.primaryContainer.withValues(alpha: 0.5),
@@ -255,6 +261,50 @@ class _TaskCheckboxWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isChecked = markerChar == 'x' || markerChar == 'X';
+    final isInProgress = markerChar == '/';
+    final isCancelled = markerChar == '-';
+
+    Border border;
+    Color boxColor;
+
+    if (isChecked) {
+      border = Border.all(color: colorScheme.primary, width: 1.5);
+      boxColor = colorScheme.primary;
+    } else if (isInProgress) {
+      border = Border.all(color: colorScheme.primary, width: 1.5);
+      boxColor = Colors.transparent;
+    } else if (isCancelled) {
+      border = Border.all(
+        color: colorScheme.outline.withValues(alpha: 0.5),
+        width: 1.5,
+      );
+      boxColor = colorScheme.surfaceContainerHighest.withValues(alpha: 0.4);
+    } else {
+      border = Border.all(color: colorScheme.outline, width: 1.5);
+      boxColor = Colors.transparent;
+    }
+
+    Widget? child;
+    if (isChecked) {
+      child = Icon(
+        Icons.check,
+        size: 12.0,
+        color: colorScheme.onPrimary,
+      );
+    } else if (isInProgress) {
+      child = CustomPaint(
+        painter: _HalfFilledCheckboxPainter(color: colorScheme.primary),
+      );
+    } else if (isCancelled) {
+      child = Center(
+        child: Container(
+          width: 8.0,
+          height: 1.5,
+          color: colorScheme.outline,
+        ),
+      );
+    }
+
     return GestureDetector(
       onTap: onTap,
       onLongPress: onLongPress,
@@ -265,20 +315,32 @@ class _TaskCheckboxWidget extends StatelessWidget {
         height: 16.0,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(3.0),
-          border: Border.all(
-            color: isChecked ? colorScheme.primary : colorScheme.outline,
-            width: 1.5,
-          ),
-          color: isChecked ? colorScheme.primary : Colors.transparent,
+          border: border,
+          color: boxColor,
         ),
-        child: isChecked
-            ? Icon(
-                Icons.check,
-                size: 12.0,
-                color: colorScheme.onPrimary,
-              )
-            : null,
+        child: child,
       ),
     );
   }
+}
+
+class _HalfFilledCheckboxPainter extends CustomPainter {
+  const _HalfFilledCheckboxPainter({required this.color});
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+    // Draw left half filled
+    canvas.drawRect(
+      Rect.fromLTWH(1.5, 1.5, (size.width - 3.0) / 2, size.height - 3.0),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _HalfFilledCheckboxPainter oldDelegate) =>
+      oldDelegate.color != color;
 }

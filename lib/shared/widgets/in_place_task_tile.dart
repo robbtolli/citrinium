@@ -106,6 +106,9 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
       newChildNoteBody: _loadedChildNote ? _childNoteController.text : null,
     );
     if (mounted) {
+      setState(() {
+        _expanded = false;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Updated in ${widget.item.document.relPath}'),
@@ -268,7 +271,6 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
         CadenceKind.daily,
         now,
       ),
-      sourceMarker: TaskStateKind.migrated,
     );
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -282,7 +284,6 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
       widget.item,
       targetRelPath: CadenceFiles.somedayRelPath,
       targetInitialContent: CadenceFiles.defaultSomedayContent(),
-      sourceMarker: TaskStateKind.scheduled,
     );
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -302,12 +303,11 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
         CadenceKind.future,
         now,
       ),
-      sourceMarker: TaskStateKind.scheduled,
     );
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Scheduled to Future Log (future.md) (<).'),
+          content: Text('Scheduled to Future Log (future.md).'),
         ),
       );
     }
@@ -358,18 +358,25 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
     }
   }
 
-  Future<void> _dropTask() async {
+  Future<void> _cancelTask() async {
     await ref.read(vaultMutationProvider).setTaskStateInPlace(
       widget.item,
-      TaskStateKind.dropped,
+      TaskStateKind.cancelled,
     );
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Dropped cleanly — one less thing on your plate.'),
+          content: Text('Cancelled task cleanly — one less thing on your plate.'),
         ),
       );
     }
+  }
+
+  Future<void> _setTaskState(TaskStateKind state) async {
+    await ref.read(vaultMutationProvider).setTaskStateInPlace(
+      widget.item,
+      state,
+    );
   }
 
   void _openSourcePeekSheet(BuildContext context) {
@@ -398,23 +405,18 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
     switch (state) {
       case 'completed':
         return Icon(Icons.check_box, size: 20, color: colorScheme.primary);
+      case 'in-progress':
       case 'inProgress':
-        return Icon(
-          Icons.indeterminate_check_box_outlined,
-          size: 20,
-          color: colorScheme.tertiary,
-        );
-      case 'migrated':
-        return Icon(
-          Icons.keyboard_arrow_right,
-          size: 20,
-          color: colorScheme.secondary,
-        );
-      case 'scheduled':
-        return Icon(
-          Icons.keyboard_arrow_left,
-          size: 20,
-          color: colorScheme.secondary,
+        return Container(
+          width: 18,
+          height: 18,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(3),
+            border: Border.all(color: colorScheme.primary, width: 1.5),
+          ),
+          child: CustomPaint(
+            painter: _TileHalfFilledPainter(color: colorScheme.primary),
+          ),
         );
       case 'waitingFor':
         return Icon(
@@ -422,11 +424,26 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
           size: 18,
           color: colorScheme.tertiary,
         );
+      case 'cancelled':
       case 'dropped':
-        return Icon(
-          Icons.disabled_by_default_outlined,
-          size: 20,
-          color: colorScheme.outline,
+        return Container(
+          width: 18,
+          height: 18,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(3),
+            border: Border.all(
+              color: colorScheme.outline.withValues(alpha: 0.5),
+              width: 1.5,
+            ),
+            color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+          ),
+          child: Center(
+            child: Container(
+              width: 9,
+              height: 1.5,
+              color: colorScheme.outline,
+            ),
+          ),
         );
       default:
         return Icon(
@@ -444,7 +461,9 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
     final workspace = ref.watch(workspaceStateProvider);
     final isPinned = workspace.isPinnedToday(widget.item.uniqueKey);
     final isDone = widget.item.isCompletedTask;
-    final isDropped = widget.item.entry.taskState == 'dropped';
+    final isCancelled = widget.item.isCancelledTask ||
+        widget.item.entry.taskState == 'cancelled' ||
+        widget.item.entry.taskState == 'dropped';
 
     return Card(
       margin: EdgeInsets.symmetric(
@@ -493,10 +512,10 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
                         Text(
                           widget.item.entry.textContent,
                           style: theme.textTheme.bodyMedium?.copyWith(
-                            decoration: (isDone || isDropped)
+                            decoration: (isDone || isCancelled)
                                 ? TextDecoration.lineThrough
                                 : null,
-                            color: (isDone || isDropped)
+                            color: (isDone || isCancelled)
                                 ? colorScheme.outline
                                 : colorScheme.onSurface,
                           ),
@@ -643,6 +662,26 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
                     children: [
                       ActionChip(
                         visualDensity: VisualDensity.compact,
+                        label: const Text('[ ] Open'),
+                        onPressed: () => _setTaskState(TaskStateKind.open),
+                      ),
+                      ActionChip(
+                        visualDensity: VisualDensity.compact,
+                        label: const Text('[/] In-Progress'),
+                        onPressed: () => _setTaskState(TaskStateKind.inProgress),
+                      ),
+                      ActionChip(
+                        visualDensity: VisualDensity.compact,
+                        label: const Text('[x] Done'),
+                        onPressed: () => _setTaskState(TaskStateKind.completed),
+                      ),
+                      ActionChip(
+                        visualDensity: VisualDensity.compact,
+                        label: const Text('[-] Cancel'),
+                        onPressed: () => _setTaskState(TaskStateKind.cancelled),
+                      ),
+                      ActionChip(
+                        visualDensity: VisualDensity.compact,
                         label: const Text('📅 Today'),
                         onPressed: () => _setQuickDate(DateTime.now()),
                       ),
@@ -782,9 +821,9 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
                         label: const Text('Collection'),
                       ),
                       TextButton.icon(
-                        onPressed: _dropTask,
+                        onPressed: _cancelTask,
                         icon: const Icon(Icons.close, size: 16),
-                        label: const Text('Drop'),
+                        label: const Text('Cancel Task'),
                       ),
                     ],
                   ),
@@ -795,6 +834,26 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
       ),
     );
   }
+}
+
+class _TileHalfFilledPainter extends CustomPainter {
+  const _TileHalfFilledPainter({required this.color});
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+    canvas.drawRect(
+      Rect.fromLTWH(1.5, 1.5, (size.width - 3.0) / 2, size.height - 3.0),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _TileHalfFilledPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 class _MetadataPill extends StatelessWidget {

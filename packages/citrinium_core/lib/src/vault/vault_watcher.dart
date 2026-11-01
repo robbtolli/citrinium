@@ -109,7 +109,11 @@ class WatcherVaultWatcher implements VaultWatcher {
 
   @override
   void suppressSelfWrite(VaultPath path) {
-    _suppressedUntil[path.value] = DateTime.now().add(selfWriteSuppressionWindow);
+    // Ensure relative vault path key if an absolute path was passed
+    final key = path.value.startsWith(vaultRootPath)
+        ? VaultPath.fromAbsolute(vaultRootPath, path.value).value
+        : path.value;
+    _suppressedUntil[key] = DateTime.now().add(selfWriteSuppressionWindow);
   }
 
   void _handleRawEvent(w.WatchEvent event) {

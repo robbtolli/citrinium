@@ -480,25 +480,30 @@ class VaultMutationService {
     await _notifyFileUpdated(services, relPath);
   }
 
-  /// Migrates or schedules [item] into [targetRelPath] (`B-06`, `B-07`, `G-01`):
-  /// marks the original line as [sourceMarker] (`[>]` migrated or `[<]`
-  /// scheduled) in its source file, and appends a fresh `- [ ] ...` line to
-  /// [targetRelPath].
+  /// Moves or schedules [item] into [targetRelPath]:
+  /// removes or cancels the line in the source file, and appends a fresh `- [ ] ...` line to
+  /// [targetRelPath] with the scheduled date if applicable.
   Future<void> migrateOrScheduleEntry(
     IndexedEntryWithDocument item, {
     required String targetRelPath,
     required String targetInitialContent,
-    TaskStateKind sourceMarker = TaskStateKind.migrated,
+    TaskStateKind sourceMarker = TaskStateKind.cancelled,
     String? overrideDueDate,
   }) async {
     final services = await _requireServices();
     final sourceRelPath = item.document.relPath;
 
-    // 1. Mark original line as migrated (>) or scheduled (<)
-    await setTaskStateInPlace(item, sourceMarker);
-
-    // 2. Append clean open task line to target file (if different file)
+    // 1. If moving to another file, remove the line from the source file
     if (sourceRelPath != targetRelPath) {
+      await CadenceFiles.editVaultFileInPlace(
+        vaultRootPath: services.vaultPath,
+        relPath: sourceRelPath,
+        watcher: services.watcher,
+        transform: (doc) => doc.removeLine(item.entry.lineIndex),
+      );
+      await _notifyFileUpdated(services, sourceRelPath);
+
+      // 2. Append clean open task line to target file
       var textToCopy = item.entry.textContent.trim();
       var tempDoc = MarkdownDocument.parse('- [ ] $textToCopy');
       if (overrideDueDate != null && overrideDueDate.isNotEmpty) {
@@ -516,6 +521,9 @@ class VaultMutationService {
         watcher: services.watcher,
       );
       await _notifyFileUpdated(services, targetRelPath);
+    } else if (overrideDueDate != null && overrideDueDate.isNotEmpty) {
+      // Same file: simply update due date
+      await updateEntryInPlace(item, dueDate: overrideDueDate);
     }
   }
 
@@ -577,7 +585,6 @@ class VaultMutationService {
     if (promoteFromEntry != null) {
       await updateEntryInPlace(
         promoteFromEntry,
-        newState: docType == 'project' ? TaskStateKind.migrated : null,
         newContent: '[[$safeSlug]] — ${promoteFromEntry.entry.textContent}',
       );
     }
@@ -605,7 +612,13 @@ class VaultMutationService {
     await _notifyFileUpdated(services, targetRelPath);
 
     if (item.document.relPath != targetRelPath) {
-      await setTaskStateInPlace(item, TaskStateKind.migrated);
+      await CadenceFiles.editVaultFileInPlace(
+        vaultRootPath: services.vaultPath,
+        relPath: item.document.relPath,
+        watcher: services.watcher,
+        transform: (doc) => doc.removeLine(item.entry.lineIndex),
+      );
+      await _notifyFileUpdated(services, item.document.relPath);
     }
     return targetRelPath;
   }

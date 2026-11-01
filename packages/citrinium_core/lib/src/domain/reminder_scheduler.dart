@@ -185,6 +185,7 @@ class ReminderDerivationEngine {
     for (final item in entries) {
       // Only active tasks, events, or habits generate reminders
       if (item.isCompletedTask ||
+          item.entry.taskState == 'cancelled' ||
           item.entry.taskState == 'dropped' ||
           item.entry.taskState == 'migrated') {
         continue;

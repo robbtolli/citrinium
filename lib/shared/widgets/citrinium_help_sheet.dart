@@ -289,14 +289,12 @@ class _CitriniumHelpSheetState extends ConsumerState<_CitriniumHelpSheet>
                         _buildSectionHeader('Rapid-Logging Bullet States'),
                         _buildCodeSnippet(
                           '- [ ] Open Task\n'
-                          '- [/] In-Progress Task\n'
+                          '- [/] In-Progress Task (half-filled checkbox)\n'
                           '- [x] Completed Task\n'
-                          '- [>] Migrated Task (carried forward)\n'
-                          '- [<] Scheduled / Future-Logged Task\n'
-                          '- [-] Dropped / Canceled Task (decluttered without guilt)\n'
+                          '- [-] Cancelled Task (strikethrough & greyed checkbox)\n'
                           '- [?] Waiting For / Blocked Task\n'
                           '- ○ Hard-Landscape Calendar Event (exact time/date commitment)\n'
-                          '- Regular note or observation',
+                          '- – Note or observation',
                         ),
                         const SizedBox(height: 12),
                         _buildSectionHeader('Metadata Tokens'),

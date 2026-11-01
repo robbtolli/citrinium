@@ -36,7 +36,9 @@ class EditorSavePipeline extends ChangeNotifier {
   Timer? _debounceTimer;
 
   bool _isSaving = false;
+  bool _pendingSaveAfterCurrent = false;
   ConflictState? _conflictState;
+  final Set<String> _recentSavedTexts = {};
 
   String get bufferText => _bufferText;
   bool get isDirty => _bufferText != _lastSavedText;
@@ -63,8 +65,12 @@ class EditorSavePipeline extends ChangeNotifier {
     });
   }
 
-  Future<void> saveNow() async {
-    if (!isDirty || _isSaving) return;
+  Future<void> saveNow({bool force = false}) async {
+    if ((!isDirty && !force) && !_pendingSaveAfterCurrent) return;
+    if (_isSaving) {
+      _pendingSaveAfterCurrent = true;
+      return;
+    }
     _debounceTimer?.cancel();
 
     _isSaving = true;
@@ -72,17 +78,29 @@ class EditorSavePipeline extends ChangeNotifier {
 
     try {
       final textToSave = _bufferText;
+      _recentSavedTexts.add(textToSave);
+      if (_recentSavedTexts.length > 5) {
+        _recentSavedTexts.remove(_recentSavedTexts.first);
+      }
       await onSaveToDisk(filePath, textToSave);
       _lastSavedText = textToSave;
     } finally {
       _isSaving = false;
       notifyListeners();
+      if (_pendingSaveAfterCurrent) {
+        _pendingSaveAfterCurrent = false;
+        saveNow(force: force);
+      }
     }
   }
 
   /// Called when an external file-change event is detected by VaultWatcher.
   void onExternalFileChanged(String diskText) {
-    if (diskText == _lastSavedText) return; // Self-write echo or identical content
+    if (diskText == _lastSavedText ||
+        diskText == _bufferText ||
+        _recentSavedTexts.contains(diskText)) {
+      return; // Self-write echo or identical content
+    }
 
     if (!isDirty) {
       // Buffer clean -> reload silently
@@ -105,7 +123,8 @@ class EditorSavePipeline extends ChangeNotifier {
     switch (choice) {
       case ConflictResolutionChoice.keepMine:
         _conflictState = null;
-        saveNow(); // Force overwrite disk
+        notifyListeners();
+        saveNow(force: true); // Force overwrite disk with memory buffer
         break;
       case ConflictResolutionChoice.loadFromDisk:
         _bufferText = _conflictState!.diskText;

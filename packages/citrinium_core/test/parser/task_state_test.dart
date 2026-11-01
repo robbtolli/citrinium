@@ -8,9 +8,7 @@ void main() {
       '/': TaskStateKind.inProgress,
       'x': TaskStateKind.completed,
       'X': TaskStateKind.completed,
-      '>': TaskStateKind.migrated,
-      '<': TaskStateKind.scheduled,
-      '-': TaskStateKind.dropped,
+      '-': TaskStateKind.cancelled,
       'w': TaskStateKind.waitingFor,
       'W': TaskStateKind.waitingFor,
     };
@@ -21,7 +19,7 @@ void main() {
       });
     });
 
-    for (final marker in ['?', '!', 'i', '~', '@']) {
+    for (final marker in ['?', '!', 'i', '~', '@', '>', '<']) {
       test('unrecognized marker "$marker" maps to unknown', () {
         expect(taskStateKindForMarker(marker), TaskStateKind.unknown);
       });

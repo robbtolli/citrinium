@@ -8,9 +8,7 @@ void main() {
       '- [/] in progress': TaskStateKind.inProgress,
       '- [x] done': TaskStateKind.completed,
       '- [X] done capital': TaskStateKind.completed,
-      '- [>] migrated': TaskStateKind.migrated,
-      '- [<] scheduled': TaskStateKind.scheduled,
-      '- [-] dropped': TaskStateKind.dropped,
+      '- [-] cancelled': TaskStateKind.cancelled,
       '- [w] waiting': TaskStateKind.waitingFor,
       '- [W] waiting capital': TaskStateKind.waitingFor,
     };

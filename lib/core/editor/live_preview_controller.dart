@@ -15,6 +15,7 @@ class LivePreviewController extends TextEditingController {
   })  : _sourceMode = isSourceMode,
         super(text: text) {
     _decorator = IncrementalDecorator(text ?? '');
+    _lastText = text ?? '';
     addListener(_onTextChanged);
   }
 
@@ -103,13 +104,17 @@ class LivePreviewController extends TextEditingController {
       for (final dec in decorations) {
         final isBlockMarker = dec.kind == DecorationKind.heading ||
             dec.kind == DecorationKind.listMarker ||
-            dec.kind == DecorationKind.taskMarker ||
             dec.kind == DecorationKind.blockquoteMarker ||
             dec.kind == DecorationKind.fenceDelimiter ||
             dec.kind == DecorationKind.frontmatterDelimiter;
 
         if (isBlockMarker) {
           if (dec.start >= selLineStart && dec.start <= selLineEnd) {
+            revealedNodeIds.add(dec.nodeId);
+          }
+        } else if (dec.kind == DecorationKind.taskMarker) {
+          // Reveal raw task brackets ONLY if cursor is directly touching or inside the brackets
+          if (selStart <= dec.end && selEnd >= dec.start) {
             revealedNodeIds.add(dec.nodeId);
           }
         } else {
@@ -200,6 +205,24 @@ class LivePreviewController extends TextEditingController {
       value = value.copyWith(
         text: newText,
         selection: selection,
+      );
+    }
+  }
+
+  /// Sets new text content while preserving the current cursor position (clamped).
+  void updateTextPreservingSelection(String newText) {
+    if (text != newText) {
+      final oldSel = selection;
+      final clampedStart = oldSel.start.clamp(0, newText.length);
+      final clampedEnd = oldSel.end.clamp(0, newText.length);
+      value = TextEditingValue(
+        text: newText,
+        selection: TextSelection(
+          baseOffset: clampedStart,
+          extentOffset: clampedEnd,
+          affinity: oldSel.affinity,
+          isDirectional: oldSel.isDirectional,
+        ),
       );
     }
   }

@@ -696,8 +696,17 @@ class IndexedEntryWithDocument {
   bool get isUntyped => entry.kind == 'untyped';
 
   bool get isOpenTask =>
-      isTask && (entry.taskState == 'open' || entry.taskState == 'inProgress');
+      isTask &&
+      (entry.taskState == 'open' ||
+          entry.taskState == 'in-progress' ||
+          entry.taskState == 'inProgress');
+  bool get isInProgressTask =>
+      isTask &&
+      (entry.taskState == 'in-progress' || entry.taskState == 'inProgress');
   bool get isCompletedTask => isTask && entry.taskState == 'completed';
+  bool get isCancelledTask =>
+      isTask &&
+      (entry.taskState == 'cancelled' || entry.taskState == 'dropped');
   bool get isWaitingTask =>
       isTask &&
       (entry.taskState == 'waitingFor' ||

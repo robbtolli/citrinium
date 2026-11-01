@@ -37,6 +37,7 @@ class _EmbeddedMarkdownEditorState
   LivePreviewController? _controller;
   EditorSavePipeline? _pipeline;
   String? _loadedRelPath;
+  String? _lastLoadedDiskText;
 
   @override
   void dispose() {
@@ -51,6 +52,7 @@ class _EmbeddedMarkdownEditorState
       _controller?.dispose();
 
       _loadedRelPath = widget.relPath;
+      _lastLoadedDiskText = diskText;
       _controller = LivePreviewController(text: diskText);
       _pipeline = EditorSavePipeline(
         filePath: widget.relPath,
@@ -61,9 +63,10 @@ class _EmbeddedMarkdownEditorState
 
           final services = await ref.read(appServicesProvider.future);
           if (services != null) {
-            services.watcher.suppressSelfWrite(VaultPath(absPath));
+            services.watcher.suppressSelfWrite(VaultPath(relPath));
           }
 
+          _lastLoadedDiskText = text;
           await writeVaultFileAtomic(
             file,
             VaultFileContents(text: text, hadBom: false),
@@ -71,7 +74,6 @@ class _EmbeddedMarkdownEditorState
           if (services != null) {
             await services.indexService.refreshFile(relPath);
           }
-          ref.invalidate(documentRawTextProvider(widget.relPath));
         },
       );
 
@@ -79,11 +81,14 @@ class _EmbeddedMarkdownEditorState
         _pipeline?.onBufferChanged(_controller!.text);
       });
     } else {
+      if (_lastLoadedDiskText == diskText) return;
+      _lastLoadedDiskText = diskText;
+
       final pipeline = _pipeline!;
       if (diskText != pipeline.bufferText) {
         pipeline.onExternalFileChanged(diskText);
         if (!pipeline.isDirty) {
-          _controller!.text = diskText;
+          _controller!.updateTextPreservingSelection(diskText);
         }
       }
     }
@@ -119,6 +124,8 @@ class _EmbeddedMarkdownEditorState
     }.toList();
 
     return rawTextAsync.when(
+      skipLoadingOnReload: true,
+      skipLoadingOnRefresh: true,
       data: (rawText) {
         _syncEditorWithDisk(rawText, vaultPath);
         final controller = _controller!;
@@ -127,8 +134,55 @@ class _EmbeddedMarkdownEditorState
         return ListenableBuilder(
           listenable: Listenable.merge([controller, pipeline]),
           builder: (context, _) {
+            final conflict = pipeline.conflictState;
+
             return Column(
               children: [
+                if (conflict != null)
+                  Container(
+                    width: double.infinity,
+                    color: Theme.of(context).colorScheme.tertiaryContainer,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0,
+                      vertical: 8.0,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'File changed on disk externally while open.',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color:
+                                Theme.of(context).colorScheme.onTertiaryContainer,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            ElevatedButton(
+                              onPressed: () => pipeline.resolveConflict(
+                                ConflictResolutionChoice.keepMine,
+                              ),
+                              child: const Text('Keep mine'),
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton(
+                              onPressed: () {
+                                pipeline.resolveConflict(
+                                  ConflictResolutionChoice.loadFromDisk,
+                                );
+                                controller.updateTextPreservingSelection(
+                                  pipeline.bufferText,
+                                );
+                              },
+                              child: const Text('Load from disk'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                 if (pipeline.isDirty)
                   Align(
                     alignment: Alignment.centerRight,

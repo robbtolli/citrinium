@@ -284,9 +284,9 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('Carry forward tax receipt @home'), findsWidgets);
-        expect(find.text('Migrate to Today (>)'), findsOneWidget);
+        expect(find.text('Move to Today'), findsOneWidget);
 
-        await tester.tap(find.text('Migrate to Today (>)'));
+        await tester.tap(find.text('Move to Today'));
         await tester.pump();
 
         final todayRel = CadenceFiles.dailyRelPath(DateTime.now());
@@ -298,7 +298,7 @@ void main() {
         final oldDayContent =
             await File(p.join(vault.path, 'daily', '2020-01-01.md'))
                 .readAsString();
-        expect(oldDayContent, contains('- [>] Carry forward tax receipt @home'));
+        expect(oldDayContent, isNot(contains('Carry forward tax receipt @home')));
 
         // Switch to Notes & Index (B-04) and create an on-demand Collection (B-10)
         await tester.pump(const Duration(milliseconds: 400));

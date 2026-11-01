@@ -6,4 +6,4 @@
 /// `index_meta['parserVersion']`; a mismatch on open (including "no value
 /// yet", i.e. a brand-new database) triggers a full rebuild rather than
 /// trusting stale rows, per `docs/milestones/m0.md` W3.
-const int currentParserVersion = 1;
+const int currentParserVersion = 2;

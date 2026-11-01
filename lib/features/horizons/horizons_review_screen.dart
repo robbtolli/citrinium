@@ -949,7 +949,6 @@ class _GuidedCadenceReviewModalState
                                             widget.cadence,
                                             DateTime.now(),
                                           ),
-                                          sourceMarker: TaskStateKind.migrated,
                                         );
                                   },
                                 ),
@@ -1015,7 +1014,7 @@ class _GuidedCadenceReviewModalState
                                   visualDensity: VisualDensity.compact,
                                   avatar: const Icon(Icons.close, size: 14),
                                   label: const Text(
-                                    'Drop',
+                                    'Cancel (-)',
                                     style: TextStyle(fontSize: 11),
                                   ),
                                   onPressed: () async {
@@ -1023,7 +1022,7 @@ class _GuidedCadenceReviewModalState
                                         .read(vaultMutationProvider)
                                         .setTaskStateInPlace(
                                           item,
-                                          TaskStateKind.dropped,
+                                          TaskStateKind.cancelled,
                                         );
                                   },
                                 ),
@@ -1351,7 +1350,7 @@ class _GuidedCadenceReviewModalState
                                   visualDensity: VisualDensity.compact,
                                   avatar: const Icon(Icons.close, size: 14),
                                   label: const Text(
-                                    'Drop (-)',
+                                    'Cancel (-)',
                                     style: TextStyle(fontSize: 11),
                                   ),
                                   onPressed: () async {
@@ -1359,7 +1358,7 @@ class _GuidedCadenceReviewModalState
                                         .read(vaultMutationProvider)
                                         .setTaskStateInPlace(
                                           item,
-                                          TaskStateKind.dropped,
+                                          TaskStateKind.cancelled,
                                         );
                                   },
                                 ),

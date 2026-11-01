@@ -633,12 +633,11 @@ class _DailyMigrationDeckSheetState
                                   CadenceKind.daily,
                                   now,
                                 ),
-                            sourceMarker: TaskStateKind.migrated,
                           );
                       _advance();
                     },
-                    icon: const Icon(Icons.keyboard_arrow_right),
-                    label: const Text('Migrate to Today (>)'),
+                    icon: const Icon(Icons.arrow_forward),
+                    label: const Text('Move to Today'),
                   )
                 else ...[
                   FilledButton.tonalIcon(
@@ -667,12 +666,11 @@ class _DailyMigrationDeckSheetState
                                   CadenceKind.daily,
                                   tomorrow,
                                 ),
-                            sourceMarker: TaskStateKind.migrated,
                           );
                       _advance();
                     },
-                    icon: const Icon(Icons.keyboard_arrow_right),
-                    label: const Text('Migrate to Tomorrow (>)'),
+                    icon: const Icon(Icons.arrow_forward),
+                    label: const Text('Move to Tomorrow'),
                   ),
                 ],
                 OutlinedButton.icon(
@@ -687,12 +685,11 @@ class _DailyMigrationDeckSheetState
                                 CadenceKind.future,
                                 now,
                               ),
-                          sourceMarker: TaskStateKind.scheduled,
                         );
                     _advance();
                   },
-                  icon: const Icon(Icons.keyboard_arrow_left),
-                  label: const Text('Schedule to Future Log (<)'),
+                  icon: const Icon(Icons.calendar_today_outlined),
+                  label: const Text('Schedule to Future Log'),
                 ),
                 OutlinedButton.icon(
                   onPressed: () async {
@@ -703,7 +700,6 @@ class _DailyMigrationDeckSheetState
                           targetRelPath: CadenceFiles.somedayRelPath,
                           targetInitialContent:
                               CadenceFiles.defaultSomedayContent(),
-                          sourceMarker: TaskStateKind.scheduled,
                         );
                     _advance();
                   },
@@ -714,11 +710,11 @@ class _DailyMigrationDeckSheetState
                   onPressed: () async {
                     await ref
                         .read(vaultMutationProvider)
-                        .setTaskStateInPlace(current, TaskStateKind.dropped);
+                        .setTaskStateInPlace(current, TaskStateKind.cancelled);
                     _advance();
                   },
                   icon: const Icon(Icons.close),
-                  label: const Text('Drop (-)'),
+                  label: const Text('Cancel (-)'),
                 ),
                 TextButton(
                   onPressed: _advance,

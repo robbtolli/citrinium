@@ -4,6 +4,7 @@ import 'package:yaml/yaml.dart';
 
 import '../parser/markdown_document.dart';
 import '../parser/parsed_line.dart';
+import '../parser/task_state.dart';
 import 'scanned_document.dart';
 
 /// A leading-bullet stripper for [LineKind.listItem] lines only.
@@ -101,9 +102,9 @@ ScannedEntry _buildEntry(String kind, ParsedLine line, String rawText) {
   String? taskState;
   if (line.kind == LineKind.task) {
     final task = line.task!;
-    taskState = task.stateKind.name == 'unknown'
+    taskState = task.stateKind == TaskStateKind.unknown
         ? 'unknown:${task.markerChar}'
-        : task.stateKind.name;
+        : task.stateKind.stateValue;
   }
 
   String? firstValue(String metadataKind) {

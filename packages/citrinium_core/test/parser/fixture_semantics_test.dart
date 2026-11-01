@@ -142,7 +142,7 @@ void main() {
       final unknown = doc.tasks
           .where((t) => t.task!.stateKind == TaskStateKind.unknown)
           .toList();
-      expect(unknown.map((t) => t.task!.markerChar), ['?', '!', 'i']);
+      expect(unknown.map((t) => t.task!.markerChar), ['>', '<', '?', '!', 'i']);
     },
   );
 }

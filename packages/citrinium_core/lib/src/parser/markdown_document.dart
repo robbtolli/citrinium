@@ -326,6 +326,36 @@ class MarkdownDocument {
     }
   }
 
+  /// Removes the line at `lines[lineIndex]` along with its line break and
+  /// any indented child block.
+  MarkdownDocument removeLine(int lineIndex) {
+    final line = _requireLine(lineIndex);
+    final childRange = childBlockRangeForLine(lineIndex);
+
+    var startOffset = line.span.start;
+    var endOffset = childRange.endLineExclusive > lineIndex + 1
+        ? lines[childRange.endLineExclusive - 1].span.end
+        : line.span.end;
+
+    // Include the trailing newline if present, otherwise leading newline
+    if (endOffset < rawText.length && rawText[endOffset] == '\r') {
+      endOffset++;
+      if (endOffset < rawText.length && rawText[endOffset] == '\n') {
+        endOffset++;
+      }
+    } else if (endOffset < rawText.length && rawText[endOffset] == '\n') {
+      endOffset++;
+    } else if (startOffset > 0 && rawText[startOffset - 1] == '\n') {
+      startOffset--;
+      if (startOffset > 0 && rawText[startOffset - 1] == '\r') {
+        startOffset--;
+      }
+    }
+
+    final newText = rawText.replaceRange(startOffset, endOffset, '');
+    return MarkdownDocument.parse(newText);
+  }
+
   /// Sets the task at `lines[lineIndex]`'s marker character verbatim to
   /// [markerChar] (exactly one code unit), preserving unrecognized/custom
   /// statuses rather than requiring them to round-trip through

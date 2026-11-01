@@ -417,17 +417,32 @@ class _LivePreviewEditorState extends State<LivePreviewEditor> {
     final RenderBox? box = context.findRenderObject() as RenderBox?;
     final position = box != null ? box.localToGlobal(Offset.zero) : Offset.zero;
 
+    final taskNames = {
+      TaskStateKind.open: 'open',
+      TaskStateKind.inProgress: 'in-progress',
+      TaskStateKind.completed: 'completed',
+      TaskStateKind.cancelled: 'cancelled',
+      TaskStateKind.waitingFor: 'waiting-for',
+    };
+
     showMenu<TaskStateKind>(
       context: context,
       position: RelativeRect.fromLTRB(position.dx + 50, position.dy + 50, 100, 100),
-      items: TaskStateKind.values.where((k) => k != TaskStateKind.unknown).map((k) {
+      items: [
+        TaskStateKind.open,
+        TaskStateKind.inProgress,
+        TaskStateKind.completed,
+        TaskStateKind.cancelled,
+        TaskStateKind.waitingFor,
+      ].map((k) {
         final marker = canonicalMarkerFor(k);
+        final label = taskNames[k] ?? k.name;
         return PopupMenuItem<TaskStateKind>(
           value: k,
           child: Row(
             children: [
               Text('[$marker] ', style: const TextStyle(fontWeight: FontWeight.bold)),
-              Text(k.name),
+              Text(label),
             ],
           ),
         );

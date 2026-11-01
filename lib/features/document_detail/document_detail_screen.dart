@@ -27,6 +27,7 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
   LivePreviewController? _controller;
   EditorSavePipeline? _pipeline;
   String? _loadedRelPath;
+  String? _lastLoadedDiskText;
   bool _showBacklinksPanel = false;
 
   @override
@@ -56,6 +57,7 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
   void _syncEditorWithDisk(String diskText, String vaultPath) {
     if (_loadedRelPath != widget.document.relPath || _controller == null) {
       _loadedRelPath = widget.document.relPath;
+      _lastLoadedDiskText = diskText;
       _controller = LivePreviewController(text: diskText);
       _pipeline = EditorSavePipeline(
         filePath: widget.document.relPath,
@@ -67,11 +69,14 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
           // Suppress watcher self-write echo if services available
           final services = await ref.read(appServicesProvider.future);
           if (services != null) {
-            services.watcher.suppressSelfWrite(VaultPath(absPath));
+            services.watcher.suppressSelfWrite(VaultPath(relPath));
           }
 
+          _lastLoadedDiskText = text;
           await writeVaultFileAtomic(file, VaultFileContents(text: text, hadBom: false));
-          ref.invalidate(documentRawTextProvider(widget.document.relPath));
+          if (services != null) {
+            await services.indexService.refreshFile(relPath);
+          }
         },
       );
 
@@ -79,11 +84,14 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
         _pipeline?.onBufferChanged(_controller!.text);
       });
     } else {
+      if (_lastLoadedDiskText == diskText) return;
+      _lastLoadedDiskText = diskText;
+
       final pipeline = _pipeline!;
       if (diskText != pipeline.bufferText) {
         pipeline.onExternalFileChanged(diskText);
         if (!pipeline.isDirty) {
-          _controller!.text = diskText;
+          _controller!.updateTextPreservingSelection(diskText);
         }
       }
     }
@@ -107,6 +115,8 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
         .toList();
 
     return rawTextAsync.when(
+      skipLoadingOnReload: true,
+      skipLoadingOnRefresh: true,
       data: (rawText) {
         _syncEditorWithDisk(rawText, vaultPath);
 
@@ -200,7 +210,7 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
                               OutlinedButton(
                                 onPressed: () {
                                   pipeline.resolveConflict(ConflictResolutionChoice.loadFromDisk);
-                                  controller.text = pipeline.bufferText;
+                                  controller.updateTextPreservingSelection(pipeline.bufferText);
                                 },
                                 child: const Text('Load from disk'),
                               ),

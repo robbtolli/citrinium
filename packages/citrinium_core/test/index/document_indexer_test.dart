@@ -42,23 +42,19 @@ void main() {
       expect(scanned.entries.single.taskState, 'unknown:?');
     });
 
-    test('maps completed/migrated/dropped/waiting-for states', () {
+    test('maps completed/cancelled/waiting-for/in-progress states', () {
       final scanned = _index('''
 - [x] done
-- [>] migrated
-- [<] scheduled
-- [-] dropped
+- [-] cancelled
 - [w] waiting
 - [/] in progress
 ''');
       final states = scanned.entries.map((e) => e.taskState).toList();
       expect(states, [
         'completed',
-        'migrated',
-        'scheduled',
-        'dropped',
+        'cancelled',
         'waitingFor',
-        'inProgress',
+        'in-progress',
       ]);
     });
 

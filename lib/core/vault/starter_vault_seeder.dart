@@ -285,14 +285,12 @@ Citrinium uses standard Markdown and keeps your notes 100% human-readable and co
 
 ## Rapid-Logging Symbols
 - `- [ ]` Open Task
-- `- [/]` In-Progress Task
+- `- [/]` In-Progress Task (half-filled checkbox)
 - `- [x]` Completed Task
-- `- [>]` Migrated Task (carried forward to a new day or horizon)
-- `- [<]` Scheduled / Future-Logged Task (parked in `future.md` or calendar)
-- `- [-]` Dropped / Canceled Task (decluttering without guilt)
+- `- [-]` Cancelled Task (strikethrough & greyed checkbox)
 - `- [?]` Waiting For / Blocked Task
 - `- ○` Hard-Landscape Event (exact time commitment)
-- `- ` Note or discovery
+- `- –` Note or discovery
 
 ## Inline Metadata Tokens
 - `📅 YYYY-MM-DD` Due Date (or calendar date)

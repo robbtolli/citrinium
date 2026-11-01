@@ -323,6 +323,18 @@ class MarkdownDecorator {
       currentNodeId++;
 
       final contentStartPos = relPos;
+      if (markerChar == '-' && contentStartPos < lineText.length) {
+        decorations.add(
+          Decoration(
+            start: lineOffset + contentStartPos,
+            end: lineOffset + lineText.length,
+            kind: DecorationKind.cancelledTaskText,
+            role: DecorationRole.content,
+            nodeId: currentNodeId++,
+          ),
+        );
+      }
+
       _scanInlineElements(
         lineText,
         contentStartPos,

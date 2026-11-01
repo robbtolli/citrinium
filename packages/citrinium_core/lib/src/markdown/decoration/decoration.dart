@@ -14,6 +14,7 @@ enum DecorationKind {
   listMarker,
   bulletGlyph,
   taskMarker,
+  cancelledTaskText,
   blockquoteMarker,
   fenceDelimiter,
   frontmatterDelimiter,

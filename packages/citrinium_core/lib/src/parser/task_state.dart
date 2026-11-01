@@ -1,7 +1,5 @@
 /// Task states (D-02) as represented by the single character between the
 /// `[` and `]` of a checkbox marker, per `design.md` §3.1.
-///
-/// Order here matches the table in `design.md` §3.1.
 enum TaskStateKind {
   /// `- [ ]`
   open,
@@ -12,23 +10,53 @@ enum TaskStateKind {
   /// `- [x]` (or `[X]`)
   completed,
 
-  /// `- [>]`
-  migrated,
-
-  /// `- [<]`
-  scheduled,
-
-  /// `- [-]`
-  dropped,
+  /// `- [-]` -- cancelled / dropped task.
+  cancelled,
 
   /// `- [w]` (or `[W]`) -- Citrinium extension (waiting-for).
   waitingFor,
 
-  /// Any other single character. Per `docs/milestones/m0.md` W2: "Unknown
-  /// marker chars are preserved verbatim ... rather than normalized away --
-  /// required for portability" (e.g. a vault edited by Obsidian's Tasks
-  /// plugin with custom statuses we don't otherwise know about).
-  unknown,
+  /// Any other single character. Preserved verbatim.
+  unknown;
+
+  /// String value representation used in SQLite index and serialization.
+  String get stateValue {
+    switch (this) {
+      case TaskStateKind.open:
+        return 'open';
+      case TaskStateKind.inProgress:
+        return 'in-progress';
+      case TaskStateKind.completed:
+        return 'completed';
+      case TaskStateKind.cancelled:
+        return 'cancelled';
+      case TaskStateKind.waitingFor:
+        return 'waitingFor';
+      case TaskStateKind.unknown:
+        return 'unknown';
+    }
+  }
+}
+
+/// Parses a string representation back to [TaskStateKind].
+TaskStateKind? taskStateKindFromValue(String? value) {
+  if (value == null) return null;
+  switch (value) {
+    case 'open':
+      return TaskStateKind.open;
+    case 'in-progress':
+    case 'inProgress':
+      return TaskStateKind.inProgress;
+    case 'completed':
+      return TaskStateKind.completed;
+    case 'cancelled':
+    case 'dropped':
+      return TaskStateKind.cancelled;
+    case 'waitingFor':
+      return TaskStateKind.waitingFor;
+    default:
+      return TaskStateKind.unknown;
+  }
 }
 
 /// Maps a checkbox marker character (the literal char between `[` and `]`)
@@ -45,12 +73,8 @@ TaskStateKind taskStateKindForMarker(String markerChar) {
     case 'x':
     case 'X':
       return TaskStateKind.completed;
-    case '>':
-      return TaskStateKind.migrated;
-    case '<':
-      return TaskStateKind.scheduled;
     case '-':
-      return TaskStateKind.dropped;
+      return TaskStateKind.cancelled;
     case 'w':
     case 'W':
       return TaskStateKind.waitingFor;
@@ -73,11 +97,7 @@ String canonicalMarkerFor(TaskStateKind kind) {
       return '/';
     case TaskStateKind.completed:
       return 'x';
-    case TaskStateKind.migrated:
-      return '>';
-    case TaskStateKind.scheduled:
-      return '<';
-    case TaskStateKind.dropped:
+    case TaskStateKind.cancelled:
       return '-';
     case TaskStateKind.waitingFor:
       return 'w';

@@ -51,9 +51,8 @@ class _ActionsInboxScreenState extends ConsumerState<ActionsInboxScreen> {
     final inboxItems = allEntries.where((e) {
       return e.document.relPath == CadenceFiles.inboxRelPath &&
           e.entry.taskState != 'completed' &&
-          e.entry.taskState != 'dropped' &&
-          e.entry.taskState != 'migrated' &&
-          e.entry.taskState != 'scheduled';
+          e.entry.taskState != 'cancelled' &&
+          e.entry.taskState != 'dropped';
     }).toList();
 
     return Column(
@@ -320,7 +319,7 @@ class _ActionsInboxScreenState extends ConsumerState<ActionsInboxScreen> {
     // G-05: Calendar accepts ONLY explicit date/time commitments or events;
     // undated soft next actions never clutter the calendar.
     final commitments = allEntries.where((e) {
-      if (e.entry.taskState == 'dropped' || e.entry.taskState == 'migrated') {
+      if (e.entry.taskState == 'cancelled' || e.entry.taskState == 'dropped') {
         return false;
       }
       return e.entry.dueDate != null || e.isEvent;
@@ -1118,7 +1117,6 @@ class _ClarifyDeckModalState extends ConsumerState<_ClarifyDeckModal> {
                           targetRelPath: CadenceFiles.somedayRelPath,
                           targetInitialContent:
                               CadenceFiles.defaultSomedayContent(),
-                          sourceMarker: TaskStateKind.scheduled,
                         );
                     _advance();
                   },
@@ -1137,12 +1135,12 @@ class _ClarifyDeckModalState extends ConsumerState<_ClarifyDeckModal> {
                   onPressed: () async {
                     await ref.read(vaultMutationProvider).setTaskStateInPlace(
                       item,
-                      TaskStateKind.dropped,
+                      TaskStateKind.cancelled,
                     );
                     _advance();
                   },
                   icon: const Icon(Icons.delete_outline, size: 16),
-                  label: const Text('Drop / Trash (-)'),
+                  label: const Text('Cancel / Drop (-)'),
                 ),
               ],
             ),
@@ -1282,7 +1280,6 @@ class _ClarifyDeckModalState extends ConsumerState<_ClarifyDeckModal> {
             CadenceKind.daily,
             now,
           ),
-          sourceMarker: TaskStateKind.scheduled,
           overrideDueDate: dateStr,
         );
         _advance();
