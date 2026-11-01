@@ -50,6 +50,62 @@ class RecentWorkspaceItem {
   };
 }
 
+/// Operational installation record for a community or core plugin (PL-02, PL-03, PL-04, PL-08).
+@immutable
+class PluginInstallRecord {
+  const PluginInstallRecord({
+    required this.pluginId,
+    required this.grantedPermissions,
+    required this.isEnabled,
+    required this.installedAtMs,
+    this.isCore = false,
+  });
+
+  factory PluginInstallRecord.fromJson(Map<String, Object?> json) {
+    final rawPerms = json['grantedPermissions'];
+    final perms = <String>{};
+    if (rawPerms is List) {
+      for (final p in rawPerms) {
+        if (p is String) perms.add(p);
+      }
+    }
+    return PluginInstallRecord(
+      pluginId: (json['pluginId'] as String?) ?? '',
+      grantedPermissions: perms,
+      isEnabled: (json['isEnabled'] as bool?) ?? true,
+      installedAtMs: (json['installedAtMs'] as int?) ?? 0,
+      isCore: (json['isCore'] as bool?) ?? false,
+    );
+  }
+
+  final String pluginId;
+  final Set<String> grantedPermissions;
+  final bool isEnabled;
+  final int installedAtMs;
+  final bool isCore;
+
+  PluginInstallRecord copyWith({
+    Set<String>? grantedPermissions,
+    bool? isEnabled,
+  }) {
+    return PluginInstallRecord(
+      pluginId: pluginId,
+      grantedPermissions: grantedPermissions ?? this.grantedPermissions,
+      isEnabled: isEnabled ?? this.isEnabled,
+      installedAtMs: installedAtMs,
+      isCore: isCore,
+    );
+  }
+
+  Map<String, Object?> toJson() => {
+    'pluginId': pluginId,
+    'grantedPermissions': grantedPermissions.toList(),
+    'isEnabled': isEnabled,
+    'installedAtMs': installedAtMs,
+    'isCore': isCore,
+  };
+}
+
 /// Structured operational state (`P-11`, `D-15`, `design.md` §3.5):
 /// holds Today's Top-3 Focus pins (`E-02`), habit completion history (`D-17`),
 /// sticky capture destination (`C-01`), user-configured cadences (`B-12`),
@@ -81,6 +137,13 @@ class WorkspaceState {
     this.weeklyReviewReminderEnabled = false,
     this.weeklyReviewReminderDay = 7,
     this.weeklyReviewReminderTime = '17:00',
+    this.installedPlugins = const {},
+    this.enabledCorePlugins = const {
+      'daily_notes',
+      'templates',
+      'gtd_clarify',
+      'hard_calendar',
+    },
   });
 
   factory WorkspaceState.initial() {
@@ -109,6 +172,13 @@ class WorkspaceState {
       weeklyReviewReminderEnabled: false,
       weeklyReviewReminderDay: 7,
       weeklyReviewReminderTime: '17:00',
+      installedPlugins: const {},
+      enabledCorePlugins: const {
+        'daily_notes',
+        'templates',
+        'gtd_clarify',
+        'hard_calendar',
+      },
     );
   }
 
@@ -167,6 +237,12 @@ class WorkspaceState {
   /// 24-hour time string `HH:MM` for Weekly Review reminder.
   final String weeklyReviewReminderTime;
 
+  /// Installed community plugins and their granted permissions (PL-02, PL-03, PL-04).
+  final Map<String, PluginInstallRecord> installedPlugins;
+
+  /// IDs of enabled built-in core plugins (PL-08).
+  final Set<String> enabledCorePlugins;
+
   /// True if the user was active within the last 2 hours (`A-08`).
   bool isWithinTwoHourWindow(DateTime now) {
     if (lastActiveTimestampMs == null) return false;
@@ -217,6 +293,8 @@ class WorkspaceState {
     bool? weeklyReviewReminderEnabled,
     int? weeklyReviewReminderDay,
     String? weeklyReviewReminderTime,
+    Map<String, PluginInstallRecord>? installedPlugins,
+    Set<String>? enabledCorePlugins,
   }) {
     return WorkspaceState(
       captureDestination: captureDestination ?? this.captureDestination,
@@ -255,6 +333,8 @@ class WorkspaceState {
           weeklyReviewReminderDay ?? this.weeklyReviewReminderDay,
       weeklyReviewReminderTime:
           weeklyReviewReminderTime ?? this.weeklyReviewReminderTime,
+      installedPlugins: installedPlugins ?? this.installedPlugins,
+      enabledCorePlugins: enabledCorePlugins ?? this.enabledCorePlugins,
     );
   }
 
@@ -318,6 +398,20 @@ class WorkspaceState {
     buf.writeln('- **Current Review Step**: ${weeklyReviewStep == 0 ? "Not in progress (Step 0)" : "Resumable at Step $weeklyReviewStep"}');
     buf.writeln('- **Last Completed Review**: ${lastWeeklyReviewCompletedAt ?? "Never"}');
     buf.writeln('- **Weekly Reminder Enabled**: $weeklyReviewReminderEnabled (Day: $weeklyReviewReminderDay, Time: $weeklyReviewReminderTime)');
+    buf.writeln('\n## Plugins & Extensibility (PL-01, PL-04, PL-08)');
+    buf.writeln('### Core Built-In Plugins');
+    for (final coreId in const ['daily_notes', 'templates', 'gtd_clarify', 'hard_calendar']) {
+      final enabled = enabledCorePlugins.contains(coreId);
+      buf.writeln('- [${enabled ? "x" : " "}] `$coreId`');
+    }
+    buf.writeln('### Installed Community Plugins');
+    if (installedPlugins.isEmpty) {
+      buf.writeln('- *(No community plugins installed)*');
+    } else {
+      for (final p in installedPlugins.values) {
+        buf.writeln('- **${p.pluginId}** (Enabled: ${p.isEnabled}, Permissions: ${p.grantedPermissions.join(", ")})');
+      }
+    }
     return buf.toString();
   }
 
@@ -342,6 +436,8 @@ class WorkspaceState {
       'weeklyReviewReminderEnabled': weeklyReviewReminderEnabled,
       'weeklyReviewReminderDay': weeklyReviewReminderDay,
       'weeklyReviewReminderTime': weeklyReviewReminderTime,
+      'installedPlugins': {for (final e in installedPlugins.entries) e.key: e.value.toJson()},
+      'enabledCorePlugins': enabledCorePlugins.toList(),
     });
   }
 }
@@ -416,6 +512,23 @@ class WorkspaceStateNotifier extends Notifier<WorkspaceState> {
         }
       }
 
+      final pluginsRaw = map['installedPlugins'] as Map<String, Object?>?;
+      final pluginsMap = <String, PluginInstallRecord>{};
+      if (pluginsRaw != null) {
+        for (final e in pluginsRaw.entries) {
+          if (e.value is Map<String, Object?>) {
+            pluginsMap[e.key] = PluginInstallRecord.fromJson(
+              e.value! as Map<String, Object?>,
+            );
+          }
+        }
+      }
+
+      final coreRaw = (map['enabledCorePlugins'] as List<Object?>?)
+              ?.whereType<String>()
+              .toSet() ??
+          const {'daily_notes', 'templates', 'gtd_clarify', 'hard_calendar'};
+
       return WorkspaceState(
         captureDestination: captureDestination,
         enabledCadences: enabledCadences.isEmpty
@@ -452,6 +565,8 @@ class WorkspaceStateNotifier extends Notifier<WorkspaceState> {
             (map['weeklyReviewReminderDay'] as int?) ?? 7,
         weeklyReviewReminderTime:
             (map['weeklyReviewReminderTime'] as String?) ?? '17:00',
+        installedPlugins: pluginsMap,
+        enabledCorePlugins: coreRaw,
       );
     } on Object {
       return WorkspaceState.initial();
@@ -485,6 +600,8 @@ class WorkspaceStateNotifier extends Notifier<WorkspaceState> {
         'weeklyReviewReminderEnabled': next.weeklyReviewReminderEnabled,
         'weeklyReviewReminderDay': next.weeklyReviewReminderDay,
         'weeklyReviewReminderTime': next.weeklyReviewReminderTime,
+        'installedPlugins': {for (final e in next.installedPlugins.entries) e.key: e.value.toJson()},
+        'enabledCorePlugins': next.enabledCorePlugins.toList(),
       }),
     );
   }
@@ -682,6 +799,40 @@ class WorkspaceStateNotifier extends Notifier<WorkspaceState> {
         weeklyReviewReminderTime: time ?? state.weeklyReviewReminderTime,
       ),
     );
+  }
+
+  /// Registers a community plugin installation with granted permissions (`PL-02`, `PL-03`).
+  Future<void> registerInstalledPlugin(PluginInstallRecord record) async {
+    final next = Map<String, PluginInstallRecord>.from(state.installedPlugins);
+    next[record.pluginId] = record;
+    await _persist(state.copyWith(installedPlugins: next));
+  }
+
+  /// Toggles whether a community plugin is enabled without uninstalling it.
+  Future<void> togglePlugin(String pluginId, bool enabled) async {
+    final existing = state.installedPlugins[pluginId];
+    if (existing == null) return;
+    final next = Map<String, PluginInstallRecord>.from(state.installedPlugins);
+    next[pluginId] = existing.copyWith(isEnabled: enabled);
+    await _persist(state.copyWith(installedPlugins: next));
+  }
+
+  /// Revokes and uninstalls a community plugin completely (`PL-04`).
+  Future<void> revokePlugin(String pluginId) async {
+    final next = Map<String, PluginInstallRecord>.from(state.installedPlugins);
+    next.remove(pluginId);
+    await _persist(state.copyWith(installedPlugins: next));
+  }
+
+  /// Toggles a built-in core plugin (`PL-08`).
+  Future<void> toggleCorePlugin(String coreId, bool enabled) async {
+    final next = Set<String>.from(state.enabledCorePlugins);
+    if (enabled) {
+      next.add(coreId);
+    } else {
+      next.remove(coreId);
+    }
+    await _persist(state.copyWith(enabledCorePlugins: next));
   }
 }
 

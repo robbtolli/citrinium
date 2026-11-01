@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../core/vault/vault_path_provider.dart';
 import '../features/document_detail/document_detail_screen.dart';
+import '../features/plugins/plugins_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/vault_setup/vault_setup_screen.dart';
 import 'app_shell_scaffold.dart';
@@ -64,6 +65,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/settings',
         builder: (context, state) => const SettingsScreen(),
+        routes: [
+          GoRoute(
+            path: 'plugins',
+            builder: (context, state) => const PluginsScreen(),
+          ),
+        ],
       ),
     ],
   );

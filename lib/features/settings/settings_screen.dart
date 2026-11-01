@@ -1,6 +1,7 @@
 import 'package:citrinium_core/citrinium_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/index/index_providers.dart';
 import '../../core/vault/vault_path_provider.dart';
@@ -243,6 +244,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ),
           ],
+          const Divider(height: 32),
+
+          // Plugins & Extensions (PL-01, PL-04, PL-08)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'Plugins & Extensions (PL-01)',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.extension_outlined),
+            title: const Text('Plugin Manager (QuickJS Sandbox)'),
+            subtitle: const Text(
+              'Manage core workflows and sandboxed community plugins (PL-01–PL-08)',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/settings/plugins'),
+          ),
           const Divider(height: 32),
 
           // Portable Data Export (P-11, D-15, T-02)

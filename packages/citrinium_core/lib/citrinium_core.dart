@@ -6,4 +6,5 @@ library;
 export 'decoration.dart';
 export 'index.dart';
 export 'parser.dart';
+export 'plugins.dart';
 export 'vault.dart';

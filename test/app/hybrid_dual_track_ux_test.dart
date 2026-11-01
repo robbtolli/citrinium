@@ -4,6 +4,8 @@ import 'package:citrinium/app/citrinium_app.dart';
 import 'package:citrinium/core/vault/vault_path_provider.dart';
 import 'package:citrinium/core/vault/vault_setup.dart';
 import 'package:citrinium/core/workspace/workspace_state.dart';
+import 'package:citrinium/features/plugins/plugin_consent_dialog.dart';
+import 'package:citrinium/features/plugins/plugins_screen.dart';
 import 'package:citrinium/features/settings/settings_screen.dart';
 import 'package:citrinium_core/citrinium_core.dart';
 import 'package:flutter/material.dart';
@@ -751,4 +753,135 @@ void main() {
       });
     },
   );
+
+  testWidgets(
+    'M11: Plugin Architecture (PL-01), Consent (PL-02, PL-03), Revocation (PL-04), and Core Plugins (PL-08)',
+    (tester) async {
+      await tester.runAsync(() async {
+        SharedPreferences.setMockInitialValues({'vaultPath': vault.path});
+        final prefs = await SharedPreferences.getInstance();
+
+        final container = ProviderContainer(
+          overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        );
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const CitriniumApp(),
+          ),
+        );
+        await tester.pump();
+
+        // 1. Navigate to Settings
+        await tester.tap(find.byIcon(Icons.settings_outlined));
+        await _waitUntil(
+          tester,
+          () => find.text('Settings').evaluate().isNotEmpty,
+        );
+
+          final settingsScrollable = find.descendant(
+            of: find.byType(SettingsScreen),
+            matching: find.byType(Scrollable),
+          );
+
+          final pluginsTile = find.text('Plugin Manager (QuickJS Sandbox)');
+          await tester.scrollUntilVisible(
+            pluginsTile,
+            200,
+            scrollable: settingsScrollable,
+          );
+          expect(pluginsTile, findsOneWidget);
+
+          // 2. Open Plugins Screen (PL-01)
+          await tester.tap(pluginsTile);
+          await _waitUntil(
+            tester,
+            () => find.text('Core Built-In Plugins (PL-08)').evaluate().isNotEmpty,
+          );
+
+          // 3. Verify Built-In Core Plugins (PL-08)
+          expect(find.text('Core Built-In Plugins (PL-08)'), findsOneWidget);
+          expect(find.text('Daily Rapid Logging'), findsOneWidget);
+          expect(find.text('Cadence Templates'), findsOneWidget);
+          expect(find.text('GTD Clarify Flow'), findsOneWidget);
+          expect(find.text('Hard-Landscape Calendar'), findsOneWidget);
+
+          // 4. Verify Discovered Community Plugins & Install Consent (PL-02, PL-03)
+          final pluginsScrollable = find.descendant(
+            of: find.byType(PluginsScreen),
+            matching: find.byType(Scrollable),
+          );
+
+          final communityHeader = find.text('Community Plugins (PL-01, PL-04)');
+          await tester.scrollUntilVisible(
+            communityHeader,
+            150,
+            scrollable: pluginsScrollable,
+          );
+          expect(communityHeader, findsOneWidget);
+
+          // Wait for community plugins async discovery to finish
+          await _waitUntil(
+            tester,
+            () => find.byType(CircularProgressIndicator).evaluate().isEmpty,
+          );
+
+          final installWordCounterBtn =
+              find.byKey(const ValueKey('install_btn_com.citrinium.word-counter'));
+          await tester.scrollUntilVisible(
+            installWordCounterBtn,
+            150,
+            scrollable: pluginsScrollable,
+          );
+          await tester.ensureVisible(installWordCounterBtn);
+          await tester.pumpAndSettle();
+          await tester.tap(installWordCounterBtn);
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 300));
+
+          // 5. Verify All-or-Nothing Install Consent Dialog (PL-03)
+          expect(find.byType(PluginConsentDialog), findsOneWidget);
+          expect(find.textContaining('Requested Permissions (PL-02, PL-03)'), findsOneWidget);
+
+          // Grant all and install
+          await tester.tap(find.text('Grant All & Install (PL-03)'));
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 400));
+
+          // 6. Verify plugin is now installed and has Run & Revoke actions (PL-04)
+          await _waitUntil(
+            tester,
+            () => find.byKey(const ValueKey('run_btn_com.citrinium.word-counter')).evaluate().isNotEmpty,
+          );
+          expect(find.byKey(const ValueKey('run_btn_com.citrinium.word-counter')), findsOneWidget);
+          expect(find.byKey(const ValueKey('revoke_btn_com.citrinium.word-counter')), findsOneWidget);
+
+          // Clear any active SnackBars so they don't intercept hit tests
+          ScaffoldMessenger.of(tester.element(find.byType(PluginsScreen))).clearSnackBars();
+          await tester.pumpAndSettle();
+
+          // 7. Revoke plugin (PL-04)
+          final revokeBtn =
+              find.byKey(const ValueKey('revoke_btn_com.citrinium.word-counter'));
+          await tester.ensureVisible(revokeBtn);
+          await tester.pumpAndSettle();
+          await tester.tap(revokeBtn);
+          await tester.pumpAndSettle();
+
+          // Confirm revocation in dialog
+          final confirmRevoke = find.widgetWithText(FilledButton, 'Revoke & Uninstall (PL-04)');
+          expect(confirmRevoke, findsOneWidget);
+          await tester.tap(confirmRevoke);
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 400));
+          await _waitUntil(
+            tester,
+            () => find.textContaining('Revoked and uninstalled').evaluate().isNotEmpty,
+          );
+          expect(find.textContaining('Revoked and uninstalled'), findsOneWidget);
+        });
+      },
+    );
 }
