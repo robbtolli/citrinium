@@ -60,6 +60,17 @@ final backlinksForDocumentProvider =
   yield* services.indexService.watchBacklinksForDocument(targetDocumentId);
 });
 
+/// Unlinked mentions of a document's title or basename across other vault notes (`N-02`, `D-12`).
+final unlinkedMentionsProvider =
+    FutureProvider.family<List<UnlinkedMentionItem>, Document>((
+  ref,
+  document,
+) async {
+  final services = await ref.watch(appServicesProvider.future);
+  if (services == null) return const [];
+  return services.indexService.findUnlinkedMentionsForDocument(document);
+});
+
 /// Summary counts for the settings screen.
 final indexStatsProvider = StreamProvider<IndexStats?>((ref) async* {
   final services = await ref.watch(appServicesProvider.future);
@@ -619,6 +630,51 @@ class VaultMutationService {
           ? followUpDate.trim()
           : null,
     );
+  }
+
+  /// Rewrites the line at [lineIndex] in [sourceRelPath] by wrapping [keyword] in `[[targetTitleOrPath|keyword]]`
+  /// (or `[[targetTitleOrPath]]` if same), saving atomically to disk (`N-02`, `D-12`).
+  Future<void> linkMention({
+    required String sourceRelPath,
+    required int lineIndex,
+    required String keyword,
+    required String targetTitleOrPath,
+  }) async {
+    final services = await _requireServices();
+    final file = File(VaultPath(sourceRelPath).toAbsolute(services.vaultPath));
+    if (!await file.exists()) return;
+
+    final contents = await readVaultFile(file);
+    final lines = contents.text.split('\n');
+    if (lineIndex < 0 || lineIndex >= lines.length) return;
+
+    final targetName = targetTitleOrPath.replaceAll('.md', '');
+    final replacement = targetName.toLowerCase() == keyword.toLowerCase()
+        ? '[[$targetName]]'
+        : '[[$targetName|$keyword]]';
+
+    final line = lines[lineIndex];
+    final pattern = RegExp(
+      r'\[\[([^\]]*?)\]\]|' + RegExp.escape(keyword),
+      caseSensitive: false,
+    );
+
+    var replaced = false;
+    final updatedLine = line.replaceAllMapped(pattern, (match) {
+      if (replaced) return match.group(0)!;
+      final m = match.group(0)!;
+      if (m.startsWith('[[') && m.endsWith(']]')) return m;
+      replaced = true;
+      return replacement;
+    });
+
+    lines[lineIndex] = updatedLine;
+    services.watcher.suppressSelfWrite(VaultPath(file.path));
+    await writeVaultFileAtomic(
+      file,
+      VaultFileContents(text: lines.join('\n'), hadBom: contents.hadBom),
+    );
+    await _notifyFileUpdated(services, sourceRelPath);
   }
 }
 

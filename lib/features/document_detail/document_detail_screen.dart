@@ -11,6 +11,7 @@ import '../../core/index/app_services.dart';
 import '../../core/index/index_providers.dart';
 import '../../core/workspace/workspace_state.dart';
 import '../../shared/widgets/in_place_task_tile.dart';
+import '../search/search_dialog.dart';
 
 /// Full Live Preview Editor screen for Milestone 6.
 class DocumentDetailScreen extends ConsumerStatefulWidget {
@@ -94,11 +95,13 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
     final docsAsync = ref.watch(documentListProvider);
     final appServicesAsync = ref.watch(appServicesProvider);
     final backlinksAsync = ref.watch(backlinksForDocumentProvider(widget.document.id));
+    final unlinkedMentionsAsync = ref.watch(unlinkedMentionsProvider(widget.document));
     final allEntriesAsync = ref.watch(allEntriesWithDocumentsProvider);
 
     final vaultPath = appServicesAsync.value?.vaultPath ?? '';
     final noteTitles = docsAsync.value?.map((d) => d.title.isNotEmpty ? d.title : d.relPath).toList() ?? [];
     final backlinks = backlinksAsync.value ?? const [];
+    final unlinkedMentions = unlinkedMentionsAsync.value ?? const [];
     final docTasks = (allEntriesAsync.value ?? const [])
         .where((e) => e.document.id == widget.document.id && e.isTask)
         .toList();
@@ -211,6 +214,15 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
                     child: LivePreviewEditor(
                       controller: controller,
                       noteTitles: noteTitles,
+                      onLinkTap: (target) => _handleLinkTap(
+                        context,
+                        target,
+                        docsAsync.value ?? const [],
+                      ),
+                      onTagTap: (tag) => SearchDialog.show(
+                        context,
+                        initialTag: tag,
+                      ),
                       onSaveRequested: () => pipeline.saveNow(),
                     ),
                   ),
@@ -226,7 +238,7 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
                           dense: true,
                           leading: const Icon(Icons.link, size: 18),
                           title: Text(
-                            'Backlinks (${backlinks.length}) · Tasks in note (${docTasks.length})',
+                            'Backlinks (${backlinks.length}) · Unlinked (${unlinkedMentions.length}) · Tasks (${docTasks.length})',
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -244,7 +256,7 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
                         ),
                         if (_showBacklinksPanel)
                           ConstrainedBox(
-                            constraints: const BoxConstraints(maxHeight: 220),
+                            constraints: const BoxConstraints(maxHeight: 240),
                             child: ListView(
                               shrinkWrap: true,
                               padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
@@ -281,6 +293,97 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
                                       },
                                     ),
                                 ],
+                                if (unlinkedMentions.isNotEmpty) ...[
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'UNLINKED MENTIONS (${unlinkedMentions.length})',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  for (final u in unlinkedMentions)
+                                    Card(
+                                      margin: const EdgeInsets.only(bottom: 6),
+                                      child: ListTile(
+                                        dense: true,
+                                        title: Text(
+                                          u.sourceDocument.title.isNotEmpty
+                                              ? u.sourceDocument.title
+                                              : u.sourceDocument.relPath,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        subtitle: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              u.sourceDocument.relPath,
+                                              style: const TextStyle(
+                                                fontSize: 10,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              u.snippet,
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        trailing: FilledButton.tonal(
+                                          style: FilledButton.styleFrom(
+                                            visualDensity: VisualDensity.compact,
+                                          ),
+                                          onPressed: () async {
+                                            await ref
+                                                .read(vaultMutationProvider)
+                                                .linkMention(
+                                                  sourceRelPath:
+                                                      u.sourceDocument.relPath,
+                                                  lineIndex: u.lineIndex,
+                                                  keyword: u.matchedText,
+                                                  targetTitleOrPath: widget
+                                                          .document
+                                                          .title
+                                                          .isNotEmpty
+                                                      ? widget.document.title
+                                                      : widget.document.relPath,
+                                                );
+                                            ref.invalidate(
+                                              unlinkedMentionsProvider(
+                                                widget.document,
+                                              ),
+                                            );
+                                            ref.invalidate(
+                                              backlinksForDocumentProvider(
+                                                widget.document.id,
+                                              ),
+                                            );
+                                            if (context.mounted) {
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    'Linked "${u.matchedText}" in ${u.sourceDocument.relPath}!',
+                                                  ),
+                                                ),
+                                              );
+                                            }
+                                          },
+                                          child: const Text(
+                                            'Link',
+                                            style: TextStyle(fontSize: 12),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
                                 if (docTasks.isNotEmpty) ...[
                                   const SizedBox(height: 6),
                                   const Text(
@@ -298,11 +401,13 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
                                       dense: true,
                                     ),
                                 ],
-                                if (backlinks.isEmpty && docTasks.isEmpty)
+                                if (backlinks.isEmpty &&
+                                    unlinkedMentions.isEmpty &&
+                                    docTasks.isEmpty)
                                   const Padding(
                                     padding: EdgeInsets.all(8.0),
                                     child: Text(
-                                      'No incoming [[wikilinks]] or tasks in this note yet.',
+                                      'No incoming [[wikilinks]], unlinked mentions, or tasks in this note yet.',
                                       style: TextStyle(fontSize: 12),
                                     ),
                                   ),
@@ -368,5 +473,89 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _handleLinkTap(
+    BuildContext context,
+    String targetRaw,
+    List<Document> allDocs,
+  ) async {
+    var cleanTarget = targetRaw.trim();
+    if (cleanTarget.contains('#')) {
+      cleanTarget = cleanTarget.split('#').first.trim();
+    }
+    if (cleanTarget.contains('^')) {
+      cleanTarget = cleanTarget.split('^').first.trim();
+    }
+    if (cleanTarget.isEmpty) return;
+
+    final lower = cleanTarget.toLowerCase();
+    final targetDoc = allDocs.where((d) {
+      if (d.relPath.toLowerCase() == lower ||
+          d.relPath.toLowerCase() == '$lower.md') {
+        return true;
+      }
+      final base = d.relPath.replaceAll('\\', '/').split('/').last;
+      final baseNoExt = base.toLowerCase().endsWith('.md')
+          ? base.substring(0, base.length - 3)
+          : base;
+      if (baseNoExt.toLowerCase() == lower) return true;
+      if (d.title.toLowerCase() == lower) return true;
+      return false;
+    }).firstOrNull;
+
+    if (targetDoc != null) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => DocumentDetailScreen(document: targetDoc),
+        ),
+      );
+      return;
+    }
+
+    // Target note does not exist yet -- prompt user to create it (N-02)
+    final create = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Create Note?'),
+        content: Text('Note "[[$cleanTarget]]" does not exist yet. Create it now?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Create Note'),
+          ),
+        ],
+      ),
+    );
+
+    if (create == true && context.mounted) {
+      final relPath = await ref.read(vaultMutationProvider).createNoteOrProject(
+            title: cleanTarget,
+            docType: 'note',
+          );
+      final refreshedDocs = await ref.read(documentListProvider.future);
+      final createdDoc = refreshedDocs.where((d) => d.relPath == relPath).firstOrNull ??
+          Document(
+            id: 0,
+            relPath: relPath,
+            sha256: '',
+            mtimeMs: DateTime.now().millisecondsSinceEpoch,
+            sizeBytes: 0,
+            docType: 'note',
+            title: cleanTarget,
+            indexedAtMs: DateTime.now().millisecondsSinceEpoch,
+          );
+      if (context.mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => DocumentDetailScreen(document: createdDoc),
+          ),
+        );
+      }
+    }
   }
 }

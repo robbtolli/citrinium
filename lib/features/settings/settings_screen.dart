@@ -38,6 +38,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  String _dayName(int day) => switch (day) {
+        1 => 'Monday',
+        2 => 'Tuesday',
+        3 => 'Wednesday',
+        4 => 'Thursday',
+        5 => 'Friday',
+        6 => 'Saturday',
+        _ => 'Sunday',
+      };
+
   @override
   Widget build(BuildContext context) {
     final vaultPath = ref.watch(vaultPathProvider);
@@ -187,6 +197,52 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   .dismissOnboardingChecklist(dismissed: !visible);
             },
           ),
+          const Divider(height: 32),
+
+          // Weekly Review Reminder (R-05)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'Weekly Review Reminder (R-05)',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ),
+          SwitchListTile(
+            title: const Text('Weekly Review Reminder'),
+            subtitle: const Text(
+              'Gentle reminder to start your review. Missing it does not punish you or break any streaks (R-05, P-04).',
+            ),
+            value: workspace.weeklyReviewReminderEnabled,
+            onChanged: (enabled) {
+              ref
+                  .read(workspaceStateProvider.notifier)
+                  .configureWeeklyReviewReminder(enabled: enabled);
+            },
+          ),
+          if (workspace.weeklyReviewReminderEnabled) ...[
+            ListTile(
+              title: const Text('Reminder Schedule'),
+              subtitle: Text(
+                'Every ${_dayName(workspace.weeklyReviewReminderDay)} at ${workspace.weeklyReviewReminderTime}',
+              ),
+              trailing: PopupMenuButton<int>(
+                icon: const Icon(Icons.schedule),
+                onSelected: (day) {
+                  ref
+                      .read(workspaceStateProvider.notifier)
+                      .configureWeeklyReviewReminder(
+                        enabled: true,
+                        day: day,
+                      );
+                },
+                itemBuilder: (ctx) => [
+                  const PopupMenuItem(value: 7, child: Text('Sunday at 17:00')),
+                  const PopupMenuItem(value: 5, child: Text('Friday at 16:00')),
+                  const PopupMenuItem(value: 1, child: Text('Monday at 09:00')),
+                ],
+              ),
+            ),
+          ],
           const Divider(height: 32),
 
           // Portable Data Export (P-11, D-15, T-02)

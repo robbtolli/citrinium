@@ -70,6 +70,26 @@ class IndexService {
   Stream<List<BacklinkItem>> watchBacklinksForDocument(int targetDocumentId) =>
       _db.watchBacklinksForDocument(targetDocumentId);
 
+  Future<List<UnlinkedMentionItem>> findUnlinkedMentionsForDocument(
+    Document targetDoc,
+  ) =>
+      _db.findUnlinkedMentionsForDocument(targetDoc);
+
+  Future<List<SearchResultItem>> searchVault({
+    required String query,
+    String? docTypeFilter,
+    String? tagFilter,
+    String? contextFilter,
+    bool tasksOnly = false,
+  }) =>
+      _db.searchVault(
+        query: query,
+        docTypeFilter: docTypeFilter,
+        tagFilter: tagFilter,
+        contextFilter: contextFilter,
+        tasksOnly: tasksOnly,
+      );
+
   Future<List<Document>> searchDocuments(String rawQuery) =>
       _db.searchDocuments(rawQuery);
 

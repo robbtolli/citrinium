@@ -4,6 +4,7 @@ import 'package:citrinium/app/citrinium_app.dart';
 import 'package:citrinium/core/vault/vault_path_provider.dart';
 import 'package:citrinium/core/vault/vault_setup.dart';
 import 'package:citrinium/core/workspace/workspace_state.dart';
+import 'package:citrinium/features/settings/settings_screen.dart';
 import 'package:citrinium_core/citrinium_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -518,5 +519,236 @@ void main() {
     final jsonStr = state.exportToJson();
     expect(jsonStr, contains('"topThreePinnedKeys"'));
     expect(jsonStr, contains('"habitCompletionsByDate"'));
+    expect(jsonStr, contains('"weeklyReviewStep"'));
   });
+
+  testWidgets(
+    'M9: Notes Linking (N-02, D-12) and Full-Text Faceted Search (N-03, N-04, FR-06)',
+    (tester) async {
+      await tester.runAsync(() async {
+        // Seed note referencing Meeting Notes without [[...]] (unlinked mention)
+        await File(p.join(vault.path, 'project-a.md')).writeAsString(
+          '# Project Alpha\n\n- [ ] Discuss Meeting Notes with team\n',
+        );
+
+        SharedPreferences.setMockInitialValues({'vaultPath': vault.path});
+        final prefs = await SharedPreferences.getInstance();
+
+        final container = ProviderContainer(
+          overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        );
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const CitriniumApp(),
+          ),
+        );
+        await tester.pump();
+
+        await _waitUntil(
+          tester,
+          () => find.text('Meeting Notes').evaluate().isNotEmpty,
+        );
+
+        // 1. Open Search & Quick Switcher Dialog via AppBar search icon (N-04)
+        await tester.tap(find.byIcon(Icons.search).first);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(find.text('Search & Quick Switcher'), findsOneWidget);
+        expect(find.text('All'), findsOneWidget);
+        expect(find.text('Notes'), findsOneWidget);
+
+        // Filter by Notes
+        await tester.tap(find.text('Notes'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        // Close search dialog
+        await tester.tap(find.text('Close'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        // 2. Open "Meeting Notes" document
+        final meetingNotesTile = find.text('Meeting Notes').first;
+        await tester.ensureVisible(meetingNotesTile);
+        await tester.tap(meetingNotesTile);
+        await _waitUntil(
+          tester,
+          () => find.textContaining('Backlinks').evaluate().isNotEmpty,
+        );
+
+        // Expand Backlinks panel
+        final backlinksTile = find.textContaining('Backlinks');
+        expect(backlinksTile, findsOneWidget);
+        await tester.tap(backlinksTile);
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump(const Duration(milliseconds: 300));
+
+        // Verify Unlinked Mentions section is surfaced (N-02, D-12)
+        expect(find.textContaining('UNLINKED MENTIONS'), findsOneWidget);
+        expect(find.text('Link'), findsOneWidget);
+
+        // Tap "Link" button to wrap the mention in [[Meeting Notes]]
+        await tester.tap(find.text('Link'));
+        await _waitUntil(
+          tester,
+          () => File(p.join(vault.path, 'project-a.md'))
+              .readAsStringSync()
+              .contains('[[Meeting Notes]]'),
+        );
+
+        // Verify the source file on disk was updated to [[Meeting Notes]]
+        final updatedProjectFile = await File(p.join(vault.path, 'project-a.md')).readAsString();
+        expect(updatedProjectFile, contains('[[Meeting Notes]]'));
+      });
+    },
+  );
+
+  testWidgets(
+    'M10: Guided Weekly Review (R-01, R-03), Resumable Progress (R-04), and Reminder (R-05)',
+    (tester) async {
+      await tester.runAsync(() async {
+        // Seed zombie project (zero open tasks) and stale task (old file)
+        final projectsDir = Directory(p.join(vault.path, 'projects'));
+        await projectsDir.create(recursive: true);
+        await File(p.join(projectsDir.path, 'zombie.md')).writeAsString(
+          '---\ntitle: Zombie Project\n---\n# Zombie Project\nProse description with no open tasks.\n',
+        );
+
+        SharedPreferences.setMockInitialValues({'vaultPath': vault.path});
+        final prefs = await SharedPreferences.getInstance();
+
+        final container = ProviderContainer(
+          overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        );
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const CitriniumApp(),
+          ),
+        );
+        await tester.pump();
+
+        await _waitUntil(
+          tester,
+          () => find.text('Meeting Notes').evaluate().isNotEmpty,
+        );
+
+        // 1. Navigate to Horizons & Review
+        await tester.tap(find.text('Horizons & Review').first);
+        await tester.pumpAndSettle();
+
+        // Tap Weekly Review button
+        final reviewButton = find.text('Start Weekly Review').first;
+        await tester.ensureVisible(reviewButton);
+        await tester.tap(reviewButton);
+        await tester.pumpAndSettle();
+
+        // Step 1: Get Clear (Inbox Zero)
+        expect(find.textContaining('1. Get Clear (Inbox Zero)'), findsOneWidget);
+        expect(find.text('Call pharmacy @phone'), findsOneWidget);
+
+        // Clarify inbox item by clicking "Next Action"
+        await tester.tap(find.text('Next Action').first);
+        await _waitUntil(
+          tester,
+          () => find.textContaining('Inbox Zero Achieved!').evaluate().isNotEmpty,
+        );
+
+        // Proceed to Step 2: Get Current
+        await tester.tap(find.text('Next Step →'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(find.textContaining('2. Get Current'), findsOneWidget);
+
+        // Test Resumability (R-04): Save & Close mid-session
+        await tester.tap(find.text('Save & Close'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        // Reopen Weekly Review
+        final reopenButton = find.text('Start Weekly Review').first;
+        await tester.ensureVisible(reopenButton);
+        await tester.tap(reopenButton);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        // Verifies it resumes at Step 2!
+        expect(find.textContaining('Resumed review mid-session at Step 2'), findsOneWidget);
+
+        // Proceed to Step 3: Get Creative & Stale Review (R-03)
+        await tester.tap(find.text('Next Step →'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(find.textContaining('3. Get Creative & Stale Review'), findsOneWidget);
+        expect(find.textContaining('No guilt here — life evolves!'), findsOneWidget);
+
+        // Proceed to Step 4: Choose Outcomes & Intentions
+        await tester.tap(find.text('Next Step →'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(find.textContaining('4. Choose Outcomes & Intentions'), findsOneWidget);
+
+        // Enter key outcome and finish
+        await tester.enterText(
+          find.byType(TextField).last,
+          'Ship Citrinium M9 & M10 @computer',
+        );
+        await tester.tap(find.textContaining('Finish Weekly Review'));
+        await _waitUntil(
+          tester,
+          () => find.textContaining('Weekly Review complete!').evaluate().isNotEmpty,
+        );
+        // Wait for modal bottom sheet dismiss animation to finish
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+        await tester.pump(const Duration(milliseconds: 400));
+
+        // 2. Check Settings for Weekly Review Reminder (R-05)
+        await tester.tap(find.byIcon(Icons.settings_outlined));
+        await _waitUntil(
+          tester,
+          () => find.text('Settings').evaluate().isNotEmpty,
+        );
+
+        final settingsScrollable = find.descendant(
+          of: find.byType(SettingsScreen),
+          matching: find.byType(Scrollable),
+        );
+
+        final reminderHeader = find.text('Weekly Review Reminder (R-05)');
+        await tester.scrollUntilVisible(
+          reminderHeader,
+          200,
+          scrollable: settingsScrollable,
+        );
+        expect(reminderHeader, findsOneWidget);
+
+        final reminderSwitch = find.text('Weekly Review Reminder').first;
+        await tester.scrollUntilVisible(
+          reminderSwitch,
+          100,
+          scrollable: settingsScrollable,
+        );
+        await tester.tap(reminderSwitch);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        final scheduleSection = find.text('Reminder Schedule');
+        await tester.scrollUntilVisible(
+          scheduleSection,
+          100,
+          scrollable: settingsScrollable,
+        );
+        expect(scheduleSection, findsOneWidget);
+      });
+    },
+  );
 }

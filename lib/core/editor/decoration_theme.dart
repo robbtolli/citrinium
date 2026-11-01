@@ -37,6 +37,8 @@ class DecorationTheme {
     required bool isSourceMode,
     required ValueChanged<String>? onCheckboxTap,
     ValueChanged<String>? onCheckboxLongPress,
+    ValueChanged<String>? onLinkTap,
+    ValueChanged<String>? onTagTap,
   }) {
     if (isSourceMode) {
       return TextSpan(text: spanText);
@@ -141,6 +143,26 @@ class DecorationTheme {
       case DecorationKind.wikilinkAlias:
       case DecorationKind.inlineLink:
       case DecorationKind.autolink:
+        final target = decoration.payload ?? spanText;
+        if (!isRevealed && onLinkTap != null && role == DecorationRole.content) {
+          return WidgetSpan(
+            alignment: PlaceholderAlignment.baseline,
+            baseline: TextBaseline.alphabetic,
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                onTap: () => onLinkTap(target),
+                child: Text(
+                  spanText,
+                  style: TextStyle(
+                    color: colorScheme.primary,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
         style = TextStyle(
           color: colorScheme.primary,
           decoration: TextDecoration.underline,
@@ -152,11 +174,44 @@ class DecorationTheme {
           fontWeight: FontWeight.w500,
         );
         break;
+      case DecorationKind.tag:
+        final tag = decoration.payload ?? spanText;
+        if (!isRevealed && onTagTap != null && role == DecorationRole.content) {
+          return WidgetSpan(
+            alignment: PlaceholderAlignment.baseline,
+            baseline: TextBaseline.alphabetic,
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                onTap: () => onTagTap(tag),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: colorScheme.secondaryContainer.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    spanText,
+                    style: TextStyle(
+                      color: colorScheme.onSecondaryContainer,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+        style = TextStyle(
+          color: colorScheme.tertiary,
+          fontWeight: FontWeight.w500,
+        );
+        break;
       case DecorationKind.dueDate:
       case DecorationKind.dueTime:
       case DecorationKind.recurrence:
       case DecorationKind.context:
-      case DecorationKind.tag:
       case DecorationKind.blockId:
         style = TextStyle(
           color: colorScheme.tertiary,

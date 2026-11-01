@@ -26,6 +26,8 @@ class LivePreviewController extends TextEditingController {
 
   void Function(int offset, String currentMarker)? onTaskCheckboxTapped;
   void Function(int offset, String currentMarker)? onTaskCheckboxLongPressed;
+  ValueChanged<String>? onLinkTap;
+  ValueChanged<String>? onTagTap;
 
   bool get isSourceMode => _sourceMode;
   set isSourceMode(bool value) {
@@ -171,6 +173,8 @@ class LivePreviewController extends TextEditingController {
                 onTaskCheckboxLongPressed!(spanStartOffset, markerChar);
               }
             },
+            onLinkTap: onLinkTap,
+            onTagTap: onTagTap,
           );
           spans.add(span);
         }

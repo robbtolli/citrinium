@@ -9,6 +9,7 @@ import '../core/workspace/workspace_state.dart';
 import '../features/actions/actions_inbox_screen.dart';
 import '../features/documents/document_list_screen.dart';
 import '../features/horizons/horizons_review_screen.dart';
+import '../features/search/search_dialog.dart';
 import '../features/today/today_combined_screen.dart';
 import '../shared/widgets/citrinium_help_sheet.dart';
 import '../shared/widgets/quick_capture_bar.dart';
@@ -170,10 +171,7 @@ class _AppShellScaffoldState extends ConsumerState<AppShellScaffold> {
   }
 
   void _openQuickSwitcherDialog(BuildContext context, List<Document> allDocs) {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => _QuickSwitcherDialog(allDocs: allDocs),
-    );
+    SearchDialog.show(context);
   }
 
   @override
@@ -282,100 +280,6 @@ class _AppShellScaffoldState extends ConsumerState<AppShellScaffold> {
                   ),
               ],
             ),
-    );
-  }
-}
-
-class _QuickSwitcherDialog extends ConsumerStatefulWidget {
-  const _QuickSwitcherDialog({required this.allDocs});
-
-  final List<Document> allDocs;
-
-  @override
-  ConsumerState<_QuickSwitcherDialog> createState() =>
-      _QuickSwitcherDialogState();
-}
-
-class _QuickSwitcherDialogState extends ConsumerState<_QuickSwitcherDialog> {
-  String _query = '';
-  List<Document>? _ftsResults;
-
-  Future<void> _onQueryChanged(String q) async {
-    setState(() => _query = q);
-    final services = await ref.read(
-      documentListProvider.future,
-    );
-    if (services.isEmpty) return;
-    final lower = q.trim().toLowerCase();
-    if (lower.isEmpty) {
-      setState(() => _ftsResults = null);
-      return;
-    }
-    final filtered = widget.allDocs.where((d) {
-      return d.title.toLowerCase().contains(lower) ||
-          d.relPath.toLowerCase().contains(lower);
-    }).toList();
-    setState(() => _ftsResults = filtered);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final results = _ftsResults ?? widget.allDocs;
-
-    return AlertDialog(
-      title: const Text('Quick Switcher & Search'),
-      content: SizedBox(
-        width: 440,
-        height: 340,
-        child: Column(
-          children: [
-            TextField(
-              autofocus: true,
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.search),
-                hintText: 'Jump to note, project, or log...',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              onChanged: _onQueryChanged,
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: results.isEmpty
-                  ? Center(
-                      child: Text(
-                        _query.isEmpty
-                            ? 'No documents in vault yet.'
-                            : 'No match for "$_query".',
-                      ),
-                    )
-                  : ListView.builder(
-                      itemCount: results.length,
-                      itemBuilder: (context, index) {
-                        final doc = results[index];
-                        return ListTile(
-                          dense: true,
-                          title: Text(
-                            doc.title.isEmpty ? doc.relPath : doc.title,
-                          ),
-                          subtitle: Text('${doc.relPath} · ${doc.docType}'),
-                          onTap: () {
-                            Navigator.of(context).pop();
-                            context.push('/documents/${doc.id}', extra: doc);
-                          },
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Close'),
-        ),
-      ],
     );
   }
 }

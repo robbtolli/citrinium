@@ -76,6 +76,11 @@ class WorkspaceState {
     this.notificationPermissionGranted = false,
     this.onboardingChecklistDismissed = false,
     this.completedOnboardingSteps = const {},
+    this.weeklyReviewStep = 0,
+    this.lastWeeklyReviewCompletedAt,
+    this.weeklyReviewReminderEnabled = false,
+    this.weeklyReviewReminderDay = 7,
+    this.weeklyReviewReminderTime = '17:00',
   });
 
   factory WorkspaceState.initial() {
@@ -99,6 +104,11 @@ class WorkspaceState {
       notificationPermissionGranted: false,
       onboardingChecklistDismissed: false,
       completedOnboardingSteps: const {},
+      weeklyReviewStep: 0,
+      lastWeeklyReviewCompletedAt: null,
+      weeklyReviewReminderEnabled: false,
+      weeklyReviewReminderDay: 7,
+      weeklyReviewReminderTime: '17:00',
     );
   }
 
@@ -141,6 +151,21 @@ class WorkspaceState {
 
   /// IDs of completed onboarding steps (e.g. `quick_capture`, `top_three_pin`).
   final Set<String> completedOnboardingSteps;
+
+  /// Resumable progress step (0..3) of the guided Weekly Review ritual (`R-04`).
+  final int weeklyReviewStep;
+
+  /// ISO 8601 timestamp of last completed Weekly Review ritual (`R-01`).
+  final String? lastWeeklyReviewCompletedAt;
+
+  /// Whether an optional Weekly Review reminder is enabled (`R-05`).
+  final bool weeklyReviewReminderEnabled;
+
+  /// Day of week for Weekly Review reminder (1 = Monday ... 7 = Sunday).
+  final int weeklyReviewReminderDay;
+
+  /// 24-hour time string `HH:MM` for Weekly Review reminder.
+  final String weeklyReviewReminderTime;
 
   /// True if the user was active within the last 2 hours (`A-08`).
   bool isWithinTwoHourWindow(DateTime now) {
@@ -187,6 +212,11 @@ class WorkspaceState {
     bool? notificationPermissionGranted,
     bool? onboardingChecklistDismissed,
     Set<String>? completedOnboardingSteps,
+    int? weeklyReviewStep,
+    String? lastWeeklyReviewCompletedAt,
+    bool? weeklyReviewReminderEnabled,
+    int? weeklyReviewReminderDay,
+    String? weeklyReviewReminderTime,
   }) {
     return WorkspaceState(
       captureDestination: captureDestination ?? this.captureDestination,
@@ -216,6 +246,15 @@ class WorkspaceState {
           onboardingChecklistDismissed ?? this.onboardingChecklistDismissed,
       completedOnboardingSteps:
           completedOnboardingSteps ?? this.completedOnboardingSteps,
+      weeklyReviewStep: weeklyReviewStep ?? this.weeklyReviewStep,
+      lastWeeklyReviewCompletedAt:
+          lastWeeklyReviewCompletedAt ?? this.lastWeeklyReviewCompletedAt,
+      weeklyReviewReminderEnabled:
+          weeklyReviewReminderEnabled ?? this.weeklyReviewReminderEnabled,
+      weeklyReviewReminderDay:
+          weeklyReviewReminderDay ?? this.weeklyReviewReminderDay,
+      weeklyReviewReminderTime:
+          weeklyReviewReminderTime ?? this.weeklyReviewReminderTime,
     );
   }
 
@@ -275,6 +314,10 @@ class WorkspaceState {
         buf.writeln('- [x] `$step`');
       }
     }
+    buf.writeln('\n## Weekly Review Ritual & Reminder (R-01, R-04, R-05)');
+    buf.writeln('- **Current Review Step**: ${weeklyReviewStep == 0 ? "Not in progress (Step 0)" : "Resumable at Step $weeklyReviewStep"}');
+    buf.writeln('- **Last Completed Review**: ${lastWeeklyReviewCompletedAt ?? "Never"}');
+    buf.writeln('- **Weekly Reminder Enabled**: $weeklyReviewReminderEnabled (Day: $weeklyReviewReminderDay, Time: $weeklyReviewReminderTime)');
     return buf.toString();
   }
 
@@ -294,6 +337,11 @@ class WorkspaceState {
       'notificationPermissionGranted': notificationPermissionGranted,
       'onboardingChecklistDismissed': onboardingChecklistDismissed,
       'completedOnboardingSteps': completedOnboardingSteps.toList(),
+      'weeklyReviewStep': weeklyReviewStep,
+      'lastWeeklyReviewCompletedAt': lastWeeklyReviewCompletedAt,
+      'weeklyReviewReminderEnabled': weeklyReviewReminderEnabled,
+      'weeklyReviewReminderDay': weeklyReviewReminderDay,
+      'weeklyReviewReminderTime': weeklyReviewReminderTime,
     });
   }
 }
@@ -396,6 +444,14 @@ class WorkspaceStateNotifier extends Notifier<WorkspaceState> {
                 ?.whereType<String>()
                 .toSet() ??
             const {},
+        weeklyReviewStep: (map['weeklyReviewStep'] as int?) ?? 0,
+        lastWeeklyReviewCompletedAt: map['lastWeeklyReviewCompletedAt'] as String?,
+        weeklyReviewReminderEnabled:
+            (map['weeklyReviewReminderEnabled'] as bool?) ?? false,
+        weeklyReviewReminderDay:
+            (map['weeklyReviewReminderDay'] as int?) ?? 7,
+        weeklyReviewReminderTime:
+            (map['weeklyReviewReminderTime'] as String?) ?? '17:00',
       );
     } on Object {
       return WorkspaceState.initial();
@@ -424,6 +480,11 @@ class WorkspaceStateNotifier extends Notifier<WorkspaceState> {
         'notificationPermissionGranted': next.notificationPermissionGranted,
         'onboardingChecklistDismissed': next.onboardingChecklistDismissed,
         'completedOnboardingSteps': next.completedOnboardingSteps.toList(),
+        'weeklyReviewStep': next.weeklyReviewStep,
+        'lastWeeklyReviewCompletedAt': next.lastWeeklyReviewCompletedAt,
+        'weeklyReviewReminderEnabled': next.weeklyReviewReminderEnabled,
+        'weeklyReviewReminderDay': next.weeklyReviewReminderDay,
+        'weeklyReviewReminderTime': next.weeklyReviewReminderTime,
       }),
     );
   }
@@ -586,6 +647,41 @@ class WorkspaceStateNotifier extends Notifier<WorkspaceState> {
 
   Future<void> setTopThreePinnedKeys(List<String> keys) async {
     await _persist(state.copyWith(topThreePinnedKeys: List<String>.from(keys)));
+  }
+
+  /// Sets the resumable step (0..3) for the Weekly Review ritual (`R-04`).
+  Future<void> setWeeklyReviewStep(int step) async {
+    await _persist(state.copyWith(weeklyReviewStep: step.clamp(0, 3)));
+  }
+
+  /// Resets the Weekly Review step to 0 (`R-04`).
+  Future<void> resetWeeklyReview() async {
+    await _persist(state.copyWith(weeklyReviewStep: 0));
+  }
+
+  /// Records completion of the Weekly Review ritual and resets step to 0 (`R-01`, `R-04`).
+  Future<void> completeWeeklyReview(DateTime now) async {
+    await _persist(
+      state.copyWith(
+        weeklyReviewStep: 0,
+        lastWeeklyReviewCompletedAt: now.toIso8601String(),
+      ),
+    );
+  }
+
+  /// Configures the optional weekly review recurring reminder (`R-05`).
+  Future<void> configureWeeklyReviewReminder({
+    required bool enabled,
+    int? day,
+    String? time,
+  }) async {
+    await _persist(
+      state.copyWith(
+        weeklyReviewReminderEnabled: enabled,
+        weeklyReviewReminderDay: day ?? state.weeklyReviewReminderDay,
+        weeklyReviewReminderTime: time ?? state.weeklyReviewReminderTime,
+      ),
+    );
   }
 }
 

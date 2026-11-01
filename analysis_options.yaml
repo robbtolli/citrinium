@@ -20,6 +20,13 @@ analyzer:
   errors:
     # freezed-generated unions need this on the sealed factory constructors.
     invalid_annotation_target: ignore
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - windows/**
+    - macos/**
+    - linux/**
 
 linter:
   rules:

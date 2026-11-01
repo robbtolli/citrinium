@@ -159,158 +159,174 @@ class _HorizonsReviewScreenState extends ConsumerState<HorizonsReviewScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Top cadence selector + Templates (B-11) & Configure Cadences (B-12)
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final c in enabledList)
-                      ChoiceChip(
-                        visualDensity: VisualDensity.compact,
-                        label: Text(
-                          c.label,
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        selected: activeCadence == c,
-                        onSelected: (_) {
-                          setState(() => _selectedCadence = c);
-                        },
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              OutlinedButton.icon(
-                onPressed: () => showCadenceTemplatesDialog(
-                  context,
-                  initialCadence: activeCadence,
-                ),
-                icon: const Icon(Icons.description_outlined, size: 16),
-                label: const Text('Templates'),
-              ),
-              const SizedBox(width: 6),
-              OutlinedButton.icon(
-                onPressed: () => _openConfigureCadencesDialog(context),
-                icon: const Icon(Icons.tune, size: 16),
-                label: const Text('Cadences'),
-              ),
-            ],
+        // Top controls: cadence selector, horizon breadcrumbs & review buttons
+        ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.45,
           ),
-        ),
-
-        // Dynamic Horizon Threading Breadcrumbs (QY-04, B-12) + Start Review button
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              const Icon(Icons.account_tree_outlined, size: 15),
-              Text(
-                bridgedHorizons.isEmpty
-                    ? 'Horizon Threading:'
-                    : 'Horizon Threading (${bridgedHorizons.join(' ↔ ')}):',
-                style: Theme.of(context).textTheme.labelSmall,
-              ),
-              for (final c in enabledList.where((c) => c != CadenceKind.future))
-                ActionChip(
-                  visualDensity: VisualDensity.compact,
-                  backgroundColor: c == activeCadence
-                      ? Theme.of(context).colorScheme.primaryContainer
-                      : null,
-                  label: Text(
-                    CadenceFiles.relPathForCadence(c, now)
-                        .replaceAll('.md', '')
-                        .split('/')
-                        .last,
-                    style: const TextStyle(fontSize: 11),
-                  ),
-                  onPressed: () => setState(() => _selectedCadence = c),
-                ),
-              OutlinedButton.icon(
-                onPressed: () => _openQuickAddToCadenceDialog(
-                  context,
-                  cadence: activeCadence,
-                  targetRelPath: currentRelPath,
-                  now: now,
-                ),
-                icon: const Icon(Icons.add, size: 16),
-                label: Text('Add to ${activeCadence.label}'),
-              ),
-              if (activeCadence != CadenceKind.future)
-                FilledButton.tonalIcon(
-                  onPressed: () {
-                    showModalBottomSheet<void>(
-                      context: context,
-                      isScrollControlled: true,
-                      builder: (ctx) => _GuidedCadenceReviewModal(
-                        cadence: activeCadence,
-                        targetRelPath: currentRelPath,
-                        allEntries: allEntries,
-                        allDocs: docs,
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.fact_check_outlined, size: 16),
-                  label: Text('Start ${activeCadence.label} Review'),
-                ),
-            ],
-          ),
-        ),
-        const Divider(height: 1),
-
-        // Period Open Loops & Key Dates Shelf (B-02, B-03, D-19)
-        if (periodEntries.isNotEmpty)
-          Card(
-            margin: const EdgeInsets.fromLTRB(12, 6, 12, 2),
+          child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                ListTile(
-                  dense: true,
-                  leading: const Icon(Icons.playlist_add_check, size: 18),
-                  title: Text(
-                    '${activeCadence.label} Open Loops & Key Dates (${periodEntries.length})',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  trailing: IconButton(
-                    icon: Icon(
-                      _periodShelfExpanded
-                          ? Icons.expand_less
-                          : Icons.expand_more,
-                      size: 18,
-                    ),
-                    onPressed: () => setState(
-                      () => _periodShelfExpanded = !_periodShelfExpanded,
-                    ),
+                // Top cadence selector + Templates (B-11) & Configure Cadences (B-12)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            for (final c in enabledList)
+                              ChoiceChip(
+                                visualDensity: VisualDensity.compact,
+                                label: Text(
+                                  c.label,
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                                selected: activeCadence == c,
+                                onSelected: (_) {
+                                  setState(() => _selectedCadence = c);
+                                },
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton.icon(
+                        onPressed: () => showCadenceTemplatesDialog(
+                          context,
+                          initialCadence: activeCadence,
+                        ),
+                        icon: const Icon(Icons.description_outlined, size: 16),
+                        label: const Text('Templates'),
+                      ),
+                      const SizedBox(width: 6),
+                      OutlinedButton.icon(
+                        onPressed: () => _openConfigureCadencesDialog(context),
+                        icon: const Icon(Icons.tune, size: 16),
+                        label: const Text('Cadences'),
+                      ),
+                    ],
                   ),
                 ),
-                if (_periodShelfExpanded)
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 160),
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-                      itemCount: periodEntries.length,
-                      itemBuilder: (context, index) => InPlaceTaskTile(
-                        item: periodEntries[index],
-                        dense: true,
+
+                // Dynamic Horizon Threading Breadcrumbs (QY-04, B-12) + Start Review button
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      const Icon(Icons.account_tree_outlined, size: 15),
+                      Text(
+                        bridgedHorizons.isEmpty
+                            ? 'Horizon Threading:'
+                            : 'Horizon Threading (${bridgedHorizons.join(' ↔ ')}):',
+                        style: Theme.of(context).textTheme.labelSmall,
                       ),
+                      for (final c in enabledList.where((c) => c != CadenceKind.future))
+                        ActionChip(
+                          visualDensity: VisualDensity.compact,
+                          backgroundColor: c == activeCadence
+                              ? Theme.of(context).colorScheme.primaryContainer
+                              : null,
+                          label: Text(
+                            CadenceFiles.relPathForCadence(c, now)
+                                .replaceAll('.md', '')
+                                .split('/')
+                                .last,
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                          onPressed: () => setState(() => _selectedCadence = c),
+                        ),
+                      OutlinedButton.icon(
+                        onPressed: () => _openQuickAddToCadenceDialog(
+                          context,
+                          cadence: activeCadence,
+                          targetRelPath: currentRelPath,
+                          now: now,
+                        ),
+                        icon: const Icon(Icons.add, size: 16),
+                        label: Text('Add to ${activeCadence.label}'),
+                      ),
+                      if (activeCadence != CadenceKind.future)
+                        FilledButton.tonalIcon(
+                          onPressed: () {
+                            showModalBottomSheet<void>(
+                              context: context,
+                              isScrollControlled: true,
+                              builder: (ctx) => _GuidedCadenceReviewModal(
+                                cadence: activeCadence,
+                                targetRelPath: currentRelPath,
+                                allEntries: allEntries,
+                                allDocs: docs,
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.fact_check_outlined, size: 16),
+                          label: Text('Start ${activeCadence.label} Review'),
+                        ),
+                    ],
+                  ),
+                ),
+
+                // Period Open Loops & Key Dates Shelf (B-02, B-03, D-19)
+                if (periodEntries.isNotEmpty)
+                  Card(
+                    margin: const EdgeInsets.fromLTRB(12, 6, 12, 2),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ListTile(
+                          dense: true,
+                          leading:
+                              const Icon(Icons.playlist_add_check, size: 18),
+                          title: Text(
+                            '${activeCadence.label} Open Loops & Key Dates (${periodEntries.length})',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          trailing: IconButton(
+                            icon: Icon(
+                              _periodShelfExpanded
+                                  ? Icons.expand_less
+                                  : Icons.expand_more,
+                              size: 18,
+                            ),
+                            onPressed: () => setState(
+                              () =>
+                                  _periodShelfExpanded = !_periodShelfExpanded,
+                            ),
+                          ),
+                        ),
+                        if (_periodShelfExpanded)
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxHeight: 160),
+                            child: ListView.builder(
+                              shrinkWrap: true,
+                              padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                              itemCount: periodEntries.length,
+                              itemBuilder: (context, index) => InPlaceTaskTile(
+                                item: periodEntries[index],
+                                dense: true,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
               ],
             ),
           ),
+        ),
+        const Divider(height: 1),
 
         // Planning page editor (created lazily on first use — B-09, B-11, D-11)
         Expanded(
@@ -644,11 +660,33 @@ class _GuidedCadenceReviewModalState
     extends ConsumerState<_GuidedCadenceReviewModal> {
   int _step = 0;
   final TextEditingController _focusCtrl = TextEditingController();
+  final Map<int, TextEditingController> _zombieActionControllers = {};
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.cadence == CadenceKind.weekly) {
+      final ws = ref.read(workspaceStateProvider);
+      if (ws.weeklyReviewStep > 0 && ws.weeklyReviewStep < 4) {
+        _step = ws.weeklyReviewStep;
+      }
+    }
+  }
 
   @override
   void dispose() {
     _focusCtrl.dispose();
+    for (final c in _zombieActionControllers.values) {
+      c.dispose();
+    }
     super.dispose();
+  }
+
+  void _goToStep(int newStep) {
+    setState(() => _step = newStep);
+    if (widget.cadence == CadenceKind.weekly) {
+      ref.read(workspaceStateProvider.notifier).setWeeklyReviewStep(newStep);
+    }
   }
 
   @override
@@ -656,15 +694,14 @@ class _GuidedCadenceReviewModalState
     final theme = Theme.of(context);
     final entriesAsync = ref.watch(allEntriesWithDocumentsProvider);
     final docsAsync = ref.watch(documentListProvider);
+    final workspace = ref.watch(workspaceStateProvider);
     final liveEntries = entriesAsync.value ?? widget.allEntries;
     final liveDocs = docsAsync.value ?? widget.allDocs;
 
     final completedTasks =
         liveEntries.where((e) => e.isCompletedTask).toList();
-    final openTasks = liveEntries
-        .where(
-          (e) => e.isOpenTask && e.document.relPath != widget.targetRelPath,
-        )
+    final inboxTasks = liveEntries
+        .where((e) => e.document.relPath == 'inbox.md' && e.isOpenTask)
         .toList();
     final futureItems = liveEntries.where((e) {
       return e.document.relPath == CadenceFiles.futureLogRelPath &&
@@ -679,11 +716,15 @@ class _GuidedCadenceReviewModalState
       );
     }).toList();
 
+    final isResumed = widget.cadence == CadenceKind.weekly &&
+        workspace.weeklyReviewStep > 0 &&
+        _step == workspace.weeklyReviewStep;
+
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: SizedBox(
-          height: MediaQuery.of(context).size.height * 0.78,
+          height: MediaQuery.of(context).size.height * 0.82,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -696,28 +737,55 @@ class _GuidedCadenceReviewModalState
                     ),
                   ),
                   TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: () {
+                      if (widget.cadence == CadenceKind.weekly) {
+                        ref
+                            .read(workspaceStateProvider.notifier)
+                            .setWeeklyReviewStep(_step);
+                      }
+                      Navigator.of(context).pop();
+                    },
                     child: const Text('Save & Close'),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              if (isResumed)
+                Container(
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.history, size: 16),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Resumed review mid-session at Step ${_step + 1} (R-04)',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          _goToStep(0);
+                          ref.read(workspaceStateProvider.notifier).resetWeeklyReview();
+                        },
+                        child: const Text('Start Fresh', style: TextStyle(fontSize: 11)),
+                      ),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 6),
               LinearProgressIndicator(value: (_step + 1) / 4),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
               Expanded(
                 child: switch (_step) {
-                  0 => _buildStepCelebrate(theme, completedTasks),
-                  1 => _buildStepOpenLoopsAndMigration(
-                    theme,
-                    openTasks,
-                    futureItems,
-                  ),
-                  2 => _buildStepProjectsAndWaiting(
-                    theme,
-                    zombieProjects,
-                    liveEntries,
-                  ),
+                  0 => _buildStepGetClear(theme, inboxTasks, completedTasks),
+                  1 => _buildStepGetCurrent(theme, zombieProjects, liveEntries),
+                  2 => _buildStepGetCreativeAndStale(theme, liveEntries, futureItems),
                   _ => _buildStepSetPriorities(theme),
                 },
               ),
@@ -727,13 +795,13 @@ class _GuidedCadenceReviewModalState
                 children: [
                   if (_step > 0)
                     OutlinedButton(
-                      onPressed: () => setState(() => _step--),
+                      onPressed: () => _goToStep(_step - 1),
                       child: const Text('Back'),
                     ),
                   const Spacer(),
                   if (_step < 3)
                     FilledButton(
-                      onPressed: () => setState(() => _step++),
+                      onPressed: () => _goToStep(_step + 1),
                       child: const Text('Next Step →'),
                     )
                   else
@@ -752,12 +820,17 @@ class _GuidedCadenceReviewModalState
                                 lineText: '- [ ] $text',
                               );
                         }
+                        if (widget.cadence == CadenceKind.weekly) {
+                          await ref
+                              .read(workspaceStateProvider.notifier)
+                              .completeWeeklyReview(now);
+                        }
                         if (context.mounted) {
                           Navigator.of(context).pop();
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
-                                '${widget.cadence.label} Review complete! Updated ${widget.targetRelPath}.',
+                                '${widget.cadence.label} Review complete! 🎉 Updated ${widget.targetRelPath}.',
                               ),
                             ),
                           );
@@ -775,38 +848,190 @@ class _GuidedCadenceReviewModalState
     );
   }
 
-  Widget _buildStepCelebrate(
+  Widget _buildStepGetClear(
     ThemeData theme,
+    List<IndexedEntryWithDocument> inboxTasks,
     List<IndexedEntryWithDocument> completedTasks,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '1. Celebrate What Shipped 🎉',
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                '1. Get Clear (Inbox Zero) 📥',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Chip(
+              visualDensity: VisualDensity.compact,
+              label: Text(
+                inboxTasks.isEmpty
+                    ? 'Inbox Zero 🎉'
+                    : '${inboxTasks.length} to clarify',
+                style: const TextStyle(fontSize: 11),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 4),
         Text(
-          'Before looking at open loops, take a moment to see what you\'ve already completed (${completedTasks.length} completed items in vault).',
+          'Process unclarified items from inbox.md to zero (R-01). Make a rapid decision on each item:',
           style: theme.textTheme.bodySmall,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         Expanded(
-          child: completedTasks.isEmpty
-              ? const Center(
-                  child: Text(
-                    'No completed tasks recorded yet — every small step counts!',
+          child: inboxTasks.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.check_circle_outline,
+                        size: 48,
+                        color: Colors.green,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Inbox Zero Achieved! 🎉',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'No unclarified items in inbox.md. You also completed ${completedTasks.length} tasks in the vault!',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ],
                   ),
                 )
               : ListView.builder(
-                  itemCount: completedTasks.length,
+                  itemCount: inboxTasks.length,
                   itemBuilder: (context, index) {
-                    return InPlaceTaskTile(
-                      item: completedTasks[index],
-                      dense: true,
+                    final item = inboxTasks[index];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            InPlaceTaskTile(item: item, dense: true),
+                            const SizedBox(height: 4),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              children: [
+                                ActionChip(
+                                  visualDensity: VisualDensity.compact,
+                                  avatar: const Icon(
+                                    Icons.arrow_forward,
+                                    size: 14,
+                                  ),
+                                  label: const Text(
+                                    'Next Action',
+                                    style: TextStyle(fontSize: 11),
+                                  ),
+                                  onPressed: () async {
+                                    await ref
+                                        .read(vaultMutationProvider)
+                                        .migrateOrScheduleEntry(
+                                          item,
+                                          targetRelPath: widget.targetRelPath,
+                                          targetInitialContent: CadenceFiles
+                                              .defaultContentForCadence(
+                                            widget.cadence,
+                                            DateTime.now(),
+                                          ),
+                                          sourceMarker: TaskStateKind.migrated,
+                                        );
+                                  },
+                                ),
+                                ActionChip(
+                                  visualDensity: VisualDensity.compact,
+                                  avatar: const Icon(
+                                    Icons.hourglass_bottom,
+                                    size: 14,
+                                  ),
+                                  label: const Text(
+                                    'Waiting For',
+                                    style: TextStyle(fontSize: 11),
+                                  ),
+                                  onPressed: () async {
+                                    await ref
+                                        .read(vaultMutationProvider)
+                                        .delegateToWaitingFor(
+                                          item,
+                                          delegateTo: 'Someone',
+                                        );
+                                  },
+                                ),
+                                ActionChip(
+                                  visualDensity: VisualDensity.compact,
+                                  avatar: const Icon(
+                                    Icons.folder_outlined,
+                                    size: 14,
+                                  ),
+                                  label: const Text(
+                                    'Project',
+                                    style: TextStyle(fontSize: 11),
+                                  ),
+                                  onPressed: () async {
+                                    await ref
+                                        .read(vaultMutationProvider)
+                                        .createNoteOrProject(
+                                          title: item.entry.textContent,
+                                          docType: 'project',
+                                          promoteFromEntry: item,
+                                        );
+                                  },
+                                ),
+                                ActionChip(
+                                  visualDensity: VisualDensity.compact,
+                                  avatar: const Icon(
+                                    Icons.lightbulb_outline,
+                                    size: 14,
+                                  ),
+                                  label: const Text(
+                                    'Someday',
+                                    style: TextStyle(fontSize: 11),
+                                  ),
+                                  onPressed: () async {
+                                    await ref
+                                        .read(vaultMutationProvider)
+                                        .fileToReference(
+                                          item,
+                                          targetRelPath: 'someday.md',
+                                        );
+                                  },
+                                ),
+                                ActionChip(
+                                  visualDensity: VisualDensity.compact,
+                                  avatar: const Icon(Icons.close, size: 14),
+                                  label: const Text(
+                                    'Drop',
+                                    style: TextStyle(fontSize: 11),
+                                  ),
+                                  onPressed: () async {
+                                    await ref
+                                        .read(vaultMutationProvider)
+                                        .setTaskStateInPlace(
+                                          item,
+                                          TaskStateKind.dropped,
+                                        );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
                     );
                   },
                 ),
@@ -815,42 +1040,270 @@ class _GuidedCadenceReviewModalState
     );
   }
 
-  Widget _buildStepOpenLoopsAndMigration(
+  Widget _buildStepGetCurrent(
     ThemeData theme,
-    List<IndexedEntryWithDocument> openTasks,
+    List<Document> zombieProjects,
+    List<IndexedEntryWithDocument> liveEntries,
+  ) {
+    final now = DateTime.now();
+    final twoWeeksOut = now.add(const Duration(days: 14));
+    final waiting = liveEntries.where((e) => e.isWaitingTask).toList();
+
+    // 14-day upcoming commitments (G-05)
+    final upcomingCommitments = liveEntries.where((e) {
+      if (e.entry.dueDate == null) return false;
+      final d = DateTime.tryParse(e.entry.dueDate!);
+      if (d == null) return false;
+      return d.isAfter(now.subtract(const Duration(days: 1))) &&
+          d.isBefore(twoWeeksOut.add(const Duration(days: 1)));
+    }).toList();
+
+    return DefaultTabController(
+      length: 3,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '2. Get Current 📅 (R-01, G-05, D-04, D-06)',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 6),
+          TabBar(
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            tabs: [
+              Tab(text: 'Upcoming 14d (${upcomingCommitments.length})'),
+              Tab(
+                text: zombieProjects.isEmpty
+                    ? 'Projects Health (All Good)'
+                    : 'Projects (${zombieProjects.length} ⚠️)',
+              ),
+              Tab(text: 'Waiting For (${waiting.length})'),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: TabBarView(
+              children: [
+                // Upcoming 14d Commitments (G-05)
+                upcomingCommitments.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'No scheduled commitments in the next 14 days.',
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: upcomingCommitments.length,
+                        itemBuilder: (context, index) => InPlaceTaskTile(
+                          item: upcomingCommitments[index],
+                          dense: true,
+                        ),
+                      ),
+
+                // Active Projects & Zombie Check (D-04)
+                ListView(
+                  children: [
+                    if (zombieProjects.isEmpty)
+                      const Card(
+                        child: ListTile(
+                          leading: Icon(
+                            Icons.check_circle_outline,
+                            color: Colors.green,
+                          ),
+                          title: Text(
+                            'All active projects have at least one open Next Action!',
+                          ),
+                        ),
+                      )
+                    else ...[
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(
+                          '⚠️ These projects have zero open Next Actions. Add one to keep momentum:',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: theme.colorScheme.error,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      for (final z in zombieProjects) ...[
+                        Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: Padding(
+                            padding: const EdgeInsets.all(10),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.warning_amber_rounded,
+                                      size: 18,
+                                      color: Colors.orange,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        z.title.isNotEmpty ? z.title : z.relPath,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextField(
+                                        controller: _zombieActionControllers
+                                            .putIfAbsent(
+                                          z.id,
+                                          () => TextEditingController(),
+                                        ),
+                                        decoration: const InputDecoration(
+                                          hintText:
+                                              'Next action (e.g. Draft proposal @computer)',
+                                          isDense: true,
+                                          border: OutlineInputBorder(),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    FilledButton(
+                                      onPressed: () async {
+                                        final ctrl =
+                                            _zombieActionControllers[z.id];
+                                        final text = ctrl?.text.trim() ?? '';
+                                        if (text.isEmpty) return;
+                                        await ref
+                                            .read(vaultMutationProvider)
+                                            .appendLineToDocument(
+                                              relPath: z.relPath,
+                                              lineText: '- [ ] $text',
+                                            );
+                                        ctrl?.clear();
+                                      },
+                                      child: const Text('Add'),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ],
+                ),
+
+                // Waiting For (D-06)
+                waiting.isEmpty
+                    ? const Center(
+                        child: Text('No Waiting For items right now.'),
+                      )
+                    : ListView.builder(
+                        itemCount: waiting.length,
+                        itemBuilder: (context, index) =>
+                            InPlaceTaskTile(item: waiting[index], dense: true),
+                      ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStepGetCreativeAndStale(
+    ThemeData theme,
+    List<IndexedEntryWithDocument> liveEntries,
     List<IndexedEntryWithDocument> futureItems,
   ) {
     final now = DateTime.now();
+    final staleCutoffMs =
+        now.subtract(const Duration(days: 14)).millisecondsSinceEpoch;
+
+    // Stale items: open tasks with no touch in >= 14 days (R-03)
+    final staleTasks = liveEntries.where((e) {
+      if (!e.isOpenTask) return false;
+      if (e.document.relPath == widget.targetRelPath) return false;
+      return e.document.mtimeMs <= staleCutoffMs;
+    }).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '2. End-of-Period Migration & Open Loops (${openTasks.length} open)',
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                '3. Get Creative & Stale Review 💡',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Chip(
+              visualDensity: VisualDensity.compact,
+              label: Text(
+                '${staleTasks.length} resting items',
+                style: const TextStyle(fontSize: 11),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        // Non-shame, forgiving ADHD message (R-03, P-04)
+        Card(
+          color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.4),
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.favorite_outline,
+                  size: 20,
+                  color: theme.colorScheme.onTertiaryContainer,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'No guilt here — life evolves! These items haven\'t been touched in 14+ days. Review them with compassion: keep, reschedule to Someday, or gracefully let go (R-03).',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: theme.colorScheme.onTertiaryContainer,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        const SizedBox(height: 4),
-        Text(
-          'Make an intentional decision for open items from earlier periods or Future Log (${futureItems.length} in Future Log): Migrate (>) into ${widget.targetRelPath}, Schedule (<) to Future Log, or Drop (-).',
-          style: theme.textTheme.bodySmall,
-        ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Expanded(
-          child: openTasks.isEmpty
-              ? const Center(child: Text('Zero open tasks — all clear!'))
+          child: staleTasks.isEmpty
+              ? const Center(
+                  child: Text('Zero stale tasks — everything is fresh!'),
+                )
               : ListView.builder(
-                  itemCount: openTasks.length,
+                  itemCount: staleTasks.length,
                   itemBuilder: (context, index) {
-                    final item = openTasks[index];
+                    final item = staleTasks[index];
                     return Card(
                       margin: const EdgeInsets.only(bottom: 6),
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(8, 4, 8, 6),
+                        padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             InPlaceTaskTile(item: item, dense: true),
+                            const SizedBox(height: 4),
                             Wrap(
                               spacing: 6,
                               runSpacing: 4,
@@ -858,62 +1311,45 @@ class _GuidedCadenceReviewModalState
                                 ActionChip(
                                   visualDensity: VisualDensity.compact,
                                   avatar: const Icon(
-                                    Icons.keyboard_arrow_right,
-                                    size: 15,
+                                    Icons.thumb_up_outlined,
+                                    size: 14,
                                   ),
-                                  label: Text(
-                                    'Migrate to ${widget.cadence.label} (>)',
-                                    style: const TextStyle(fontSize: 11),
+                                  label: const Text(
+                                    'Keep (Active)',
+                                    style: TextStyle(fontSize: 11),
+                                  ),
+                                  onPressed: () async {
+                                    // Touch item to keep it active
+                                    await ref
+                                        .read(vaultMutationProvider)
+                                        .setTaskStateInPlace(
+                                          item,
+                                          TaskStateKind.open,
+                                        );
+                                  },
+                                ),
+                                ActionChip(
+                                  visualDensity: VisualDensity.compact,
+                                  avatar: const Icon(
+                                    Icons.lightbulb_outline,
+                                    size: 14,
+                                  ),
+                                  label: const Text(
+                                    'Move to Someday',
+                                    style: TextStyle(fontSize: 11),
                                   ),
                                   onPressed: () async {
                                     await ref
                                         .read(vaultMutationProvider)
-                                        .migrateOrScheduleEntry(
+                                        .fileToReference(
                                           item,
-                                          targetRelPath: widget.targetRelPath,
-                                          targetInitialContent:
-                                              CadenceFiles
-                                                  .defaultContentForCadence(
-                                                    widget.cadence,
-                                                    now,
-                                                  ),
-                                          sourceMarker: TaskStateKind.migrated,
+                                          targetRelPath: 'someday.md',
                                         );
                                   },
                                 ),
-                                if (item.document.relPath !=
-                                    CadenceFiles.futureLogRelPath)
-                                  ActionChip(
-                                    visualDensity: VisualDensity.compact,
-                                    avatar: const Icon(
-                                      Icons.keyboard_arrow_left,
-                                      size: 15,
-                                    ),
-                                    label: const Text(
-                                      'Future Log (<)',
-                                      style: TextStyle(fontSize: 11),
-                                    ),
-                                    onPressed: () async {
-                                      await ref
-                                          .read(vaultMutationProvider)
-                                          .migrateOrScheduleEntry(
-                                            item,
-                                            targetRelPath:
-                                                CadenceFiles.futureLogRelPath,
-                                            targetInitialContent:
-                                                CadenceFiles
-                                                    .defaultContentForCadence(
-                                                      CadenceKind.future,
-                                                      now,
-                                                    ),
-                                            sourceMarker:
-                                                TaskStateKind.scheduled,
-                                          );
-                                    },
-                                  ),
                                 ActionChip(
                                   visualDensity: VisualDensity.compact,
-                                  avatar: const Icon(Icons.close, size: 15),
+                                  avatar: const Icon(Icons.close, size: 14),
                                   label: const Text(
                                     'Drop (-)',
                                     style: TextStyle(fontSize: 11),
@@ -940,80 +1376,26 @@ class _GuidedCadenceReviewModalState
     );
   }
 
-  Widget _buildStepProjectsAndWaiting(
-    ThemeData theme,
-    List<Document> zombieProjects,
-    List<IndexedEntryWithDocument> liveEntries,
-  ) {
-    final waiting = liveEntries.where((e) => e.isWaitingTask).toList();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '3. Project Health & Waiting For Check (D-04, R-01)',
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 8),
-        if (zombieProjects.isEmpty)
-          const Card(
-            child: ListTile(
-              leading: Icon(Icons.check_circle_outline),
-              title: Text('All active projects have at least one Next Action!'),
-            ),
-          )
-        else ...[
-          Text(
-            '⚠️ Projects missing a Next Action (${zombieProjects.length}):',
-            style: theme.textTheme.labelLarge,
-          ),
-          for (final z in zombieProjects)
-            ListTile(
-              dense: true,
-              leading: const Icon(Icons.warning_amber_rounded),
-              title: Text(z.title.isNotEmpty ? z.title : z.relPath),
-              subtitle: Text(z.relPath),
-            ),
-        ],
-        const SizedBox(height: 12),
-        Text(
-          'Waiting For items (${waiting.length}):',
-          style: theme.textTheme.labelLarge,
-        ),
-        Expanded(
-          child: waiting.isEmpty
-              ? const Center(child: Text('No Waiting For items right now.'))
-              : ListView.builder(
-                  itemCount: waiting.length,
-                  itemBuilder: (context, index) =>
-                      InPlaceTaskTile(item: waiting[index], dense: true),
-                ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildStepSetPriorities(ThemeData theme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '4. Choose Focus for ${widget.targetRelPath}',
+          '4. Choose Outcomes & Intentions 🎯 (R-01)',
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
           ),
         ),
         const SizedBox(height: 6),
         Text(
-          'What is the #1 outcome or theme that would make this ${widget.cadence.label.toLowerCase()} feel successful?',
+          'What are 1–3 high-level outcomes or themes that would make this ${widget.cadence.label.toLowerCase()} feel successful? These will be logged into ${widget.targetRelPath}.',
           style: theme.textTheme.bodySmall,
         ),
         const SizedBox(height: 16),
         TextField(
           controller: _focusCtrl,
           decoration: InputDecoration(
-            labelText: 'Add priority outcome to ${widget.targetRelPath}',
+            labelText: 'Key outcome for ${widget.targetRelPath}',
             hintText: 'e.g. Ship v1 prototype @computer',
             border: const OutlineInputBorder(),
           ),

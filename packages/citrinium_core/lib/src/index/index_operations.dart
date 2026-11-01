@@ -355,6 +355,254 @@ extension IndexDatabaseOperations on IndexDatabase {
     }
   }
 
+  /// Discovers unlinked mentions for [targetDoc] in other vault documents (`N-02`, `D-12`).
+  ///
+  /// Searches for occurrences of [targetDoc.title] (or [targetDoc.relPath] basename) in the text
+  /// of other documents where the occurrence is NOT already enclosed in `[[...]]`.
+  Future<List<UnlinkedMentionItem>> findUnlinkedMentionsForDocument(
+    Document targetDoc,
+  ) async {
+    final keywords = <String>{};
+    if (targetDoc.title.trim().length >= 3) {
+      keywords.add(targetDoc.title.trim());
+    }
+    final base = _basenameNoExt(targetDoc.relPath);
+    if (base.trim().length >= 3 &&
+        !RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(base) &&
+        !RegExp(r'^\d{4}-w\d{2}$', caseSensitive: false).hasMatch(base)) {
+      keywords.add(base.trim());
+    }
+    if (keywords.isEmpty) return const [];
+
+    final allDocs = await select(documents).get();
+    final docById = <int, Document>{for (final d in allDocs) d.id: d};
+
+    final results = <UnlinkedMentionItem>[];
+    final seen = <String>{};
+
+    for (final kw in keywords) {
+      final pattern = RegExp(
+        r'\[\[([^\]]*?)\]\]|' + RegExp.escape(kw),
+        caseSensitive: false,
+      );
+
+      final matchingEntries = await (select(entries)
+            ..where((t) =>
+                t.documentId.isNotValue(targetDoc.id) &
+                t.textContent.like('%$kw%')))
+          .get();
+
+      for (final entry in matchingEntries) {
+        final text = entry.textContent;
+        for (final match in pattern.allMatches(text)) {
+          final matchedStr = match.group(0)!;
+          if (matchedStr.startsWith('[[') && matchedStr.endsWith(']]')) {
+            continue; // Already a linked wikilink
+          }
+          final sourceDoc = docById[entry.documentId];
+          if (sourceDoc == null) continue;
+
+          final key = '${sourceDoc.relPath}:${entry.lineIndex}';
+          if (seen.contains(key)) break;
+          seen.add(key);
+
+          final start = (match.start - 25).clamp(0, text.length);
+          final end = (match.end + 25).clamp(0, text.length);
+          var snippet = text.substring(start, end).trim();
+          if (start > 0) snippet = '...$snippet';
+          if (end < text.length) snippet = '$snippet...';
+
+          results.add(
+            UnlinkedMentionItem(
+              sourceDocument: sourceDoc,
+              matchedText: kw,
+              snippet: snippet,
+              lineIndex: entry.lineIndex,
+            ),
+          );
+          break;
+        }
+      }
+    }
+    return results;
+  }
+
+  /// Full-text and faceted search across documents and tasks (`N-03`, `N-04`, `N-05`, `FR-06`).
+  Future<List<SearchResultItem>> searchVault({
+    required String query,
+    String? docTypeFilter,
+    String? tagFilter,
+    String? contextFilter,
+    bool tasksOnly = false,
+  }) async {
+    final trimmed = query.trim();
+    final allDocs = await select(documents).get();
+    final docById = <int, Document>{for (final d in allDocs) d.id: d};
+
+    final rawEntries = await (select(entries)
+          ..orderBy([
+            (t) => OrderingTerm.asc(t.documentId),
+            (t) => OrderingTerm.asc(t.lineIndex),
+          ]))
+        .get();
+
+    final allContexts = await select(entryContexts).get();
+    final contextsByEntry = <int, List<String>>{};
+    for (final c in allContexts) {
+      contextsByEntry.putIfAbsent(c.entryId, () => []).add(c.context);
+    }
+
+    final allTags = await select(entryTags).get();
+    final tagsByEntry = <int, List<String>>{};
+    for (final t in allTags) {
+      tagsByEntry.putIfAbsent(t.entryId, () => []).add(t.tag);
+    }
+
+    final allEntries = <IndexedEntryWithDocument>[];
+    for (final entry in rawEntries) {
+      final doc = docById[entry.documentId];
+      if (doc == null) continue;
+      allEntries.add(
+        IndexedEntryWithDocument(
+          entry: entry,
+          document: doc,
+          contexts: List.unmodifiable(contextsByEntry[entry.id] ?? const []),
+          tags: List.unmodifiable(tagsByEntry[entry.id] ?? const []),
+        ),
+      );
+    }
+
+    var filteredEntries = allEntries;
+    if (tasksOnly) {
+      filteredEntries = filteredEntries.where((e) => e.isTask).toList();
+    }
+    if (tagFilter != null && tagFilter.isNotEmpty) {
+      final cleanTag =
+          tagFilter.startsWith('#') ? tagFilter.substring(1) : tagFilter;
+      filteredEntries = filteredEntries
+          .where((e) =>
+              e.tags.any((t) => t.toLowerCase() == cleanTag.toLowerCase()))
+          .toList();
+    }
+    if (contextFilter != null && contextFilter.isNotEmpty) {
+      final cleanCtx =
+          contextFilter.startsWith('@') ? contextFilter.substring(1) : contextFilter;
+      filteredEntries = filteredEntries
+          .where((e) =>
+              e.contexts.any((c) => c.toLowerCase() == cleanCtx.toLowerCase()))
+          .toList();
+    }
+    if (docTypeFilter != null &&
+        docTypeFilter.isNotEmpty &&
+        docTypeFilter != 'all') {
+      filteredEntries = filteredEntries.where((e) {
+        if (docTypeFilter == 'note') return e.document.docType == 'note';
+        if (docTypeFilter == 'project') {
+          return e.document.docType == 'project' ||
+              e.document.relPath.startsWith('projects/');
+        }
+        if (docTypeFilter == 'collection') {
+          return e.document.docType == 'collection' ||
+              e.document.relPath.startsWith('collections/');
+        }
+        if (docTypeFilter == 'log') {
+          return e.document.docType.endsWith('Log') ||
+              e.document.relPath.startsWith('daily/') ||
+              e.document.relPath.startsWith('weekly/');
+        }
+        if (docTypeFilter == 'reference') {
+          return e.document.docType == 'reference' ||
+              e.document.relPath == 'reference.md';
+        }
+        return true;
+      }).toList();
+    }
+
+    final results = <SearchResultItem>[];
+    final seen = <String>{};
+
+    final lowerQ = trimmed.toLowerCase();
+
+    // 1. Entry matches
+    for (final e in filteredEntries) {
+      final matchesQuery = lowerQ.isEmpty ||
+          e.entry.textContent.toLowerCase().contains(lowerQ) ||
+          e.document.title.toLowerCase().contains(lowerQ) ||
+          e.document.relPath.toLowerCase().contains(lowerQ);
+
+      if (matchesQuery) {
+        final key = 'entry:${e.uniqueKey}';
+        if (!seen.contains(key)) {
+          seen.add(key);
+          results.add(
+            SearchResultItem(
+              document: e.document,
+              entry: e.entry,
+              snippet: e.entry.textContent,
+              matchType: e.isTask ? 'task' : 'entry',
+            ),
+          );
+        }
+      }
+    }
+
+    // 2. Document matches
+    if (!tasksOnly && tagFilter == null && contextFilter == null) {
+      var candidateDocs = allDocs;
+      if (docTypeFilter != null &&
+          docTypeFilter.isNotEmpty &&
+          docTypeFilter != 'all') {
+        candidateDocs = candidateDocs.where((d) {
+          if (docTypeFilter == 'note') return d.docType == 'note';
+          if (docTypeFilter == 'project') {
+            return d.docType == 'project' || d.relPath.startsWith('projects/');
+          }
+          if (docTypeFilter == 'collection') {
+            return d.docType == 'collection' ||
+                d.relPath.startsWith('collections/');
+          }
+          if (docTypeFilter == 'log') {
+            return d.docType.endsWith('Log') ||
+                d.relPath.startsWith('daily/') ||
+                d.relPath.startsWith('weekly/');
+          }
+          if (docTypeFilter == 'reference') {
+            return d.docType == 'reference' || d.relPath == 'reference.md';
+          }
+          return true;
+        }).toList();
+      }
+
+      for (final doc in candidateDocs) {
+        final docKey = 'doc:${doc.id}';
+        if (seen.contains(docKey)) continue;
+
+        if (lowerQ.isEmpty) {
+          seen.add(docKey);
+          results.add(
+            SearchResultItem(
+              document: doc,
+              snippet: doc.title.isNotEmpty ? doc.title : doc.relPath,
+              matchType: 'document',
+            ),
+          );
+        } else if (doc.title.toLowerCase().contains(lowerQ) ||
+            doc.relPath.toLowerCase().contains(lowerQ)) {
+          seen.add(docKey);
+          results.add(
+            SearchResultItem(
+              document: doc,
+              snippet: doc.title.isNotEmpty ? doc.title : doc.relPath,
+              matchType: 'title',
+            ),
+          );
+        }
+      }
+    }
+
+    return results;
+  }
+
   /// Summary stats for the settings screen (W4).
   Future<IndexStats> stats() async {
     final documentCount =
@@ -474,3 +722,34 @@ class BacklinkItem {
   final LinkRow link;
   final Document sourceDocument;
 }
+
+/// An unlinked mention of a note's title or basename found in another note (`N-02`, `D-12`).
+class UnlinkedMentionItem {
+  const UnlinkedMentionItem({
+    required this.sourceDocument,
+    required this.matchedText,
+    required this.snippet,
+    required this.lineIndex,
+  });
+
+  final Document sourceDocument;
+  final String matchedText;
+  final String snippet;
+  final int lineIndex;
+}
+
+/// A search result item covering documents, tasks, and snippets (`N-03`, `FR-06`).
+class SearchResultItem {
+  const SearchResultItem({
+    required this.document,
+    this.entry,
+    required this.snippet,
+    required this.matchType,
+  });
+
+  final Document document;
+  final Entry? entry;
+  final String snippet;
+  final String matchType; // 'task' | 'entry' | 'document' | 'title'
+}
+

@@ -12,6 +12,7 @@ class LivePreviewEditor extends StatefulWidget {
     required this.controller,
     this.focusNode,
     this.onLinkTap,
+    this.onTagTap,
     this.onSaveRequested,
     this.noteTitles = const [],
     this.tagNames = const [],
@@ -22,6 +23,7 @@ class LivePreviewEditor extends StatefulWidget {
   final LivePreviewController controller;
   final FocusNode? focusNode;
   final ValueChanged<String>? onLinkTap;
+  final ValueChanged<String>? onTagTap;
   final VoidCallback? onSaveRequested;
 
   final List<String> noteTitles;
@@ -49,9 +51,18 @@ class _LivePreviewEditorState extends State<LivePreviewEditor> {
     super.initState();
     _effectiveFocusNode = widget.focusNode ?? FocusNode();
     widget.controller.addListener(_onControllerChanged);
+    widget.controller.onLinkTap = widget.onLinkTap;
+    widget.controller.onTagTap = widget.onTagTap;
     widget.controller.onTaskCheckboxLongPressed = (offset, markerChar) {
       _openTaskContextMenu(context, offset, markerChar);
     };
+  }
+
+  @override
+  void didUpdateWidget(LivePreviewEditor oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    widget.controller.onLinkTap = widget.onLinkTap;
+    widget.controller.onTagTap = widget.onTagTap;
   }
 
   @override
