@@ -8,7 +8,7 @@ This repo is **pre-implementation**. `lib/main.dart` and `test/widget_test.dart`
 
 1. `docs/requirements.md` — prioritized product requirements (MUST/SHOULD/COULD), each with a stable ID (e.g. `D-02`, `PL-01`). Treat these IDs as the vocabulary for referencing requirements in code/commits/PRs.
 2. `docs/design.md` — locked architecture decisions and rationale, written against those requirement IDs. **Do not re-derive or silently contradict a decision already made here** (see below); if a decision needs revisiting, say so explicitly and update `docs/design.md`.
-3. `docs/research.md` — background research (Obsidian, Todoist, ADHD/BuJo/GTD) that motivated the requirements. Useful context, not itself authoritative.
+3. `docs/research/` — background research organized by topic (`comparable_apps.md`, `adhd_and_executive_function.md`, `productivity_systems.md`, `planning_habits_and_review.md`) that motivated the requirements. Useful context, not itself authoritative.
 
 ## Locked architecture decisions (from `docs/design.md`)
 
@@ -35,3 +35,4 @@ This repo is **pre-implementation**. `lib/main.dart` and `test/widget_test.dart`
 
 - Doc-only commits use a `docs: <Capitalized summary>` message style (e.g. `docs: Added high-level design`).
 - Code commits use [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore:`, `test:`, `refactor:`, `ci:`), optionally scoped (e.g. `feat(vault): ...`). Reference requirement IDs (e.g. `D-02`, `FR-04`) in the commit body where a commit implements one. See `docs/milestones/m0.md` for an example.
+- **Citation style in documentation**: Prefer clickable inline Markdown links over academic-style parenthetical citations like `(Lally et al., 2009)`. Link directly to sources, essays, interviews, and studies so references can be explored immediately.
