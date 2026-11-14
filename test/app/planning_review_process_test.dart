@@ -94,13 +94,13 @@ void main() {
         // and Rule of 1 are visible while Evening Shutdown awaits Stage 2 unlock.
         expect(find.text('🌅 Morning Plan'), findsOneWidget);
         expect(find.text('⚡ 2m Express Plan'), findsOneWidget);
-        expect(find.text('🛟 Rule of 1 (Floor Day)'), findsOneWidget);
+        expect(find.text('🛟 Low-Energy Day (Just 1 Thing)'), findsOneWidget);
         expect(find.text('🌇 Evening Shutdown'), findsNothing);
 
         // Toggle Rule of 1 (Floor Day) on Today
-        await tester.tap(find.text('🛟 Rule of 1 (Floor Day)'));
+        await tester.tap(find.text('🛟 Low-Energy Day (Just 1 Thing)'));
         await tester.pump(const Duration(milliseconds: 200));
-        expect(find.textContaining('Rule of 1 Floor Day'), findsWidgets);
+        expect(find.textContaining('Low-Energy Day'), findsWidgets);
 
         // Launch Morning Plan ritual modal
         await tester.tap(find.text('🌅 Morning Plan'));

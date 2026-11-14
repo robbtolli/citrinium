@@ -220,7 +220,7 @@ Future<bool> ensureContextualNotificationPermission(
   final consented = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
-      title: const Text('Enable Gentle Reminders? (E-11)'),
+      title: const Text('Enable Gentle Reminders?'),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 420),
         child: const Text(

@@ -147,10 +147,10 @@ void main() {
         // 3. Verify Hard-Landscape Calendar tab (G-05) and Projects / Clarify (M2 & M3)
         await tester.tap(find.text('📅 Calendar'));
         await tester.pumpAndSettle();
-        expect(find.textContaining('Hard-Landscape Calendar'), findsOneWidget);
+        expect(find.textContaining('Schedule & Events'), findsOneWidget);
 
         // 4. Navigate to Horizons & Review pillar and verify Weekly cadence (B-02, B-12)
-        await tester.tap(find.text('Horizons & Review'));
+        await tester.tap(find.text('Plan & Review'));
         await tester.pumpAndSettle();
 
         expect(find.text('Weekly'), findsWidgets);
@@ -198,13 +198,13 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('Call pharmacy @phone'), findsWidgets);
-        expect(find.text('File to Reference (D-07)'), findsOneWidget);
-        expect(find.text('Schedule on Calendar (G-05)'), findsOneWidget);
+        expect(find.text('File to Reference'), findsOneWidget);
+        expect(find.text('Schedule on Calendar'), findsOneWidget);
 
-        // File the inbox item to Reference (D-07, G-06)
-        await tester.ensureVisible(find.text('File to Reference (D-07)'));
+        // File the inbox item to Reference
+        await tester.ensureVisible(find.text('File to Reference'));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('File to Reference (D-07)'));
+        await tester.tap(find.text('File to Reference'));
         await tester.pump();
 
         await _waitUntil(
@@ -233,7 +233,7 @@ void main() {
         await tester.tap(find.text('Create Project'));
         await tester.pumpAndSettle();
 
-        expect(find.textContaining('GTD Tip (G-03 / D-04)'), findsOneWidget);
+        expect(find.textContaining('Projects move faster when they have a clear Outcome'), findsOneWidget);
         expect(find.text('Create Anyway (Skip)'), findsOneWidget);
 
         // Click Create Anyway (Skip) to confirm skippable creation
@@ -308,7 +308,7 @@ void main() {
 
         await _waitUntil(
           tester,
-          () => find.textContaining('Auto-Index (B-04):').evaluate().isNotEmpty,
+          () => find.textContaining('Index:').evaluate().isNotEmpty,
         );
         await tester.tap(find.text('+ Collection'));
         await tester.pump(const Duration(milliseconds: 400));
@@ -328,7 +328,7 @@ void main() {
 
         // Switch to Horizons & Review and open Templates dialog (B-11)
         await tester.pump(const Duration(milliseconds: 400));
-        await tester.tap(find.text('Horizons & Review'));
+        await tester.tap(find.text('Plan & Review'));
         await tester.pump(const Duration(milliseconds: 400));
 
         expect(find.text('Templates'), findsOneWidget);
@@ -339,7 +339,7 @@ void main() {
         );
         await tester.pump(const Duration(milliseconds: 200));
 
-        expect(find.text('Cadence Templates (B-11)'), findsOneWidget);
+        expect(find.text('Planning Templates'), findsOneWidget);
         await tester.tap(find.text('Save Template'));
         await tester.pump();
 
@@ -403,12 +403,12 @@ void main() {
         await tester.tap(find.text('⏰ Snooze / Remind'));
         await tester.pumpAndSettle();
 
-        expect(find.text('Enable Gentle Reminders? (E-11)'), findsOneWidget);
+        expect(find.text('Enable Gentle Reminders?'), findsOneWidget);
         await tester.tap(find.text('Enable Notifications'));
         await tester.pumpAndSettle();
 
         // Now inside Reminder & Snooze dialog (E-08, E-10, E-12)
-        expect(find.text('Reminder & Snooze (E-08, E-10, E-12)'), findsOneWidget);
+        expect(find.text('Reminder & Snooze'), findsOneWidget);
         await tester.tap(find.text('Snooze +15m'));
         await tester.pumpAndSettle();
 
@@ -457,7 +457,7 @@ void main() {
         expect(find.text('Welcome to Citrine'), findsOneWidget);
         expect(find.text('Today'), findsOneWidget);
         expect(find.text('Actions & Inbox'), findsOneWidget);
-        expect(find.text('Horizons & Review'), findsOneWidget);
+        expect(find.text('Plan & Review'), findsOneWidget);
         expect(find.text('Notes & Index'), findsOneWidget);
 
         // Tap "Get Started"
@@ -647,7 +647,7 @@ void main() {
         );
 
         // 1. Navigate to Horizons & Review
-        await tester.tap(find.text('Horizons & Review').first);
+        await tester.tap(find.text('Plan & Review').first);
         await tester.pumpAndSettle();
 
         // Tap Weekly Review button
@@ -687,7 +687,7 @@ void main() {
         await tester.pump(const Duration(milliseconds: 300));
 
         // Verifies it resumes at Step 2!
-        expect(find.textContaining('Resumed review mid-session at Step 2'), findsOneWidget);
+        expect(find.textContaining('Resumed review at Step 2'), findsOneWidget);
 
         // Proceed to Step 3: Get Creative & Stale Review (R-03)
         await tester.tap(find.text('Next Step →'));
@@ -730,20 +730,16 @@ void main() {
           matching: find.byType(Scrollable),
         );
 
-        final reminderHeader = find.text('Weekly Review Reminder (R-05)');
+        final reminderSwitch = find.widgetWithText(
+          SwitchListTile,
+          'Weekly Review Reminder',
+        );
         await tester.scrollUntilVisible(
-          reminderHeader,
+          reminderSwitch,
           200,
           scrollable: settingsScrollable,
         );
-        expect(reminderHeader, findsOneWidget);
-
-        final reminderSwitch = find.text('Weekly Review Reminder').first;
-        await tester.scrollUntilVisible(
-          reminderSwitch,
-          100,
-          scrollable: settingsScrollable,
-        );
+        expect(reminderSwitch, findsOneWidget);
         await tester.tap(reminderSwitch);
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
@@ -803,15 +799,15 @@ void main() {
           await tester.tap(pluginsTile);
           await _waitUntil(
             tester,
-            () => find.text('Core Built-In Plugins (PL-08)').evaluate().isNotEmpty,
+            () => find.text('Core Built-In Plugins').evaluate().isNotEmpty,
           );
 
           // 3. Verify Built-In Core Plugins (PL-08)
-          expect(find.text('Core Built-In Plugins (PL-08)'), findsOneWidget);
+          expect(find.text('Core Built-In Plugins'), findsOneWidget);
           expect(find.text('Daily Rapid Logging'), findsOneWidget);
           expect(find.text('Cadence Templates'), findsOneWidget);
           expect(find.text('GTD Clarify Flow'), findsOneWidget);
-          expect(find.text('Hard-Landscape Calendar'), findsOneWidget);
+          expect(find.text('Schedule & Events Calendar'), findsOneWidget);
 
           // 4. Verify Discovered Community Plugins & Install Consent (PL-02, PL-03)
           final pluginsScrollable = find.descendant(
@@ -819,7 +815,7 @@ void main() {
             matching: find.byType(Scrollable),
           );
 
-          final communityHeader = find.text('Community Plugins (PL-01, PL-04)');
+          final communityHeader = find.text('Community Plugins');
           await tester.scrollUntilVisible(
             communityHeader,
             150,
@@ -850,10 +846,10 @@ void main() {
 
           // 5. Verify All-or-Nothing Install Consent Dialog (PL-03)
           expect(find.byType(PluginConsentDialog), findsOneWidget);
-          expect(find.textContaining('Requested Permissions (PL-02, PL-03)'), findsOneWidget);
+          expect(find.textContaining('Requested Permissions'), findsOneWidget);
 
           // Grant all and install
-          await tester.tap(find.text('Grant All & Install (PL-03)'));
+          await tester.tap(find.text('Grant All & Install'));
           await tester.pump();
           await tester.pump(const Duration(milliseconds: 400));
 
@@ -878,7 +874,7 @@ void main() {
           await tester.pumpAndSettle();
 
           // Confirm revocation in dialog
-          final confirmRevoke = find.widgetWithText(FilledButton, 'Revoke & Uninstall (PL-04)');
+          final confirmRevoke = find.widgetWithText(FilledButton, 'Revoke & Uninstall');
           expect(confirmRevoke, findsOneWidget);
           await tester.tap(confirmRevoke);
           await tester.pump();

@@ -241,7 +241,7 @@ class _CitrineHelpSheetState extends ConsumerState<_CitrineHelpSheet>
                         _buildRecipeCard(
                           title: 'Morning Calibration (2 mins)',
                           steps: [
-                            'Open Today: scan hard-landscape events (meetings/appointments).',
+                            'Open Today: scan your scheduled events (meetings/appointments).',
                             'Pin up to 3 priority tasks to the Top-3 Focus Shelf.',
                             'Check in on recurring daily habits (stretching, water) using non-punitive rhythm dots.',
                           ],
@@ -263,19 +263,19 @@ class _CitrineHelpSheetState extends ConsumerState<_CitrineHelpSheet>
                           ],
                         ),
                         const SizedBox(height: 12),
-                        _buildSectionHeader('3. 🧭 Horizons & Review'),
+                        _buildSectionHeader('3. 🧭 Plan & Review'),
                         _buildRecipeCard(
-                          title: 'Daily Bookends & Express Mode',
+                          title: 'Daily Bookends & Quick Mode',
                           steps: [
-                            'Start your day with "🌅 Morning Plan" (Hard Landscape -> Carryover Triage -> Top 3 -> 2m Micro-Step & If-Then Cue) or "⚡ 2m Express Plan".',
-                            'On low-energy days, toggle "🛟 Rule of 1 (Floor Day)" so doing just 1 priority task counts as a 100% win.',
-                            'Close your day with "🌇 Evening Shutdown" to capture loose ends, migrate open tasks, and pre-lock tomorrow\'s #1 priority.',
+                            'Start your day with "🌅 Morning Plan" (Schedule -> Unfinished from Earlier -> Top 3 -> First Step & Start Time) or "⚡ 2m Quick Plan".',
+                            'On low-energy days, toggle "🛟 Low-Energy Day (Just 1 Thing)" so doing just 1 priority task counts as a complete win.',
+                            'Close your day with "🌇 Evening Shutdown" to capture loose ends, review open tasks, and pre-lock tomorrow\'s #1 priority.',
                           ],
                         ),
                         _buildRecipeCard(
                           title: 'Three-Layer Process Customization (Your Own Process)',
                           steps: [
-                            'Open "Process Studio" on Today, Horizons & Review, or Settings to switch between built-in presets (Citrine Canonical, Ivy Lee, Franklin, Newport, GTD, BuJo, 12-Week Year, Gates Think Week, Ferriss 80/20).',
+                            'Open "Process Studio" on Today, Plan & Review, or Settings to switch between built-in presets (Citrine Default, Ivy Lee, Franklin, Newport, GTD, BuJo, 12-Week Year, Think Week, Ferriss 80/20).',
                             'Customize individual steps (toggle steps on/off, reorder, add custom Reflection Prompts or Checklists) or switch any cadence to Freeform Markdown.',
                             'Toggle "Disable Guidance" in 1 click anytime if you already have your own workflow.',
                           ],
@@ -302,7 +302,7 @@ class _CitrineHelpSheetState extends ConsumerState<_CitrineHelpSheet>
                           '- [x] Completed Task\n'
                           '- [-] Cancelled Task (strikethrough & greyed checkbox)\n'
                           '- [?] Waiting For / Blocked Task\n'
-                          '- ○ Hard-Landscape Calendar Event (exact time/date commitment)\n'
+                          '- ○ Scheduled Event (exact time/date commitment)\n'
                           '- – Note or observation',
                         ),
                         const SizedBox(height: 12),
@@ -317,7 +317,7 @@ class _CitrineHelpSheetState extends ConsumerState<_CitrineHelpSheet>
                           '[[wikilink]]  Inter-note link (supports [[note|display name]])',
                         ),
                         const SizedBox(height: 12),
-                        _buildSectionHeader('In-Place Editing Everywhere (D-19)'),
+                        _buildSectionHeader('In-Place Editing Everywhere'),
                         const Text(
                           'You never need to open raw source files just to change a due date, tag, recurrence rule, or note. '
                           'Simply tap any task anywhere in Citrine to edit it in-place.',

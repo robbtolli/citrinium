@@ -552,7 +552,7 @@ class _CadenceTemplatesDialogState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return AlertDialog(
-      title: const Text('Cadence Templates (B-11)'),
+      title: const Text('Planning Templates'),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 520),
         child: SingleChildScrollView(
@@ -668,7 +668,7 @@ class _ConfigureCadencesDialog extends ConsumerWidget {
     final workspace = ref.watch(workspaceStateProvider);
 
     return AlertDialog(
-      title: const Text('Configure Planning & Review Cadences (B-12)'),
+      title: const Text('Configure Planning & Review Cadences'),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 440),
         child: SingleChildScrollView(
@@ -839,7 +839,7 @@ class _GuidedCadenceReviewModalState
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          'Resumed review mid-session at Step ${_step + 1} (R-04)',
+                          'Resumed review at Step ${_step + 1}',
                           style: const TextStyle(fontSize: 12),
                         ),
                       ),
@@ -956,7 +956,7 @@ class _GuidedCadenceReviewModalState
         ),
         const SizedBox(height: 4),
         Text(
-          'Process unclarified items from inbox.md to zero (R-01). Make a rapid decision on each item:',
+          'Process unclarified inbox items to zero. Make a quick decision on each item:',
           style: theme.textTheme.bodySmall,
         ),
         const SizedBox(height: 10),
@@ -1139,7 +1139,7 @@ class _GuidedCadenceReviewModalState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '2. Get Current 📅 (R-01, G-05, D-04, D-06)',
+            '2. Get Current 📅',
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.bold,
             ),
@@ -1349,7 +1349,7 @@ class _GuidedCadenceReviewModalState
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'No guilt here — life evolves! These items haven\'t been touched in 14+ days. Review them with compassion: keep, reschedule to Someday, or gracefully let go (R-03).',
+                    'No guilt here — life evolves! These items haven\'t been touched in 14+ days. Review them gently: keep, move to Someday, or let them go.',
                     style: TextStyle(
                       fontSize: 12,
                       color: theme.colorScheme.onTertiaryContainer,
@@ -1456,7 +1456,7 @@ class _GuidedCadenceReviewModalState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '4. Choose Outcomes & Intentions 🎯 (R-01)',
+          '4. Choose Outcomes & Intentions 🎯',
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
           ),

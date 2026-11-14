@@ -193,8 +193,8 @@ class _VaultSetupScreenState extends ConsumerState<VaultSetupScreen> {
                             iconColor: Colors.amber.shade700,
                             title: 'Today',
                             subtitle:
-                                'Your daily focus command center: collapsible Top-3 Focus Shelf, '
-                                'hard-landscape schedule, non-punitive habits, and today\'s rapid-log note.',
+                                'Your daily workspace: scheduled events, '
+                                'top priorities, gentle habits, and today\'s notes.',
                           ),
                           _buildPillarCard(
                             theme: theme,
@@ -215,10 +215,10 @@ class _VaultSetupScreenState extends ConsumerState<VaultSetupScreen> {
                                 : constraints.maxWidth,
                             icon: Icons.explore_outlined,
                             iconColor: Colors.indigo.shade600,
-                            title: 'Horizons & Review',
+                            title: 'Plan & Review',
                             subtitle:
-                                'Plan across configurable cadences (Daily, Weekly, Monthly, Future Log) '
-                                'with forgiving daily and weekly migration rituals.',
+                                'Plan across configurable cadences (Daily, Weekly, Monthly, Future) '
+                                'with calm daily and weekly review rituals.',
                           ),
                           _buildPillarCard(
                             theme: theme,
@@ -257,7 +257,7 @@ class _VaultSetupScreenState extends ConsumerState<VaultSetupScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Active Planning & Review Cadences (B-12 · change anytime in Settings)',
+                            'Active Planning & Review Cadences (change anytime in Settings)',
                             style: theme.textTheme.labelMedium?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),

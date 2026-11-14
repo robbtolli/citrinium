@@ -431,7 +431,7 @@ class _PlanningReviewRitualModalState
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        'Resumed mid-session at Step ${safeStepIndex + 1} (R-04)',
+                        'Resumed at Step ${safeStepIndex + 1}',
                         style: const TextStyle(fontSize: 12),
                       ),
                     ),
@@ -668,7 +668,7 @@ class _PlanningReviewRitualModalState
                   child: TextField(
                     controller: _quickEventCtrl,
                     decoration: InputDecoration(
-                      labelText: 'Add a hard-landscape event for today',
+                      labelText: 'Add a scheduled event for today',
                       hintText: 'e.g. Team sync ⏰ 14:00',
                       isDense: true,
                       border: const OutlineInputBorder(),
@@ -875,7 +875,7 @@ class _PlanningReviewRitualModalState
               contentPadding: const EdgeInsets.symmetric(horizontal: 4),
               secondary: const Icon(Icons.self_improvement_outlined),
               title: const Text(
-                '🛟 Rule of 1 (Low-Energy Floor Day)',
+                '🛟 Low-Energy Day (Focus on 1 Thing)',
                 style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
               ),
               subtitle: const Text(
@@ -1019,7 +1019,7 @@ class _PlanningReviewRitualModalState
             TextField(
               controller: _ifThenCueCtrl,
               decoration: const InputDecoration(
-                labelText: 'If-Then Implementation Intention (Gollwitzer)',
+                labelText: 'When will you start? (After..., I will...)',
                 hintText:
                     'e.g. When I sit down with my coffee at 9:00 AM, I will open budget.xlsx',
                 border: OutlineInputBorder(),
@@ -1409,7 +1409,7 @@ class _PlanningReviewRitualModalState
         return ListView(
           children: [
             Text(
-              '⚠️ ${zombieProjects.length} project(s) have zero open Next Actions. Add a 2-minute physical next step:',
+              '⚠️ ${zombieProjects.length} project(s) have no open next action. Add a quick next step:',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 color: theme.colorScheme.error,
@@ -1857,7 +1857,7 @@ class _PlanningReviewRitualModalState
                   labelText:
                       'Bridge to Next Lower Horizon (First tactical action for this week/quarter)',
                   hintText:
-                      'Automatically threads into your active lower-horizon log (QY-04)',
+                      'Automatically links into your active lower-horizon plan',
                   border: OutlineInputBorder(),
                 ),
               ),

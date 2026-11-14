@@ -138,7 +138,7 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
                 actions: [
                   IconButton(
                     icon: const Icon(Icons.collections_bookmark_outlined),
-                    tooltip: 'Create Collection from this Note/Log (B-10)',
+                    tooltip: 'Create Collection from this Note',
                     onPressed: () => _openCreateCollectionFromDocDialog(context),
                   ),
                   IconButton(
@@ -449,7 +449,7 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('New Collection (B-10, D-10)'),
+        title: const Text('New Collection'),
         content: TextField(
           controller: titleCtrl,
           decoration: const InputDecoration(

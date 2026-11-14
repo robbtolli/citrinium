@@ -27,7 +27,7 @@ void main() {
       // The 4 Main Areas / Pillars
       expect(find.text('Today'), findsOneWidget);
       expect(find.text('Actions & Inbox'), findsOneWidget);
-      expect(find.text('Horizons & Review'), findsOneWidget);
+      expect(find.text('Plan & Review'), findsOneWidget);
       expect(find.text('Notes & Index'), findsOneWidget);
 
       // The 3 Entry Action Buttons

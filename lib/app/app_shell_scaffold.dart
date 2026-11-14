@@ -30,7 +30,7 @@ enum AppPillar {
     selectedIcon: Icons.check_circle,
   ),
   horizons(
-    label: 'Horizons & Review',
+    label: 'Plan & Review',
     icon: Icons.explore_outlined,
     selectedIcon: Icons.explore,
   ),

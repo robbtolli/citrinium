@@ -81,7 +81,7 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
       builder: (ctx) => AlertDialog(
         title: Text('Revoke ${plugin.name}?'),
         content: Text(
-          'This will completely uninstall "${plugin.name}" and revoke all its permissions (PL-04).',
+          'This will completely uninstall "${plugin.name}" and revoke all its permissions.',
         ),
         actions: [
           TextButton(
@@ -93,7 +93,7 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Revoke & Uninstall (PL-04)'),
+            child: const Text('Revoke & Uninstall'),
           ),
         ],
       ),
@@ -168,7 +168,7 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Plugins & Extensions (PL-01)'),
+        title: const Text('Plugins & Extensions'),
         actions: [
           IconButton(
             icon: const Icon(Icons.folder_open),
@@ -198,7 +198,7 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'QuickJS Sandboxed Architecture (PL-01, PL-02)',
+                          'QuickJS Sandboxed Architecture',
                           style: theme.textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -219,7 +219,7 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
 
           // 1. Built-In Core Plugins (PL-08)
           Text(
-            'Core Built-In Plugins (PL-08)',
+            'Core Built-In Plugins',
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.bold,
             ),
@@ -259,7 +259,7 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Community Plugins (PL-01, PL-04)',
+                      'Community Plugins',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -425,7 +425,7 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
                                     onPressed: () =>
                                         _installCommunityPlugin(plugin),
                                     icon: const Icon(Icons.download, size: 16),
-                                    label: const Text('Review & Install (PL-03)'),
+                                    label: const Text('Review & Install'),
                                   ),
                                 ] else ...[
                                   OutlinedButton.icon(
@@ -447,7 +447,7 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
                                     icon: const Icon(Icons.delete_outline,
                                         size: 16),
                                     label: const Text(
-                                      'Revoke & Uninstall (PL-04)',
+                                      'Revoke & Uninstall',
                                     ),
                                   ),
                                 ],

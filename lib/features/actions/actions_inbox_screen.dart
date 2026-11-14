@@ -368,7 +368,7 @@ class _ActionsInboxScreenState extends ConsumerState<ActionsInboxScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Hard-Landscape Calendar (${commitments.length})',
+                      'Schedule & Events (${commitments.length})',
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     Text(
@@ -478,7 +478,7 @@ class _ActionsInboxScreenState extends ConsumerState<ActionsInboxScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Add Hard-Landscape Commitment (G-05)'),
+          title: const Text('Add Scheduled Event'),
           content: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
             child: Column(
@@ -713,7 +713,7 @@ void showCreateProjectDialogWithOutcomePrompt(
     context: context,
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, setDialogState) => AlertDialog(
-        title: const Text('New Project (G-03)'),
+        title: const Text('New Project'),
         content: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 440),
           child: Column(
@@ -733,7 +733,7 @@ void showCreateProjectDialogWithOutcomePrompt(
                 controller: outcomeCtrl,
                 autofocus: initialTitle != null && initialTitle.isNotEmpty,
                 decoration: const InputDecoration(
-                  labelText: 'Desired Successful Outcome (G-03)',
+                  labelText: 'Desired Outcome',
                   hintText: 'e.g. Valid passport in hand before July trip',
                 ),
               ),
@@ -742,7 +742,7 @@ void showCreateProjectDialogWithOutcomePrompt(
                 controller: nextActionCtrl,
                 decoration: const InputDecoration(
                   labelText:
-                      'First Physical Next Action (prevents Zombie Project)',
+                      'First Next Action',
                   hintText: 'e.g. Download renewal form PDF @computer',
                 ),
               ),
@@ -755,7 +755,7 @@ void showCreateProjectDialogWithOutcomePrompt(
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    '⚠️ GTD Tip (G-03 / D-04): Creating a project without an Outcome and at least one Next Action makes it a "Zombie Project". You can add one above, or click "Create Anyway (Skip)" to proceed.',
+                    'Tip: Projects move faster when they have a clear Outcome and at least one Next Action. You can add one above, or click "Create Anyway (Skip)" to proceed.',
                     style: TextStyle(
                       fontSize: 12,
                       color: Theme.of(ctx).colorScheme.onTertiaryContainer,
@@ -1074,7 +1074,7 @@ class _ClarifyDeckModalState extends ConsumerState<_ClarifyDeckModal> {
                 OutlinedButton.icon(
                   onPressed: () => _promptScheduleOnCalendar(context, item),
                   icon: const Icon(Icons.event, size: 16),
-                  label: const Text('Schedule on Calendar (G-05)'),
+                  label: const Text('Schedule on Calendar'),
                 ),
                 OutlinedButton.icon(
                   onPressed: () => _promptDelegateWaitingFor(context, item),
@@ -1092,7 +1092,7 @@ class _ClarifyDeckModalState extends ConsumerState<_ClarifyDeckModal> {
                     );
                   },
                   icon: const Icon(Icons.folder_outlined, size: 16),
-                  label: const Text('Promote to Project (G-03)'),
+                  label: const Text('Promote to Project'),
                 ),
               ],
             ),
@@ -1121,7 +1121,7 @@ class _ClarifyDeckModalState extends ConsumerState<_ClarifyDeckModal> {
                     _advance();
                   },
                   icon: const Icon(Icons.spa_outlined, size: 16),
-                  label: const Text('Someday / Maybe (D-05)'),
+                  label: const Text('Someday / Maybe'),
                 ),
                 OutlinedButton.icon(
                   onPressed: () async {
@@ -1129,7 +1129,7 @@ class _ClarifyDeckModalState extends ConsumerState<_ClarifyDeckModal> {
                     _advance();
                   },
                   icon: const Icon(Icons.menu_book_outlined, size: 16),
-                  label: const Text('File to Reference (D-07)'),
+                  label: const Text('File to Reference'),
                 ),
                 TextButton.icon(
                   onPressed: () async {
@@ -1160,7 +1160,7 @@ class _ClarifyDeckModalState extends ConsumerState<_ClarifyDeckModal> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delegate / Waiting For (D-06)'),
+        title: const Text('Delegate / Waiting For'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1225,7 +1225,7 @@ class _ClarifyDeckModalState extends ConsumerState<_ClarifyDeckModal> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Schedule on Hard-Landscape Calendar (G-05)'),
+        title: const Text('Schedule on Calendar'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

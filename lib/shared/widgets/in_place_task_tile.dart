@@ -159,7 +159,7 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
     final added = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Add Custom @Context (D-08)'),
+        title: const Text('Add Custom @Context'),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -219,7 +219,7 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
     final chosen = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Custom Recurrence Rule (D-16)'),
+        title: const Text('Custom Recurrence Rule'),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -319,7 +319,7 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
     final chosenTitle = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Create Collection from Item (B-10, D-10)'),
+        title: const Text('Create Collection from Item'),
         content: TextField(
           controller: titleCtrl,
           autofocus: true,
@@ -1191,7 +1191,7 @@ class _ReminderAndSnoozeDialogState
     final theme = Theme.of(context);
 
     return AlertDialog(
-      title: const Text('Reminder & Snooze (E-08, E-10, E-12)'),
+      title: const Text('Reminder & Snooze'),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 440),
         child: SingleChildScrollView(
@@ -1205,7 +1205,7 @@ class _ReminderAndSnoozeDialogState
               ),
               const SizedBox(height: 12),
               Text(
-                'Quick Snooze (E-12, A-03)',
+                'Quick Snooze',
                 style: theme.textTheme.labelMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -1251,7 +1251,7 @@ class _ReminderAndSnoozeDialogState
               ),
               const Divider(height: 24),
               Text(
-                'Reminder Time & Lead Offset (E-10)',
+                'Reminder Time & Lead Offset',
                 style: theme.textTheme.labelMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),

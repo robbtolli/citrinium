@@ -138,7 +138,7 @@ class TodayCombinedScreen extends ConsumerWidget {
                 leading: const Icon(Icons.wb_sunny_outlined),
                 title: Text(
                   workspace.isRuleOfOneOn(todayIso)
-                      ? 'Today\'s Focus Shelf (${pinnedTasks.length}/1 · 🛟 Rule of 1 Floor Day)'
+                      ? 'Today\'s Focus Shelf (${pinnedTasks.length}/1 · 🛟 Low-Energy Day)'
                       : 'Today\'s Focus Shelf (${pinnedTasks.length}/3 Top Focus)',
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
@@ -171,7 +171,7 @@ class TodayCombinedScreen extends ConsumerWidget {
                     children: [
                       if (todayEvents.isNotEmpty) ...[
                         const Text(
-                          'HARD LANDSCAPE (EVENTS)',
+                          'SCHEDULE & EVENTS',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
@@ -1043,7 +1043,7 @@ class _DailyBookendsAndGuidanceBar extends ConsumerWidget {
                   visualDensity: VisualDensity.compact,
                   selected: ruleOfOne,
                   label: const Text(
-                    '🛟 Rule of 1 (Floor Day)',
+                    '🛟 Low-Energy Day (Just 1 Thing)',
                     style: TextStyle(fontSize: 11),
                   ),
                   onSelected: (val) {

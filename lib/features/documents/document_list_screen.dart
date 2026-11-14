@@ -79,7 +79,7 @@ class _DocumentListScreenState extends ConsumerState<DocumentListScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('New Note or Collection (N-01, B-10)'),
+          title: const Text('New Note or Collection'),
           content: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 400),
             child: Column(
@@ -205,7 +205,7 @@ class _DocumentListScreenState extends ConsumerState<DocumentListScreen> {
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  'Auto-Index (B-04): ${allDocs.length} total · $collectionCount collections · $projectCount projects · $logCount logs',
+                  'Index: ${allDocs.length} total · $collectionCount collections · $projectCount projects · $logCount logs',
                   style: Theme.of(context).textTheme.labelSmall,
                 ),
               ),

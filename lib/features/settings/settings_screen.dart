@@ -131,7 +131,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
-              'Planning & Review Cadences (B-12)',
+              'Planning & Review Cadences',
               style: Theme.of(context).textTheme.titleMedium,
             ),
           ),
@@ -155,7 +155,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 OutlinedButton.icon(
                   onPressed: () => showCadenceTemplatesDialog(context),
                   icon: const Icon(Icons.description_outlined),
-                  label: const Text('Customize Cadence Templates (B-11)'),
+                  label: const Text('Customize Planning Templates'),
                 ),
                 FilledButton.tonalIcon(
                   onPressed: () => showProcessCustomizerDialog(context),
@@ -184,9 +184,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const Divider(height: 32),
 
-          // Historical Task Filter Safeguard (A-06)
+          // Historical Task Filter Safeguard
           SwitchListTile(
-            title: const Text('14-Day Historical Task Filter (A-06)'),
+            title: const Text('14-Day Historical Task Filter'),
             subtitle: const Text(
               'Only surface undated open tasks from the last 14 days in Next Actions so older notes don\'t flood your active lists.',
             ),
@@ -203,7 +203,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
-              'Field Guide & Learning (A-06)',
+              'Field Guide & Learning',
               style: Theme.of(context).textTheme.titleMedium,
             ),
           ),
@@ -233,14 +233,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
-              'Weekly Review Reminder (R-05)',
+              'Weekly Review Reminder',
               style: Theme.of(context).textTheme.titleMedium,
             ),
           ),
           SwitchListTile(
             title: const Text('Weekly Review Reminder'),
             subtitle: const Text(
-              'Gentle reminder to start your review. Missing it does not punish you or break any streaks (R-05, P-04).',
+              'Gentle reminder to start your review. Missing it never punishes you or breaks any streaks.',
             ),
             value: workspace.weeklyReviewReminderEnabled,
             onChanged: (enabled) {
@@ -279,7 +279,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
-              'Plugins & Extensions (PL-01)',
+              'Plugins & Extensions',
               style: Theme.of(context).textTheme.titleMedium,
             ),
           ),
@@ -287,21 +287,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             leading: const Icon(Icons.extension_outlined),
             title: const Text('Plugin Manager (QuickJS Sandbox)'),
             subtitle: const Text(
-              'Manage core workflows and sandboxed community plugins (PL-01–PL-08)',
+              'Manage core workflows and sandboxed community plugins',
             ),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/settings/plugins'),
           ),
           const Divider(height: 32),
 
-          // Portable Data Export (P-11, D-15, T-02)
+          // Portable Data Export
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
             child: OutlinedButton.icon(
               onPressed: () => _showOperationalExportDialog(context, workspace),
               icon: const Icon(Icons.download_outlined),
               label: const Text(
-                'Export Operational Data (Markdown / JSON — T-02)',
+                'Export Operational Data (Markdown / JSON)',
               ),
             ),
           ),
@@ -318,7 +318,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Portable Operational Data Export (P-11, T-02)'),
+        title: const Text('Portable Operational Data Export'),
         content: SizedBox(
           width: 480,
           height: 320,

@@ -59,7 +59,7 @@ class PluginConsentDialog extends StatelessWidget {
               ],
               const Divider(height: 24),
               Text(
-                'Requested Permissions (PL-02, PL-03):',
+                'Requested Permissions:',
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -156,7 +156,7 @@ class PluginConsentDialog extends StatelessWidget {
         FilledButton.icon(
           onPressed: () => Navigator.of(context).pop(true),
           icon: const Icon(Icons.check, size: 16),
-          label: const Text('Grant All & Install (PL-03)'),
+          label: const Text('Grant All & Install'),
         ),
       ],
     );

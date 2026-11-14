@@ -121,7 +121,7 @@ class CorePluginInfo {
     ),
     CorePluginInfo(
       id: 'hard_calendar',
-      name: 'Hard-Landscape Calendar',
+      name: 'Schedule & Events Calendar',
       description: 'Chronological timeline dedicated strictly to date/time commitments.',
       iconName: 'calendar_month',
       isEnabled: true,
