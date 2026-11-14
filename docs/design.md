@@ -8,50 +8,49 @@ Non-goals X-01–X-06 from `requirements.md` are assumed and not re-litigated he
 
 ## 1. Architecture overview
 
-Citrine is a layered, offline-first Flutter application. The guiding principle (P-11, D-15) centers on three user goals:
-1. **User data ownership & portability:** All data belongs to the user, can be exported to an easy-to-read/parse text format (Markdown/JSON) at any time, and existing Obsidian/Markdown vaults can be opened or imported non-destructively.
-2. **Rapid logging alongside notes:** Tasks, events, and notes can be captured inline in the same stream.
-3. **First-class Markdown viewing & editing:** Users view and edit standard Markdown notes directly.
+Citrine is a layered, offline-first Flutter application. The guiding principle (P-11, D-15) centers on **"the user owns their data"**:
+1. **True user data ownership & open access (`P-11`, `T-02`, `FR-04`, `FR-12`, `FR-13`):** Every workspace has a vault folder on disk holding standard Markdown notes alongside a well-documented SQLite database. All data can be exported and imported (Markdown/JSON/SQLite), any data view can be exported to a static Markdown snapshot, and both a command-line tool (`citrine` CLI) and an MCP server (`citrine-mcp`) allow users and external tools to query, extract, and update data directly.
+2. **Unified Daily Note with embedded data views (`B-01`):** The `Today` view is a single unified Markdown note (`daily/YYYY-MM-DD.md`, created from an editable template)—not a split screen—featuring a top date bar to navigate to past days and embedded ```` ```citrine ```` source code blocks that render live interactive task/data views directly inline.
+3. **Pure database data views for Planning, Review & Actions (`B-02`):** Weekly, Monthly, Quarterly, Yearly, and Future planning/review screens (`Plan & Review`) are pure database-backed data views with no backing `.md` files required.
 
-To achieve these goals without polluting Markdown notes with noisy operational state ("emoji soup" or hundreds of cloned recurring-task rows), Citrine uses a **clean hybrid storage boundary**:
-- **Markdown files on disk** are the source of truth for all user prose, notes, projects, collections, cadence logs (`daily/`, `weekly/`, `monthly/`, `quarterly/`, `yearly/`, `future.md`, `inbox.md`), and inline rapid-logged tasks/events/notes. The search/task index over these files is a **derived, rebuildable cache**.
-- **Structured operational & history storage** (SQLite + `.citrine/` sidecar JSON) holds data that would otherwise degrade Markdown readability: habit/recurrence completion history (`D-17`), Today's Top-3 Focus pins (`E-02`), snooze timestamps (`E-12`), multi-step review ritual checkpoints (`R-04`), user cadence preferences (`B-12`), and recent view/document history (`N-04`, `A-08`). All structured operational data is included in human-readable exports (`T-02`, `FR-07`).
+To combine freeform Markdown note-taking with rock-solid relational task management, Citrine uses a **bidirectional SQLite + Markdown task sync boundary (`D-15`, `FR-16`)**:
+- **SQLite database** is the primary structured store for all tasks, events, habits, focus pins, review rituals, and operational history. Tasks created from the Citrine UI (Quick Capture to Inbox/Actions, `+ Add Task` in a data view, or during Planning/Review) are stored directly in SQLite with `source_rel_path = NULL` (no Markdown file backing them).
+- **Markdown notes on disk** (`daily/YYYY-MM-DD.md` and standalone notes) support inline task authoring. When a user types a task line (`- [ ] ...`) in a note and navigates away from that line, Citrine saves the task to SQLite (`task_id`, `source_rel_path`, `source_byte_offset` hint) and appends a hidden Markdown comment (`<!-- citrine:task=<id> -->`) to that line.
+- **Bidirectional synchronization:**
+  - Updating a task in a note updates its SQLite record.
+  - Updating a task in any data view updates SQLite and updates the source `.md` file using `(source_rel_path, source_byte_offset)` first, falling back to a full-file scan for `<!-- citrine:task=<id> -->`. If the source file is missing or the comment was removed, `source_rel_path` and `source_byte_offset` are cleared so the task gracefully becomes database-only.
+  - External edits to `.md` files automatically sync tasks that have `<!-- citrine:task=<id> -->` comments; if new untagged tasks are detected, Citrine shows a dismissible banner (`FR-16`) asking whether to import them in the background (with an unobtrusive loading bar and an app-close confirmation guard).
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ Presentation (Hybrid Dual-Track UX)                         │
-│  ☀️ Today (Focus Shelf + Daily Log) · ✅ Actions & Inbox    │
-│  🧭 Horizons & Review (D/W/M/Q/Y)   · 📓 Notes & Index      │
-│  In-place task editor (D-19) · Live Preview Markdown editor │
+│ Presentation (Warm Paper & Ink UI · Single-Canvas Views)    │
+│  ☀️ Today (Date Bar + Template Daily Note + ```citrine)     │
+│  ✅ Actions & Inbox · 🧭 Plan & Review (Pure Data Views)    │
+│  📓 Notes & Index · ☰ Hamburger Menu (About + 7-Tap Debug)  │
 ├─────────────────────────────────────────────────────────────┤
-│ State (Riverpod)                                            │
-│  Providers over repositories · freezed sealed-state Notifiers│
-│  for multi-step rituals (Clarify, Migration, Review)        │
+│ State (Riverpod + AppClock + BackgroundWorkManager)         │
+│  Providers over SQLite & Vault · injectable clock (FR-14)   │
+│  Background job progress bar & exit guard (FR-16)           │
 ├─────────────────────────────────────────────────────────────┤
 │ Domain                                                      │
-│  Task state machine (D-02) · recurrence engine (D-16)       │
-│  habit/streak engine (D-17) · migration & review logic      │
-│  in-place splice editor (D-19) · zombie-project check (D-04)│
+│  Task state machine (D-02) · recurrence & habits (D-16/17)  │
+│  DataView query engine (B-01/02) · snapshot exporter (T-02) │
+│  Bidirectional task comment splice engine (D-15)            │
 ├──────────────────────────┬──────────────────────────────────┤
-│ Index & Operational DB   │ Plugin host (QuickJS)            │
-│  (drift/SQLite)          │  per-plugin JSContext            │
-│  1. Derived cache of     │  capability-scoped host bridge   │
-│     files/tasks + FTS5   │  (PL-01–PL-09)                   │
-│  2. Operational state    │                                  │
-│     (habits, pins, etc.) │                                  │
+│ SQLite Database (drift)  │ External Interfaces & Plugins    │
+│  1. Authoritative tasks, │  • citrine CLI (FR-12)           │
+│     habits, rituals, pins│  • citrine-mcp Server (FR-13)    │
+│  2. Note index + FTS5    │  • QuickJS Plugin Host (PL-01)   │
 ├──────────────────────────┴──────────────────────────────────┤
-│ Vault                                                       │
-│  Plain Markdown files on disk (Obsidian-compatible schema)  │
-│  + .citrine/ templates & portable config                  │
-│  File watcher · offset-preserving parser/serializer         │
+│ Vault Folder on Disk                                        │
+│  daily/YYYY-MM-DD.md + Markdown notes + .citrine/ templates │
+│  File watcher · <!-- citrine:task=<id> --> parser/splicer   │
 ├─────────────────────────────────────────────────────────────┤
 │ Platform services                                           │
 │  Native notification scheduling (E-08–E-12, FR-05)          │
 │  Filesystem access per OS (Android/iOS/Linux/macOS/Windows) │
 └─────────────────────────────────────────────────────────────┘
 ```
-
-For document/task content, data flows down for writes (UI → domain → surgical span splice into vault `.md` file) and up for reads (file watcher → reparse → index update → provider stream → UI).
 
 ---
 
@@ -115,39 +114,41 @@ tags: [project, health]
 ---
 ```
 
-### 3.4 Logs & cadence files
+### 3.4 Daily Notes, Embedded Data Views & Pure Data-View Horizons (`B-01`, `B-02`, `D-11`)
 
-Planning and log surfaces (B-01–B-03, D-11, Q-01, Y-01) are stored as one Markdown file per period, created lazily on first use — never pre-generated — satisfying B-09/P-04:
+- **Daily Note (`daily/YYYY-MM-DD.md`, `B-01`):** Created lazily on first use from an editable template (`.citrine/templates/daily.md`, `B-11`). Includes embedded ```` ```citrine ```` source code blocks that render live interactive data views inline (e.g., `view: top-focus`, `view: due-today`, `view: created-today`, `view: due-this-week`, or custom YAML filter rules) alongside freeform Markdown notes and tasks.
+- **Planning & Review Surfaces (`Plan & Review`, `B-02`):** Weekly, Monthly, Quarterly, Yearly, and Future planning/review surfaces are **pure database-backed data views** (no backing `.md` files required), aggregating tasks, projects, habits, and reflections from SQLite and Markdown notes.
+- **Static Snapshot Exports (`T-02`):** Any data view (whether a `Plan & Review` horizon view, an `Actions` filter, or an embedded ```` ```citrine ```` block) can be exported to a `.md` file at any time. The export dialog/screen states clearly that exported files are **static snapshots of the current data and will not be updated when the data changes**.
 
-- `inbox.md` — perpetual GTD capture inbox at vault root (`citrine.type: inbox`).
-- `daily/YYYY-MM-DD.md` — Daily Log (`citrine.type: dailyLog`).
-- `weekly/YYYY-Www.md` — Weekly Plan & Review log (`citrine.type: weeklyLog`).
-- `monthly/YYYY-MM.md` — Monthly Log (`citrine.type: monthlyLog`).
-- `quarterly/YYYY-QN.md` — Quarterly Log (`citrine.type: quarterlyLog`).
-- `yearly/YYYY.md` — Yearly Log (`citrine.type: yearlyLog`).
-- `future.md` — BuJo Future Log (`citrine.type: futureLog`).
-- `someday.md` — GTD Someday/Maybe list (`citrine.type: someday`).
-- `.citrine/templates/` — editable Markdown templates for each enabled cadence (B-11).
+### 3.5 Bidirectional Task Synchronization & Hidden Task ID Comments (`P-11`, `D-15`, `FR-16`)
 
-### 3.5 Clean Markdown vs. operational metadata boundary (P-11, D-15, D-17)
+1. **Line-Exit Task Enrollment in Notes:**
+   - When the user types a task line (`- [ ] ...`) in a daily note or any Markdown note and navigates away from that line, Citrine saves the task to the SQLite `tasks` table and appends a hidden Markdown comment (`<!-- citrine:task=<task_id> -->`) to the end of that line.
+   - The Live Preview editor hides `<!-- citrine:task=... -->` comments from visual display so the note stays clean.
+   - The SQLite row stores `task_id`, `source_rel_path` (path relative to vault root), and `source_byte_offset` (byte offset of the line start as a fast lookup hint).
+2. **Note → Database Sync (Internal & External Edits):**
+   - If the task line is edited inside Citrine's Markdown editor, Citrine updates the matching `task_id` record in SQLite.
+   - If a Markdown file is modified in an external tool:
+     - Tasks that already have `<!-- citrine:task=<task_id> -->` comments are automatically updated in SQLite.
+     - If Citrine detects new or modified `.md` files containing untagged tasks (lines without a task ID comment), it displays a dismissible banner (`FR-16`): *"Citrine has detected new markdown files in the vault that contain tasks. Would you like to import them?"* (`Yes` / `No` / close). Clicking `Yes` imports those tasks into SQLite and writes `<!-- citrine:task=<task_id> -->` comments into the files in the background while showing an unobtrusive loading bar (and a confirmation dialog if the user tries to close Citrine while background work is active). Clicking `No` or closing the banner leaves the files untouched.
+3. **Data View / UI → Database & Note Sync (with Fallback to DB-Only):**
+   - If a user updates a task inside any Citrine data view (Planning/Review, Actions, or an embedded ```` ```citrine ```` block in the daily note), Citrine updates the SQLite row first and then attempts to update the source line in `source_rel_path`:
+     1. Check `source_rel_path` at `source_byte_offset` (fast hint).
+     2. If not at that offset, scan the entire `source_rel_path` file for `<!-- citrine:task=<task_id> -->`, splice the updated line, and update `source_byte_offset`.
+     3. If the file is missing or `<!-- citrine:task=<task_id> -->` is no longer in the file, clear `source_rel_path = NULL` and `source_byte_offset = NULL` so the task becomes **database-only**.
+4. **UI-Created Tasks:**
+   - Tasks created directly from the Citrine UI (not typed inside a Markdown note) are stored in SQLite with `source_rel_path = NULL` and `source_byte_offset = NULL`.
 
-To keep Markdown files clean and readable in any editor (avoiding the "emoji soup" and duplicated recurring-task clutter common in Obsidian plugins):
-- **Stored inline in `.md` files:** Task state marker (`[ ]`, `[/]`, `[x]`, `[>]`, `[<]`, `[-]`, `[w]`), BuJo signifiers (`○`, `–`, `*`), `📅` date, `⏰` time, `🔁` recurrence rule, `@context`, `#tag`, `^blockid`, and indented note/comment lines (`D-14`, `D-18`).
-- **Stored in structured local storage (SQLite / `.citrine/`) with portable text/JSON export (`T-02`):**
-  - **Habit & recurring-task completion logs (`D-16`, `D-17`):** Completing a recurring habit records a completion entry in the habit log table rather than appending hundreds of duplicate `- [x]` lines into the user's note.
-  - **Extended task operational state:** Today's Top-3 Focus Shelf pins (`E-02`), snooze-until timestamps (`E-12`), optional duration/energy metadata when not written inline (`D-09`), migration counters, and historical-task cutoff filters (`A-06`).
-  - **Workspace & ritual state:** Resumable review ritual progress (`R-04`), enabled cadence toggles (`B-12`), and recent views/documents history (`N-04`, `A-08`).
-
-Full grammar details are specified in [`docs/file-schema.md`](file-schema.md) (FR-04).
+Full grammar and SQLite table schemas are specified in [`docs/file-schema.md`](file-schema.md) (`FR-04`).
 
 ---
 
-## 4. Index & search (N-03, FR-06)
+## 4. Database, Search, CLI & MCP Server (`N-03`, `FR-04`, `FR-06`, `FR-12`, `FR-13`)
 
-- **SQLite via `drift`** holds a derived cache: parsed tasks, notes, backlinks, and an FTS5 virtual table for full-text search. Target: <200ms search across representative vault sizes (FR-06).
-- The index is **rebuildable from files at any time** — deleting it and reparsing the vault must always converge to the same state. This is the concrete mechanism satisfying P-11's "derived, rebuildable, never sole record of truth."
-- A file watcher triggers incremental reparse-and-upsert on external changes (e.g. edits made in another editor, or by a synced copy of the vault, once FR-01 exists).
-- `drift`'s reactive `Stream` queries are the boundary the state layer (§6) consumes directly.
+- **SQLite via `drift`** is the primary structured store for tasks, events, habits (`D-17`), focus pins (`E-02`), review sessions (`R-04`), and workspace metadata, plus a note/backlink index and FTS5 virtual table for <200ms full-text search (`FR-06`).
+- **Well-Documented Schema (`FR-04`):** Every SQLite table, column, and index is documented so users can inspect or query their database directly with standard SQLite tooling.
+- **Command-Line Interface (`citrine` CLI, `FR-12`) & MCP Server (`citrine-mcp`, `FR-13`):**
+  - Provide read and write access to query/filter tasks, notes, habits, reviews, and data views (outputting JSON or Markdown), create/complete/update tasks, export data-view snapshots, and inspect the database schema.
 
 ---
 
@@ -237,37 +238,43 @@ lib/
 
 Feature-first under `features/`, with `core/` as the platform-agnostic domain/data layer plugins and features both depend on.
 
-### 6.2 UX architecture & core workflows ("The Hybrid Dual-Track")
+### 6.2 UX architecture, visual identity & core workflows
 
-Citrine's UI uses a **Hybrid Dual-Track** architecture that supports Bullet Journal rapid logging, GTD list/clarify workflows, and ADHD executive-function scaffolds without forcing users into a single rigid method (P-06, X-04):
+Citrine's UI pairs a **Warm Paper, Deep Fountain-Pen Ink & Golden Citrine** visual palette (`A-01`), **jargon-free everyday wording** (`A-02` — no `"Hard Landscape"`, `"Zombie Projects"`, `"Gollwitzer If-Then"`, or internal spec IDs in user-facing copy), and **single-canvas views** (eliminating split screens):
 
-1. **Four Primary Navigation Pillars** (bottom navigation bar on mobile, left navigation rail on desktop):
-   - **☀️ Today (Default Home):** Combines a collapsible **Today's Focus Shelf** at the top (today's hard-landscape calendar events `G-05`, up to **Top 3** pinned focus tasks `E-02` with a 1-tap **2-Minute Start** timer `E-05`, and daily habits `D-17`) directly above today's **Daily Log** (`daily/YYYY-MM-DD.md`) rendered in the Live Preview editor (§7).
-   - **✅ Actions & Inbox (GTD Engine):** Segmented views for **Inbox** (`inbox.md` + 1-tap **Clarify Deck** `G-01`), **Next Actions** (filterable by `@context`, time available, and energy `E-01`), **Projects** (with automatic zombie-project badges `D-04`), **Waiting For** (`D-06`), and **Someday/Maybe** (`D-05`).
-   - **🧭 Horizons & Review (Configurable Cadences):** Displays the planning pages and guided review/migration rituals for whichever cadences the user has enabled (`B-12`): **Daily**, **Weekly** (`weekly/YYYY-Www.md`), **Monthly** (`monthly/YYYY-MM.md`), **Quarterly** (`quarterly/YYYY-QN.md`), **Yearly** (`yearly/YYYY.md`), and **Future Log** (`future.md`).
-   - **📓 Notes & Index (Knowledge Base):** Auto-generated BuJo **Index** (`B-04`: Collections, Projects, Areas of Focus, Recent Notes), optional Folder/Tag browser (`N-05`), and FTS5 Search / Quick Switcher (`N-03`, `N-04`).
+1. **Four Primary Navigation Pillars + Hamburger Drawer (`FR-14`):**
+   - **☀️ Today (Unified Daily Note + Past-Day Navigator, `B-01`):** A single unified view (no split screen) with a **Date Bar** at the top (`◀ Prev | Date Picker | Next ▶` + `Back to Today` for viewing past days) above the full-page `daily/YYYY-MM-DD.md` note generated from a customizable template and containing embedded ```` ```citrine ```` interactive data view blocks.
+   - **✅ Actions & Inbox (GTD Engine):** Pure database-driven views for **Inbox** (+ 1-tap **Clarify** `G-01`), **Next Actions** (filterable by `@context`, time available, and energy `E-01`), **Projects** (surfacing **Stalled Projects** needing a next step `D-04`), **Waiting For** (`D-06`), and **Someday/Maybe** (`D-05`).
+   - **🧭 Plan & Review (Pure Data Views, `B-02`, `B-12`):** Single-canvas database-driven planning and review views for enabled horizons (**Daily**, **Weekly**, **Monthly**, **Quarterly**, **Yearly**, and **Future**) without requiring backing `.md` files, plus 1-click static Markdown snapshot export (`T-02`).
+   - **📓 Notes & Index (Knowledge Base):** Auto-generated **Index** (`B-04`: Collections, Projects, Areas of Focus, Recent Notes), Folder/Tag browser (`N-05`), and FTS5 Search / Quick Switcher (`N-03`, `N-04`).
+   - **☰ Hamburger Menu (`Drawer`, `FR-14`):** Houses secondary utilities (Recent Views, Data Import/Export, Planning Process Setup, Field Guide, Settings, and **About Citrine**). Tapping/clicking the app version **7 times** on the About screen enables **Debug Mode**, revealing a **Debug** section in the Hamburger menu with **Override Current Date** (backed by an injectable `AppClock` provider and a top-bar active indicator with `-1d / +1d / Reset` controls).
 
 2. **Persistent Global Affordances:**
    - **Quick Capture Bar (`P-01`, `P-02`, `C-01`):** Available from every primary surface via bottom bar or global hotkey, featuring a **sticky `[ Inbox | Today ]` destination toggle** that remembers the user's last choice.
    - **Recent Views & Documents Switcher (`🕒 Recent`, `N-04`, `A-08`):** Header strip/drawer listing recently visited notes, logs, projects, and task filters so users can immediately recover context after an interruption.
+   - **Unobtrusive Background Progress Bar & Exit Guard (`FR-16`):** When Citrine runs background tasks (such as importing untagged tasks from externally added `.md` files), a slim progress bar appears at the top while keeping the app interactive, and an exit confirmation dialog warns the user if they attempt to close Citrine before background work completes.
 
 3. **Launch, Onboarding & Session Continuity (`A-06`, `A-08`, `B-09`, `P-04`):**
-   - **First launch (new vault):** 1-step folder setup + optional cadence toggle selection, seeding only `daily/YYYY-MM-DD.md` with 3 interactive tutorial lines.
-   - **First launch (existing Obsidian/Markdown vault):** Non-destructive background indexing (`IndexService` modifies zero files). If >10 undated open `- [ ]` tasks exist in files older than 14 days, Citrine prompts to **surface only open tasks from the last 14 days by default** in Action Lists so the user is not overwhelmed by old notes on day one.
+   - **First launch (new vault):** 1-step folder setup + optional cadence toggle selection, seeding `daily/YYYY-MM-DD.md` from the default Daily Note template.
+   - **External untagged task detection (`FR-16`):** Whenever new or externally modified `.md` files contain untagged tasks, Citrine shows a dismissible banner asking whether to import them into the database and append `<!-- citrine:task=<id> -->` comments in the background.
    - **Return within <2 hours:** Restores the user's **exact last open view/document and cursor/scroll position**.
-   - **Return after ≥2 hours (same day):** Opens **Today's Combined View** with a prominent `↩ Resume [[Last Open Note/View]]` chip at the top.
+   - **Return after ≥2 hours (same day):** Opens **Today** with a prominent `↩ Resume [[Last Open Note/View]]` chip at the top.
    - **Return on a new day (1–3 days) or after an absence (4+ days):** Never shows punitive red overdue badges or broken-streak alerts (`P-04`, `A-02`). Surfaces a calm migration pill (1–3 days) or a **"Fresh Start" card** (4+ days) to pick 1–3 focus items for today and sweep remaining open items into the review queue.
 
-4. **In-Place Task Editing Everywhere (`D-19`, `B-05`):**
-   - Unlike Obsidian's Tasks plugin (where clicking a task in a query navigates away to the source document and leaves a trail of open past notes), clicking/tapping any task in *any* Citrine list, Focus Shelf, or review card expands an **inline task editor** right inside the current view.
-   - Edits to task text, state, `📅` date, `⏰` time, `@context`, `#tags`, or indented note body (`D-14`) are spliced directly into the owning `.md` file in the background via `(documentId, lineIndex, charStart, charEnd)` without changing the active route.
-   - A dedicated source badge (`[📄 source-note ↗]`) lets the user peek at surrounding lines or jump to the full document only when they explicitly want note context.
+4. **In-Place Task Editing Everywhere (`D-19`, `B-05`, `D-15`):**
+   - Clicking/tapping any task in *any* Citrine data view (Plan & Review, Actions, or an embedded ```` ```citrine ```` block inside the Daily Note) expands an **inline task editor** right inside the current view.
+   - Edits update SQLite immediately and, if the task has a `source_rel_path`, update the source `.md` file via `(source_rel_path, source_byte_offset)` hint first, then full-file scan for `<!-- citrine:task=<id> -->`, or detach `source_rel_path = NULL` if the file or comment was removed.
+   - A dedicated source badge (`[📄 source-note ↗]`) is shown when `source_rel_path != NULL` so the user can peek at or open the containing note when desired.
 
-5. **Guided Review & Migration Rituals (`B-06`, `R-01`–`R-04`, `Q-02`, `Y-02`):**
-   - Every enabled cadence pairs its editable Markdown planning file with a guided, resumable review ritual driven by a `freezed` sealed-state `Notifier`:
-     - Starts with a **"Celebrate What Shipped"** summary of completed tasks/projects in that period to counter retrospective time blindness.
-     - Uses **card-by-card triage** (with a bulk-list toggle `G-07`) for open loops (`Keep/Migrate >`, `Schedule <`, `Someday`, `Drop -`) so users make one clear decision at a time without list fatigue.
-     - Dynamically threads horizon links (`QY-04`) across whichever cadences the user has enabled (`B-12`).
+5. **Guided Review & Migration Rituals & Three-Layer Process Customization (`B-02`, `B-06`, `B-07`, `B-11`, `B-12`, `R-01`–`R-04`, `Q-02`, `Y-02`):**
+   - **Cadence Ritual Structure:** Daily uses two lightweight bookends (**Daily Morning Plan** and **Daily Evening Wind-Down** surfaced directly on `☀️ Today` and `🧭 Plan & Review`), while Weekly, Monthly, Quarterly, and Yearly each use a unified **"Review & Plan"** transition ritual tailored to that horizon (`weeklyReviewPlan`, `monthlyReviewPlan`, `quarterlyReviewPlan`, `yearlyReviewPlan`).
+   - **Full vs. Quick Mode + Low-Energy Day Mode:** Every ritual includes a 1-click toggle between the **Full Process** and a 2–3 minute **⚡ Quick Mode** for low-energy days, plus a **🛟 Low-Energy Day (Focus on 1 Thing)** toggle that caps daily focus to 1 priority item so finishing a single task counts as a complete win.
+   - **Three-Layer Process Customization (`PlanningPresetCatalog`, `RitualProcessConfig`):**
+     1. *Built-In Presets (`guidedPreset`)*: 14 curated presets across all 6 rituals (Citrine Default, Ivy Lee, Benjamin Franklin Morning/Evening/Virtue Ledger, Cal Newport Shutdown, GTD Weekly Review, 5-Minute Quick Reset, Bullet Journal Monthly Migration, 12-Week Quarterly Plan, Tim Ferriss 80/20 Past Year Review).
+     2. *Step Customizer (`customSteps`)*: Enable/disable steps, mark which steps belong to Quick mode, reorder steps, or add custom **Reflection Prompt** and **Checklist** steps.
+     3. *Unassisted Data View (`freeformMarkdown` / `unassistedView`)*: Bypass the guided step wizard and work directly in the daily note (`daily/YYYY-MM-DD.md`) or pure horizon data view (`B-02`).
+   - **Progressive Learning & 1-Click Opt-Out (`LearningStage`):** Introduces rituals across 4 contextual stages (Stage 1: Morning Focus → Stage 2: Evening Wind-Down → Stage 3: Weekly Reset → Stage 4: Multi-Horizon), auto-collapses step coaching tips after 3 completions of a ritual, and provides a 1-click **Disable Guidance** toggle everywhere.
+   - **Storage Boundary (`P-11`, `D-15`, `B-01`, `B-02`, `T-02`):** Daily notes live in `daily/YYYY-MM-DD.md` (with embedded ```` ```citrine ```` data view blocks), while Weekly, Monthly, Quarterly, and Yearly planning/review outcomes, reflections, and task decisions are stored in SQLite (with one-click static Markdown snapshot export `T-02`).
 
 ---
 
@@ -317,20 +324,21 @@ Notification permission requests are contextual (E-11): first reminder set, and 
 
 | Requirement group | Design section |
 | --- | --- |
-| P-11, D-15, FR-04, T-02, FR-07 (files as source of truth) | §3 Vault & file schema |
-| D-01–D-18 (core data model) | §3 Vault & file schema, §6.1 `core/domain` |
-| N-01–N-07 (notes, linking, search) | §3.2 block IDs, §4 Index & search |
-| B-01–B-11 (BuJo surfaces & migration) | §3.4 Logs, §6 ritual Notifiers |
+| P-11, D-15, FR-04, T-02, FR-07, FR-12, FR-13, FR-16 (user owns their data, task ID sync, CLI/MCP) | §1 Overview, §3.4–§3.5 Task sync, §4 Database/CLI/MCP |
+| D-01–D-19 (core data model & in-place task edit) | §3 Vault & database schema, §6.1 `core/domain`, §6.2 |
+| N-01–N-07 (notes, linking, search) | §3.2 block IDs, §4 Database & search |
+| B-01–B-12 (unified Today note, pure data-view horizons, migration) | §3.4 Data views, §6.2 UX architecture |
 | G-01–G-07 (GTD clarify/organize) | §6 Clarify Notifier |
-| R-01–R-05, Q-01–Q-02, Y-01–Y-02, QY-03–QY-04 (review rituals) | §6 Review Notifiers |
+| R-01–R-05, Q-01–Q-02, Y-01–Y-02, QY-03–QY-04 (review rituals) | §6 Review Notifiers, §6.2 |
 | E-01–E-12 (engage, focus, reminders) | §6 Engage/Focus features, §8 Notifications |
 | PL-01–PL-09 (plugins) | §5 Plugin architecture |
-| A-01–A-08 (ADHD UX, cross-platform) | §2 Platform matrix, §7 Editor (calm defaults) |
-| T-01–T-05 (trust, reliability, platform) | §2 Platform matrix, §4 Index (perf), §10 Testing |
+| A-01–A-08 (warm palette, jargon-free UX, cross-platform) | §2 Platform matrix, §6.2 UX, §7 Editor |
+| T-01–T-05 (trust, reliability, snapshot export, platform) | §2 Platform matrix, §3.4 Snapshot export, §4 Perf, §10 Testing |
 | FR-01, FR-08 (sync, encryption) | §9 Sync posture (deferred) |
 | FR-09 (platform matrix) | §2 Platform matrix |
-| FR-06 (search performance) | §4 Index & search |
+| FR-06 (search performance) | §4 Database & search |
 | FR-05, E-08–E-12 (native notifications) | §8 Notifications & reminders |
+| FR-14, FR-15 (Hamburger menu, About, 7-tap Debug & clock override, App icon) | §1 Overview, §6.2 UX architecture |
 
 ---
 

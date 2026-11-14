@@ -22,7 +22,7 @@ These are non-negotiable design constraints, not features to ship later.
 | P-08 | **Search and links over perfect taxonomy** — Full-text search and linking beat mandatory hierarchy. | MUST |
 | P-09 | **Hard calendar ≠ soft task list** — Date/time commitments stay distinct from undated next actions. | SHOULD |
 | P-10 | **Stable core, optional novelty** — Themes/rewards may refresh interest without requiring system rebuild. | COULD |
-| P-11 | **User data ownership, Markdown interoperability & inline rapid logging** — (1) The data belongs to the user: they can export all data into an easy-to-read/parse portable text format at any time, and open/import Markdown files from Obsidian. (2) Users can view and edit standard Markdown notes in Citrine, and rapid-log tasks inline alongside notes. Notes, logs, projects, collections, and inline rapid-log entries live in plain-text Markdown files on disk; operational/history data that would clutter Markdown lines (e.g. habit/recurrence completion logs, Today's Top-3 pins, snooze state, review ritual checkpoints, recent-view history) may live in a structured local store (`.citrine/` or SQLite) provided it is 100% exportable to human-readable Markdown/JSON. | MUST |
+| P-11 | **The user owns their data (SQLite + Markdown vault, full import/export, documented schemas, CLI & MCP)** — All user data belongs to the user: (1) A vault folder holds standard Markdown notes (including template-driven `daily/YYYY-MM-DD.md` daily notes) alongside the well-documented SQLite database. (2) Users can view and edit standard Markdown notes, rapid-log tasks inline (linked to the database via a hidden `<!-- citrine:task=<id> -->` comment), or create database-backed tasks directly from the UI. (3) Every data view and the entire database can be exported/imported (Markdown/JSON), and queried or updated via a command-line tool (`FR-12`) and MCP server (`FR-13`). | MUST |
 
 ---
 
@@ -207,7 +207,7 @@ Research (Chen, Meng & Nie, 2026) notes that ADHD task management is often relat
 | ID | Requirement | Priority |
 | --- | --- | --- |
 | T-01 | Fast local performance; opening capture and Today is near-instant on target devices. | MUST |
-| T-02 | Data export (e.g. markdown/JSON) so users are not locked in. | MUST |
+| T-02 | **Full data export, import & data-view snapshot export**: Users can export and import all data (Markdown/JSON/SQLite archive) so they are never locked in. Users can also export any data view (Planning/Review, Actions, or embedded `citrine` data views) to a Markdown file; the export UI must clearly state that exported data-view files are **static snapshots of the current data and will not be updated when the data changes**. | MUST |
 | T-03 | Backup / sync conflict handling that does not silently drop inbox items. Applies once sync (FR-01) is enabled. | MUST |
 | T-04 | Privacy-respecting defaults; clear about what leaves the device if cloud sync exists. Applies once sync (FR-01) is enabled. | MUST |
 | T-05 | Accessibility: keyboard navigation, readable contrast, scalable type, optional **dyslexia-friendly font choice** (e.g. OpenDyslexic or similar), and a **reduced-motion/reduced-animation** setting for users sensitive to motion or visual noise. | COULD |
@@ -223,13 +223,18 @@ Many requirements above are principles or capabilities stated at a conceptual le
 | FR-01 | Multi-device **sync** of the vault (mechanism TBD: cloud relay, CRDT/P2P, or user-provided storage like iCloud/Dropbox/WebDAV). | SHOULD |
 | FR-02 | External **calendar integration** — subscribe to and/or export hard-landscape items to Google Calendar / Apple Calendar / CalDAV / ICS feed. | SHOULD |
 | FR-03 | **Import** from other tools (Obsidian vault, Todoist, Things, TickTick) to ease migration/onboarding. | COULD |
-| FR-04 | Documented **file/frontmatter schema** for tasks, notes, and logs (concrete spec behind P-11/D-15) so "files are the source of truth" is actually implementable and testable. | MUST |
+| FR-04 | Documented **SQLite database schema and Markdown file/frontmatter/task-comment schema** (`<!-- citrine:task=<id> -->` and ```` ```citrine ```` data view blocks) behind P-11/D-15 so user data ownership is transparent, inspectable, and testable. | MUST |
 | FR-05 | **Native OS push/local notification integration** per platform (iOS, Android, macOS, Windows, Linux) for reminders (concrete implementation behind E-08/E-11). | MUST |
 | FR-06 | **Full-text search index** with a stated performance target (e.g. results in <200ms across a vault of N notes). | SHOULD |
 | FR-07 | Manual **full-vault backup/export and restore**, distinct from continuous sync. | MUST |
 | FR-08 | **End-to-end encryption** for any cloud-synced data, if FR-01 is implemented. | SHOULD |
 | FR-09 | **Supported platform matrix** — explicit list of target platforms for v1 (project is scaffolded for Android/iOS/Linux/macOS/Windows/web). | MUST |
 | FR-10 | **Multi-vault support** (multiple independent vaults, switchable, like Obsidian). | COULD |
+| FR-12 | **Command-Line Interface (`citrine` CLI)** — A CLI tool to query, inspect, export, create, and update tasks, notes, habits, reviews, and data views directly from the terminal. | MUST |
+| FR-13 | **Model Context Protocol (`citrine-mcp`) Server** — An MCP server exposing read and write tools/resources over the user's Citrine SQLite database and vault so AI assistants and external tools can query, extract, create, and update tasks, notes, reviews, and data views. | MUST |
+| FR-14 | **Hamburger Menu, About Screen, 7-Tap Debug Mode & Date Override** — A Hamburger menu (`Drawer`) providing navigation to app utilities and an **About** screen displaying the app version. Tapping/clicking the app version **7 times** on the About screen enables **Debug Mode**, adding a **Debug** section to the Hamburger menu with a menu item to **override the current date** in the app (plus a top-bar active indicator with quick `+1d / -1d / Reset` controls) for testing. | MUST |
+| FR-15 | **Citrine Crystal & Fountain Pen App Icon** — Application icon featuring a yellow-gold colored crystal (a "citrine") with a stylized fountain pen in front of it, configured across supported platforms. | MUST |
+| FR-16 | **External Untagged Task Import Prompt & Background Work Manager** — When Citrine detects new or externally edited Markdown files in the vault containing tasks without task ID comments, show a dismissible banner asking *"Citrine has detected new markdown files in the vault that contain tasks. Would you like to import them?"* (`Yes` / `No` / close). Clicking `Yes` imports the tasks into SQLite and writes `<!-- citrine:task=<id> -->` comments into the files in the background while showing an unobtrusive loading bar (`No`/close does nothing). While background work is running, the app stays interactive and shows a confirmation dialog if the user tries to close the app. | MUST |
 
 ---
 

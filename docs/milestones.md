@@ -10,8 +10,8 @@ This document sequences `requirements.md` into buildable milestones, informed by
 
 ## Cross-cutting notes (apply to every milestone, not scoped to one)
 
-- **P-11 / D-15 data ownership & storage boundary**: Notes, projects, collections, cadence logs (`daily/`, `weekly/`, `monthly/`, `quarterly/`, `yearly/`, `future.md`, `inbox.md`), and inline rapid-logged tasks/events/notes live in plain-text Markdown files on disk; the search/task index over those files is a derived, rebuildable cache. Operational and history state that would clutter Markdown notes with "emoji soup" or duplicated recurring rows (habit completion history `D-17`, Today's Top-3 Focus pins `E-02`, snooze state `E-12`, ritual progress `R-04`, cadence preferences `B-12`, and recent-view history `N-04`/`A-08`) lives in SQLite / `.citrine/` and is 100% exportable to human-readable Markdown/JSON (`T-02`).
-- **D-19 / B-05 in-place task editing**: Every surface that displays tasks (Inbox, Today's Focus Shelf, Next Actions, Projects, Reviews, Search) must allow editing the task **in-place** (splicing changes into the source `.md` file in the background) without forcing the user to navigate to the containing note, while providing an explicit source-note badge (`[📄 note ↗]`) when they want surrounding context.
+- **P-11 / D-15 "The user owns their data" & bidirectional task sync**: Every workspace has a vault folder holding Markdown notes (including `daily/YYYY-MM-DD.md` generated from an editable template) alongside a well-documented SQLite database. Tasks created in the UI live directly in SQLite (`source_rel_path = NULL`). Tasks typed in a Markdown note are enrolled into SQLite on line exit with a hidden `<!-- citrine:task=<id> -->` comment, storing `(task_id, source_rel_path, source_byte_offset)` for bidirectional sync (byte-offset hint → full-file scan fallback → graceful detachment to DB-only if the file or comment is missing). External untagged tasks prompt via a dismissible banner (`FR-16`) before background import. All data and data views can be exported (`T-02`) and queried/updated via the `citrine` CLI (`FR-12`) and `citrine-mcp` server (`FR-13`).
+- **D-19 / B-05 in-place task editing**: Every surface that displays tasks (Plan & Review data views, Actions, embedded ```` ```citrine ```` blocks in the Daily Note, Search) must allow editing the task **in-place** (updating SQLite and syncing to `source_rel_path` if present) without forcing the user to navigate to the containing note, while providing an explicit source-note badge (`[📄 note ↗]`) when `source_rel_path != NULL`.
 - **Principles P-01, P-04–P-08** (capture-before-organize, forgiving tone, method-flexibility, calm defaults, search-over-taxonomy) are not standalone build tasks — they are acceptance-criteria checks applied at every milestone's review (e.g. "does this UI force a folder/tag at capture?").
 - **T-03, T-04, FR-08** (sync conflict handling, sync privacy defaults, E2E encryption) are all explicitly conditioned on FR-01 (sync), which `design.md` §9 defers entirely for v1. These MUSTs (T-03/T-04) are **vacuously satisfied** in v1 — no sync exists, so there is nothing to conflict or leak. No milestone task is needed for them.
 - **QY-03** (quarterly/yearly reviews never mandatory) is similarly vacuous in v1 since Q-*/Y-* planning surfaces are SHOULD-rated and deferred to the post-1.0 backlog — nothing exists yet that could be "mandatory."
@@ -128,6 +128,40 @@ Per-plugin `JSContext`, capability manifest, all-or-nothing install consent, cen
 Manual full-vault export/backup/restore, data export for lock-in avoidance, `FR-04` schema doc frozen, full 5-platform QA pass (`A-08`), performance budget validation (`T-01`), onboarding pass (`A-06`), progressive-disclosure UI audit (`A-01`). Explicit documentation that T-03/T-04/FR-08/QY-03 are vacuously satisfied (no sync, no quarterly/yearly rituals in v1).
 
 **Requirements:** **T-02, FR-07, FR-04 (freeze), FR-09 (verified), T-01, A-08**.
+
+---
+
+## M13 — App Shell, Hamburger Menu, About Screen, 7-Tap Debug Mode + Date Override & App Icon
+
+Adds the Hamburger menu (`Drawer`) housing secondary utilities, an **About Citrine** screen with version info where tapping/clicking the version **7 times** enables **Debug Mode**, a conditional **Debug** section in the Hamburger menu with **Override Current Date** (backed by an injectable `AppClock` provider and a top-bar active indicator with `-1d / +1d / Reset` controls), and the **Citrine Crystal & Fountain Pen** application icon configured across supported platforms.
+
+**Requirements:** **FR-14, FR-15**.
+
+**Detailed plan:** [`milestones/m13.md`](milestones/m13.md)
+
+## M14 — Warm Paper & Fountain-Pen Ink Visual Redesign + Jargon-Free Copy Pass
+
+Replaces the stock Material seed palette with the **Warm Paper, Deep Fountain-Pen Ink & Golden Citrine** light and dark themes, refines surface/card/chip hierarchy, removes internal requirement codes from all user-facing strings, and replaces academic/research jargon (`"Hard Landscape"`, `"Zombie Projects"`, `"Gollwitzer If-Then"`, `"Rule of 1"`) with approachable, self-explanatory everyday wording.
+
+**Requirements:** **A-01, A-02**.
+
+**Detailed plan:** [`milestones/m14.md`](milestones/m14.md)
+
+## M15 — Unified Single-View `Today` (with Past-Day Navigation & Embedded Data Views) & Pure Data-View `Plan & Review`
+
+Eliminates the split view in `Today` and `Plan & Review`. Unifies `Today` into a single view with a top **Date Navigation Bar** (for viewing past days and returning to Today) over the template-generated `daily/YYYY-MM-DD.md` note containing embedded ```` ```citrine ```` source code blocks that render live interactive data views inline (with preset views, custom filters, and a toolbar insert button). Converts Weekly, Monthly, Quarterly, Yearly, and Future planning/review screens (`Plan & Review`) into pure database-driven data views with no backing `.md` files required.
+
+**Requirements:** **B-01, B-02, B-11, B-12**.
+
+**Detailed plan:** [`milestones/m15.md`](milestones/m15.md)
+
+## M16 — "The User Owns Their Data": Bidirectional Task Sync, Background Work Manager, Snapshot Export, Schema Docs, CLI & MCP Server
+
+Implements line-exit task enrollment in Markdown notes with hidden `<!-- citrine:task=<id> -->` comments, SQLite `(task_id, source_rel_path, source_byte_offset)` bidirectional sync (byte-offset hint → full-file scan fallback → automatic detachment to DB-only when the file or comment is missing), UI-created database-only tasks, the dismissible external untagged-task import banner (`FR-16`) powered by a `BackgroundWorkManager` (with unobtrusive top progress bar and app-close confirmation guard), static Markdown snapshot export for any data view (`T-02`), comprehensive SQLite & Markdown schema documentation (`FR-04`), the `citrine` CLI (`FR-12`), and the `citrine-mcp` MCP server (`FR-13`).
+
+**Requirements:** **P-11, D-15, T-02, FR-04, FR-07, FR-12, FR-13, FR-16**.
+
+**Detailed plan:** [`milestones/m16.md`](milestones/m16.md)
 
 ---
 
