@@ -236,6 +236,8 @@ class DecorationTheme {
           fontWeight: FontWeight.bold,
         );
         break;
+      case DecorationKind.taskComment:
+        return TextSpan(text: spanText, style: collapsedMarkerStyle);
       default:
         style = null;
         break;

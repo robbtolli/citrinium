@@ -35,6 +35,7 @@ enum DecorationKind {
   tag,
   blockId,
   signifier,
+  taskComment,
 
   // BuJo bullets (design.md §3.2)
   eventBullet,

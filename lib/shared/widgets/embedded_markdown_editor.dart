@@ -42,12 +42,77 @@ class _EmbeddedMarkdownEditorState
   EditorSavePipeline? _pipeline;
   String? _loadedRelPath;
   String? _lastLoadedDiskText;
+  int? _previousCursorLine;
+  bool _isTaggingLine = false;
 
   @override
   void dispose() {
     _pipeline?.dispose();
     _controller?.dispose();
     super.dispose();
+  }
+
+  int _lineIndexAtOffset(String text, int offset) {
+    final clamped = offset.clamp(0, text.length);
+    var line = 0;
+    for (var i = 0; i < clamped; i++) {
+      if (text.codeUnitAt(i) == 0x0A) {
+        line++;
+      }
+    }
+    return line;
+  }
+
+  Future<void> _onLeftLine(int prevLine) async {
+    if (_isTaggingLine) return;
+    final controller = _controller;
+    final pipeline = _pipeline;
+    if (controller == null || pipeline == null) return;
+
+    final doc = MarkdownDocument.parse(controller.text);
+    if (prevLine < 0 || prevLine >= doc.lines.length) return;
+    final line = doc.lines[prevLine];
+    if (line.kind != LineKind.task) return;
+    final taskText = stripCitrineTaskComment(
+      line.task!.contentSpan.of(doc.rawText),
+    ).trim();
+    if (taskText.isEmpty) return;
+
+    _isTaggingLine = true;
+    try {
+      await pipeline.saveNow();
+      final services = await ref.read(appServicesProvider.future);
+      if (services == null || !mounted) return;
+      final beforeText = controller.text;
+      final record = await services.taskSyncService.tagAndSaveMarkdownTask(
+        relPath: widget.relPath,
+        lineIndex: prevLine,
+      );
+      if (record == null || !mounted) return;
+
+      final absPath = VaultPath(widget.relPath).toAbsolute(services.vaultPath);
+      final updatedText = await readVaultFile(File(absPath));
+      if (!mounted) return;
+      if (updatedText.text != beforeText) {
+        _lastLoadedDiskText = updatedText.text;
+        final delta = updatedText.text.length - beforeText.length;
+        final oldSel = controller.selection;
+        controller.updateTextPreservingSelection(updatedText.text);
+        if (oldSel.isValid && delta > 0) {
+          final prevLineEnd = line.span.end;
+          if (oldSel.baseOffset > prevLineEnd) {
+            final nextOffset = (oldSel.baseOffset + delta).clamp(
+              0,
+              updatedText.text.length,
+            );
+            controller.selection = TextSelection.collapsed(offset: nextOffset);
+          }
+        }
+        pipeline.onExternalFileChanged(updatedText.text);
+      }
+    } finally {
+      _isTaggingLine = false;
+    }
   }
 
   void _syncEditorWithDisk(String diskText, String vaultPath) {
@@ -81,8 +146,22 @@ class _EmbeddedMarkdownEditorState
         },
       );
 
+      _previousCursorLine = null;
       _controller!.addListener(() {
-        _pipeline?.onBufferChanged(_controller!.text);
+        final ctrl = _controller;
+        if (ctrl == null) return;
+        _pipeline?.onBufferChanged(ctrl.text);
+        if (ctrl.selection.isValid) {
+          final currentLine = _lineIndexAtOffset(
+            ctrl.text,
+            ctrl.selection.baseOffset,
+          );
+          final prevLine = _previousCursorLine;
+          _previousCursorLine = currentLine;
+          if (prevLine != null && prevLine != currentLine) {
+            _onLeftLine(prevLine);
+          }
+        }
       });
     } else {
       if (_lastLoadedDiskText == diskText) return;

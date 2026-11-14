@@ -95,3 +95,28 @@ CREATE TABLE index_meta (
     "key" TEXT NOT NULL PRIMARY KEY,
     value TEXT NOT NULL
 ) AS IndexMetaRow;
+
+-- Canonical bidirectional task table (P-11, T-02, FR-04, FR-16).
+-- Note-authored tasks store `source_rel_path` and `source_byte_offset` hint
+-- linking back to `<!-- citrine:task=<task_id> -->` in the Markdown file.
+-- UI-created or detached tasks store `source_rel_path = NULL` and
+-- `source_byte_offset = NULL`.
+CREATE TABLE tasks (
+    task_id TEXT NOT NULL PRIMARY KEY,
+    source_rel_path TEXT NULL,
+    source_byte_offset INTEGER NULL,
+    task_state TEXT NOT NULL,
+    text TEXT NOT NULL AS "textContent",
+    due_date TEXT NULL,
+    due_time TEXT NULL,
+    recurrence_raw TEXT NULL,
+    contexts_json TEXT NOT NULL DEFAULT '[]',
+    tags_json TEXT NOT NULL DEFAULT '[]',
+    horizon TEXT NULL,
+    created_at_ms INTEGER NOT NULL,
+    updated_at_ms INTEGER NOT NULL
+) AS TaskRecord;
+
+CREATE INDEX tasks_source_rel_path_idx ON tasks (source_rel_path);
+CREATE INDEX tasks_due_date_idx ON tasks (due_date);
+CREATE INDEX tasks_state_idx ON tasks (task_state);

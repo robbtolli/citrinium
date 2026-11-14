@@ -10,6 +10,10 @@ environment:
 
 resolution: workspace
 
+executables:
+  citrine: citrine
+  citrine-mcp: citrine_mcp
+
 dependencies:
   collection: ^1.19.1
   crypto: ^3.0.6

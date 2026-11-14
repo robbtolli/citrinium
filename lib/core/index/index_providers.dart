@@ -47,6 +47,16 @@ final allEntriesWithDocumentsProvider =
   yield* services.indexService.watchAllEntriesWithDocuments();
 });
 
+/// Canonical bidirectional tasks from the SQLite `tasks` table (`P-11`, `FR-04`).
+final allTasksProvider = StreamProvider<List<TaskRecord>>((ref) async* {
+  final services = await ref.watch(appServicesProvider.future);
+  if (services == null) {
+    yield const [];
+    return;
+  }
+  yield* services.taskSyncService.watchAllTasks();
+});
+
 /// Incoming wikilinks pointing to a target `documentId` (`N-02`, `D-12`).
 final backlinksForDocumentProvider =
     StreamProvider.family<List<BacklinkItem>, int>((
@@ -155,8 +165,59 @@ class VaultMutationService {
 
   Future<void> _notifyFileUpdated(AppServices services, String relPath) async {
     await services.indexService.refreshFile(relPath);
+    await services.taskSyncService.syncExternalFileTasks(relPath);
     if (!_ref.mounted) return;
     _ref.invalidate(documentRawTextProvider(relPath));
+  }
+
+  /// Creates a database-only task (`source_rel_path = NULL`, `source_byte_offset = NULL`)
+  /// directly from the Citrine UI (`P-11`, `FR-04`).
+  Future<TaskRecord> createDatabaseTask({
+    required String text,
+    TaskStateKind state = TaskStateKind.open,
+    String? dueDate,
+    String? dueTime,
+    String? recurrenceRaw,
+    List<String> contexts = const [],
+    List<String> tags = const [],
+    String? horizon,
+  }) async {
+    final services = await _requireServices();
+    return services.taskSyncService.createDatabaseTask(
+      text: text,
+      state: state,
+      dueDate: dueDate,
+      dueTime: dueTime,
+      recurrenceRaw: recurrenceRaw,
+      contexts: contexts,
+      tags: tags,
+      horizon: horizon,
+    );
+  }
+
+  /// Updates a canonical task in SQLite and syncs back to its source `.md` file
+  /// if `source_rel_path != null`.
+  Future<TaskRecord?> updateCanonicalTask({
+    required String taskId,
+    TaskStateKind? state,
+    String? text,
+    String? dueDate,
+    bool clearDueDate = false,
+    String? horizon,
+  }) async {
+    final services = await _requireServices();
+    final updated = await services.taskSyncService.updateTask(
+      taskId: taskId,
+      state: state,
+      text: text,
+      dueDate: dueDate,
+      clearDueDate: clearDueDate,
+      horizon: horizon,
+    );
+    if (updated?.sourceRelPath != null) {
+      await _notifyFileUpdated(services, updated!.sourceRelPath!);
+    }
+    return updated;
   }
 
   /// Appends a captured rapid-log line to either Today's Daily Log

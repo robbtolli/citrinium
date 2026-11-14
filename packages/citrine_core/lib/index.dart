@@ -12,3 +12,4 @@ export 'src/index/index_database.dart';
 export 'src/index/index_operations.dart';
 export 'src/index/index_service.dart';
 export 'src/index/scanned_document.dart';
+export 'src/index/task_sync_service.dart';

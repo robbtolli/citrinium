@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/index/index_providers.dart';
 import '../../core/workspace/workspace_state.dart';
 import 'in_place_task_tile.dart';
+import 'snapshot_export_dialog.dart';
 
 /// Interactive card rendering a ```` ```citrine ```` data view block (`B-01`).
 class CitrineDataViewCard extends ConsumerWidget {
@@ -89,6 +90,17 @@ class CitrineDataViewCard extends ConsumerWidget {
                       color: colorScheme.onSecondaryContainer,
                       fontWeight: FontWeight.w700,
                     ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.download_outlined, size: 16),
+                  tooltip: 'Export Static Snapshot (.md)',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => showSnapshotExportDialog(
+                    context,
+                    ref,
+                    title: query.resolvedTitle,
+                    entries: items,
                   ),
                 ),
                 if (onEditBlock != null)

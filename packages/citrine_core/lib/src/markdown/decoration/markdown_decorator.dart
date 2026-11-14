@@ -704,6 +704,25 @@ class MarkdownDecorator {
     addMetaMatches(_tagRe, DecorationKind.tag);
     addMetaMatches(_blockIdRe, DecorationKind.blockId);
 
+    final taskCommentRe = RegExp(
+      r'[ \t]*<!--\s*citrine:task=([A-Za-z0-9_-]+)\s*-->',
+    );
+    for (final m in taskCommentRe.allMatches(lineText, startPos)) {
+      final range = _Range(lineOffset + m.start, lineOffset + m.end);
+      if (excludeRanges.any((e) => e.overlaps(range))) continue;
+      excludeRanges.add(range);
+      decorations.add(
+        Decoration(
+          start: range.start,
+          end: range.end,
+          kind: DecorationKind.taskComment,
+          role: DecorationRole.content,
+          nodeId: nextNodeId(),
+          payload: m.group(1),
+        ),
+      );
+    }
+
     // Recurrence 🔁
     for (final m in _recurrenceMarker.allMatches(lineText, startPos)) {
       final valueStart = m.end;

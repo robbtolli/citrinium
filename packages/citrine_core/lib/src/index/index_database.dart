@@ -36,7 +36,7 @@ class IndexDatabase extends _$IndexDatabase {
   factory IndexDatabase.memory() => IndexDatabase(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -48,6 +48,20 @@ class IndexDatabase extends _$IndexDatabase {
       await customStatement(
         'CREATE VIRTUAL TABLE document_fts USING fts5(title, body);',
       );
+    },
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.createTable(tasks);
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS tasks_source_rel_path_idx ON tasks (source_rel_path);',
+        );
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS tasks_due_date_idx ON tasks (due_date);',
+        );
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS tasks_state_idx ON tasks (task_state);',
+        );
+      }
     },
     beforeOpen: (details) async {
       // Required for `ON DELETE CASCADE` / `ON DELETE SET NULL` (schema.drift)

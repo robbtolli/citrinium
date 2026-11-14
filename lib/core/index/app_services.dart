@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../background/background_work_manager.dart';
 import '../vault/vault_path_provider.dart';
 
 /// Everything that depends on a chosen vault being open: the index
@@ -21,6 +22,7 @@ class AppServices {
     required this.vaultPath,
     required this.database,
     required this.indexService,
+    required this.taskSyncService,
     required this.watcher,
     required this.watcherSubscription,
   });
@@ -28,6 +30,7 @@ class AppServices {
   final String vaultPath;
   final IndexDatabase database;
   final IndexService indexService;
+  final TaskSyncService taskSyncService;
   final VaultWatcher watcher;
   final StreamSubscription<VaultChangeEvent> watcherSubscription;
 
@@ -50,7 +53,10 @@ class AppServices {
 /// -- **never** inside the vault itself, per the "Index location" decision,
 /// so a future sync layer over the vault folder can't accidentally sync
 /// the cache.
-Future<AppServices> openAppServices(String vaultPath) async {
+Future<AppServices> openAppServices(
+  String vaultPath, {
+  void Function(String relPath)? onUntaggedTasksDetected,
+}) async {
   final appSupportDir = await getApplicationSupportDirectory();
   final indexDir = Directory(p.join(appSupportDir.path, 'index'));
   await indexDir.create(recursive: true);
@@ -67,13 +73,31 @@ Future<AppServices> openAppServices(String vaultPath) async {
   await indexService.ensureUpToDate();
 
   final watcher = WatcherVaultWatcher(vaultRootPath: vaultPath);
-  final subscription = watcher.events.listen(indexService.handleChange);
+  final taskSyncService = TaskSyncService(
+    db: database,
+    vaultRootPath: vaultPath,
+    watcher: watcher,
+  );
+
+  final subscription = watcher.events.listen((event) async {
+    await indexService.handleChange(event);
+    if (event.type == VaultChangeType.add ||
+        event.type == VaultChangeType.modify) {
+      final scan = await taskSyncService.syncExternalFileTasks(
+        event.path.value,
+      );
+      if (scan.hasUntaggedTasks) {
+        onUntaggedTasksDetected?.call(scan.relPath);
+      }
+    }
+  });
   await watcher.start();
 
   return AppServices(
     vaultPath: vaultPath,
     database: database,
     indexService: indexService,
+    taskSyncService: taskSyncService,
     watcher: watcher,
     watcherSubscription: subscription,
   );
@@ -86,7 +110,15 @@ final appServicesProvider = FutureProvider<AppServices?>((ref) async {
   final vaultPath = ref.watch(vaultPathProvider);
   if (vaultPath == null) return null;
 
-  final services = await openAppServices(vaultPath);
+  final services = await openAppServices(
+    vaultPath,
+    onUntaggedTasksDetected: (relPath) {
+      if (!ref.mounted) return;
+      ref
+          .read(externalUntaggedTasksProvider.notifier)
+          .addPendingFiles([relPath]);
+    },
+  );
   ref.onDispose(() {
     // Fire-and-forget: providers can't await their own disposal, but this
     // still runs before the next vault's `openAppServices` call resolves

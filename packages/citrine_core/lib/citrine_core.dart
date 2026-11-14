@@ -7,4 +7,6 @@ export 'decoration.dart';
 export 'index.dart';
 export 'parser.dart';
 export 'plugins.dart';
+export 'src/tooling/citrine_cli.dart';
+export 'src/tooling/citrine_mcp_server.dart';
 export 'vault.dart';

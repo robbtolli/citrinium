@@ -1,8 +1,11 @@
+import 'dart:ui' show AppExitResponse;
+
 import 'package:citrine_core/citrine_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/background/background_work_manager.dart';
 import '../core/clock/app_clock.dart';
 import '../core/index/index_providers.dart';
 import '../core/notifications/notification_service.dart';
@@ -69,7 +72,8 @@ class AppShellScaffold extends ConsumerStatefulWidget {
   ConsumerState<AppShellScaffold> createState() => _AppShellScaffoldState();
 }
 
-class _AppShellScaffoldState extends ConsumerState<AppShellScaffold> {
+class _AppShellScaffoldState extends ConsumerState<AppShellScaffold>
+    with WidgetsBindingObserver {
   late AppPillar _pillar;
   bool _checkedTwoHourRestore = false;
 
@@ -77,6 +81,47 @@ class _AppShellScaffoldState extends ConsumerState<AppShellScaffold> {
   void initState() {
     super.initState();
     _pillar = widget.initialPillar;
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Future<AppExitResponse> didRequestAppExit() async {
+    final bgWork = ref.read(backgroundWorkManagerProvider);
+    if (!bgWork.isRunning || !mounted) {
+      return AppExitResponse.exit;
+    }
+    final confirm = await _showExitWhileBusyDialog(context);
+    return confirm ? AppExitResponse.exit : AppExitResponse.cancel;
+  }
+
+  Future<bool> _showExitWhileBusyDialog(BuildContext context) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Background task in progress'),
+        content: const Text(
+          'Citrine is still importing tasks in the background. '
+          'Closing now may leave some files unfinished. Close anyway?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Keep Working'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Close Anyway'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
   }
 
   void _checkTwoHourSessionRestore(
@@ -320,6 +365,8 @@ class _AppShellScaffoldState extends ConsumerState<AppShellScaffold> {
     final docsAsync = ref.watch(documentListProvider);
     final reminders = ref.watch(rollingReminderWindowProvider);
     final clock = ref.watch(appClockProvider);
+    final bgWork = ref.watch(backgroundWorkManagerProvider);
+    final untaggedState = ref.watch(externalUntaggedTasksProvider);
     final allDocs = docsAsync.value ?? const [];
 
     if (docsAsync.hasValue) {
@@ -335,7 +382,16 @@ class _AppShellScaffoldState extends ConsumerState<AppShellScaffold> {
       AppPillar.notes => const DocumentListScreen(embeddedInShell: true),
     };
 
-    return Scaffold(
+    return PopScope(
+      canPop: !bgWork.isRunning,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop || !bgWork.isRunning) return;
+        final confirm = await _showExitWhileBusyDialog(context);
+        if (confirm && context.mounted) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
       drawer: _buildDrawer(context, allDocs),
       appBar: AppBar(
         title: const Text('Citrine'),
@@ -443,6 +499,77 @@ class _AppShellScaffoldState extends ConsumerState<AppShellScaffold> {
                 ),
               ),
             ),
+          if (untaggedState.shouldShowBanner)
+            Material(
+              color: Theme.of(context).colorScheme.secondaryContainer,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.task_alt_outlined,
+                      size: 18,
+                      color: Theme.of(context).colorScheme.onSecondaryContainer,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Citrine has detected new markdown files in the vault '
+                        'that contain tasks. Would you like to import them?',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSecondaryContainer,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => ref
+                          .read(externalUntaggedTasksProvider.notifier)
+                          .acceptAndImport(),
+                      child: const Text('Yes'),
+                    ),
+                    TextButton(
+                      onPressed: () => ref
+                          .read(externalUntaggedTasksProvider.notifier)
+                          .dismiss(),
+                      child: const Text('No'),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 16),
+                      tooltip: 'Dismiss',
+                      onPressed: () => ref
+                          .read(externalUntaggedTasksProvider.notifier)
+                          .dismiss(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          if (bgWork.isRunning)
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                LinearProgressIndicator(value: bgWork.progress, minHeight: 3),
+                if (bgWork.currentLabel != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 2,
+                    ),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        bgWork.currentLabel!,
+                        style: Theme.of(context).textTheme.labelSmall,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           Expanded(
             child: isWide
                 ? Row(
@@ -487,6 +614,7 @@ class _AppShellScaffoldState extends ConsumerState<AppShellScaffold> {
                   ),
               ],
             ),
+      ),
     );
   }
 }

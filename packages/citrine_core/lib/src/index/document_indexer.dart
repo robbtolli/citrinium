@@ -4,6 +4,7 @@ import 'package:yaml/yaml.dart';
 
 import '../parser/markdown_document.dart';
 import '../parser/parsed_line.dart';
+import '../parser/task_comment.dart';
 import '../parser/task_state.dart';
 import 'scanned_document.dart';
 
@@ -94,7 +95,7 @@ String? _entryKindFor(LineKind kind) {
 
 ScannedEntry _buildEntry(String kind, ParsedLine line, String rawText) {
   final text = switch (line.kind) {
-    LineKind.task => line.task!.contentSpan.of(rawText),
+    LineKind.task => stripCitrineTaskComment(line.task!.contentSpan.of(rawText)),
     LineKind.event || LineKind.note => line.bujo!.contentSpan.of(rawText),
     _ => line.span.of(rawText).replaceFirst(_bulletPrefixRe, ''),
   };

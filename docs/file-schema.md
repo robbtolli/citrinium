@@ -337,3 +337,48 @@ expected to resolve it:
 7. **Multi-vault (FR-10).** Nothing here assumes single-vault, but nothing has been
    designed for disambiguating identical relative paths across vaults either, since
    FR-10 is post-1.0 scope.
+
+## 10. Bidirectional Task Comments (`<!-- citrine:task=<id> -->`, FR-04, P-11)
+
+Inline Markdown tasks are linked to the canonical SQLite `tasks` table via a hidden HTML comment appended to the task line:
+
+```markdown
+- [ ] Draft architecture spec 📅 2026-11-15 @work <!-- citrine:task=t_m8abc1_x9f2 -->
+```
+
+- **Pattern:** `<!--\s*citrine:task=([A-Za-z0-9_-]+)\s*-->`
+- **Live Preview:** Hidden from visual display in Citrine's Live Preview editor while preserved verbatim in the underlying `.md` file.
+- **Line-leave tagging:** When a user types a task line in a Markdown note and navigates away from that line, Citrine saves the row to `tasks` (`task_id`, `source_rel_path`, `source_byte_offset` hint) and appends `<!-- citrine:task=<id> -->` to the line.
+- **Bidirectional updates:**
+  - Updating a task in a `.md` file updates SQLite automatically on save or external file change.
+  - Updating a task in any Citrine data view updates SQLite and updates the `.md` file by checking `(source_rel_path, source_byte_offset)` first, then falling back to a full-file scan for `<!-- citrine:task=<id> -->`. If the file or comment was removed, `source_rel_path` and `source_byte_offset` are cleared to `NULL` so the task becomes database-only.
+- **UI-created tasks:** Tasks created directly from the Citrine UI (not typed inside a note) are stored in SQLite with `source_rel_path = NULL` and `source_byte_offset = NULL`.
+
+## 11. Embedded Data View Blocks (```` ```citrine ````, B-01)
+
+Daily notes (`daily/YYYY-MM-DD.md`) and general Markdown notes can embed interactive data views using fenced `citrine` code blocks:
+
+````markdown
+```citrine
+view: dueToday
+title: Due Today
+limit: 15
+```
+````
+
+Supported `view` presets (`CitrineDataViewPreset`): `topFocus`, `dueToday`, `createdToday`, `dueThisWeek`, `overdue`, `schedule`, `events`, `projects`, `habits`, `tasks`.
+Optional keys: `title`, `filter` (`all`, `open`, `completed`, `tasks`), `tag`, `context`, `limit`.
+
+## 12. SQLite Database Schema (`schema.drift`, `schemaVersion = 2`)
+
+Citrine's SQLite database (`<appSupport>/index/<sha256(vaultPath)>.sqlite`, or opened directly by `citrine` CLI and `citrine-mcp`) contains:
+
+| Table | Purpose |
+| :--- | :--- |
+| `tasks` | Canonical bidirectional task table: `task_id` (PK), `source_rel_path`, `source_byte_offset`, `task_state`, `text`, `due_date`, `due_time`, `recurrence_raw`, `contexts_json`, `tags_json`, `horizon`, `created_at_ms`, `updated_at_ms`. |
+| `documents` | Indexed Markdown notes: `id` (PK), `rel_path` (UNIQUE), `sha256`, `mtime_ms`, `size_bytes`, `doc_type`, `title`, `frontmatter_json`, `indexed_at_ms`. |
+| `entries` | Indexed rapid-log lines parsed from vault `.md` files (`document_id`, `line_index`, `char_start`, `char_end`, `block_id`, `kind`, `task_state`, `text`, `due_date`, `due_time`, `recurrence_raw`, `signifier`). |
+| `entry_contexts` / `entry_tags` | Normalized `@context` and `#tag` join tables for `entries`. |
+| `links` | Wikilink/embed graph (`source_document_id`, `source_entry_id`, `target_raw`, `target_document_id`, `kind`). |
+| `document_fts` | FTS5 virtual table (`title`, `body`) for full-text search. |
+| `index_meta` | Key-value metadata (`schemaVersion`, `parserVersion`, `vaultFingerprint`). |
