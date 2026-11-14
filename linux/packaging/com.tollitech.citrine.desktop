@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Citrine
+Comment=Offline-first task, planning, and Markdown notebook
+Exec=citrine %U
+Icon=citrine_icon
+Terminal=false
+Type=Application
+Categories=Office;ProjectManagement;Utility;
+StartupWMClass=com.tollitech.citrine
