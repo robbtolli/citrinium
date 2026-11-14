@@ -5,18 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/clock/app_clock.dart';
 import '../../core/index/index_providers.dart';
 import '../../core/workspace/workspace_state.dart';
-import '../../shared/widgets/embedded_markdown_editor.dart';
+import '../../shared/widgets/citrine_data_view_card.dart';
 import '../../shared/widgets/in_place_task_tile.dart';
 import '../../shared/widgets/planning_review_ritual_sheet.dart';
 
-/// Pillar 3 of the Hybrid Dual-Track UX (`design.md` §6.2):
-/// User-configurable planning & review cadences (`B-12`):
-/// - Daily (`daily/YYYY-MM-DD.md`, `B-01`, `R-02`)
-/// - Weekly (`weekly/YYYY-Www.md`, `B-02`, `R-01`)
-/// - Monthly (`monthly/YYYY-MM.md`, `B-02`, `B-07`)
-/// - Quarterly (`quarterly/YYYY-QN.md`, `Q-01`, `Q-02`)
-/// - Yearly (`yearly/YYYY.md`, `Y-01`, `Y-02`)
-/// - Future Log (`future.md`, `B-03`)
+/// Unified Pure Data View for `Plan & Review` (`design.md` §6.2, `B-02`, `B-12`):
+/// Single-canvas database-backed planning & review views with no backing `.md`
+/// files required, across user-configurable cadences:
+/// - Daily, Weekly, Monthly, Quarterly, Yearly, and Future (`B-03`, `B-12`)
 ///
 /// Includes dynamic horizon threading (`QY-04`) across enabled cadences,
 /// editable/replaceable cadence templates (`B-11`), and a guided review/migration
@@ -145,344 +141,382 @@ class _HorizonsReviewScreenState extends ConsumerState<HorizonsReviewScreen> {
     final currentRelPath = CadenceFiles.relPathForCadence(activeCadence, now);
     final docs = docsAsync.value ?? const [];
     final allEntries = entriesAsync.value ?? const [];
-    final existsOnDisk = docs.any((d) => d.relPath == currentRelPath);
     final periodEntries = _entriesForCadencePeriod(
       cadence: activeCadence,
       currentRelPath: currentRelPath,
       now: now,
       allEntries: allEntries,
     );
+    final dataViewQueries = _dataViewQueriesForCadence(activeCadence);
     final bridgedHorizons = CadenceFiles.horizonLinksForCadence(
       activeCadence,
       now,
       workspace.enabledCadences,
     );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Top controls: cadence selector, horizon breadcrumbs & review buttons
-        ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.sizeOf(context).height * 0.45,
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+        // Top cadence selector + Templates (B-11) & Configure Cadences (B-12)
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final c in enabledList)
+                    ChoiceChip(
+                      visualDensity: VisualDensity.compact,
+                      label: Text(
+                        c.label,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      selected: activeCadence == c,
+                      onSelected: (_) {
+                        setState(() => _selectedCadence = c);
+                      },
+                    ),
+                  ActionChip(
+                    visualDensity: VisualDensity.compact,
+                    avatar: const Icon(
+                      Icons.auto_fix_high_outlined,
+                      size: 14,
+                    ),
+                    label: const Text(
+                      'Process Studio',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    onPressed: () {
+                      final initialRitual =
+                          RitualKind.primaryForCadence(
+                            activeCadence,
+                          ) ??
+                          RitualKind.weeklyReviewPlan;
+                      showProcessCustomizerDialog(
+                        context,
+                        initialRitual: initialRitual,
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              onPressed: () => showCadenceTemplatesDialog(
+                context,
+                initialCadence: activeCadence,
+              ),
+              icon: const Icon(Icons.description_outlined, size: 16),
+              label: const Text('Templates'),
+            ),
+            const SizedBox(width: 6),
+            OutlinedButton.icon(
+              onPressed: () => _openConfigureCadencesDialog(context),
+              icon: const Icon(Icons.tune, size: 16),
+              label: const Text('Cadences'),
+            ),
+          ],
+        ),
+
+        // Dynamic Horizon Threading Breadcrumbs (QY-04, B-12) + Start Review button
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              const Icon(Icons.account_tree_outlined, size: 15),
+              Text(
+                bridgedHorizons.isEmpty
+                    ? 'Horizon Threading:'
+                    : 'Horizon Threading (${bridgedHorizons.join(' ↔ ')}):',
+                style: Theme.of(context).textTheme.labelSmall,
+              ),
+              for (final c in enabledList.where((c) => c != CadenceKind.future))
+                ActionChip(
+                  visualDensity: VisualDensity.compact,
+                  backgroundColor: c == activeCadence
+                      ? Theme.of(context).colorScheme.primaryContainer
+                      : null,
+                  label: Text(
+                    CadenceFiles.relPathForCadence(c, now)
+                        .replaceAll('.md', '')
+                        .split('/')
+                        .last,
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                  onPressed: () => setState(() => _selectedCadence = c),
+                ),
+              OutlinedButton.icon(
+                onPressed: () => _openQuickAddToCadenceDialog(
+                  context,
+                  cadence: activeCadence,
+                  targetRelPath: currentRelPath,
+                  now: now,
+                ),
+                icon: const Icon(Icons.add, size: 16),
+                label: Text('Add to ${activeCadence.label}'),
+              ),
+              if (activeCadence == CadenceKind.daily) ...[
+                FilledButton.tonalIcon(
+                  onPressed: () => showPlanningReviewRitualSheet(
+                    context,
+                    ref,
+                    ritualKind: RitualKind.dailyMorningPlan,
+                  ),
+                  icon: const Icon(Icons.wb_sunny_outlined, size: 16),
+                  label: const Text('🌅 Morning Plan'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => showPlanningReviewRitualSheet(
+                    context,
+                    ref,
+                    ritualKind: RitualKind.dailyEveningShutdown,
+                  ),
+                  icon: const Icon(Icons.nights_stay_outlined, size: 16),
+                  label: const Text('🌇 Evening Shutdown'),
+                ),
+              ] else if (activeCadence != CadenceKind.future) ...[
+                FilledButton.icon(
+                  onPressed: () {
+                    final rk = RitualKind.primaryForCadence(activeCadence);
+                    if (rk != null) {
+                      showPlanningReviewRitualSheet(
+                        context,
+                        ref,
+                        ritualKind: rk,
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.explore_outlined, size: 16),
+                  label: Text('Guided ${activeCadence.label} Process'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    final rk = RitualKind.primaryForCadence(activeCadence);
+                    if (rk != null) {
+                      showPlanningReviewRitualSheet(
+                        context,
+                        ref,
+                        ritualKind: rk,
+                        initialDepthOverride: RitualDepthMode.minimal,
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.bolt_outlined, size: 16),
+                  label: Text('⚡ Express ${activeCadence.label}'),
+                ),
+              ],
+              if (activeCadence != CadenceKind.future)
+                FilledButton.tonalIcon(
+                  onPressed: () {
+                    showModalBottomSheet<void>(
+                      context: context,
+                      isScrollControlled: true,
+                      builder: (ctx) => _GuidedCadenceReviewModal(
+                        cadence: activeCadence,
+                        targetRelPath: currentRelPath,
+                        allEntries: allEntries,
+                        allDocs: docs,
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.fact_check_outlined, size: 16),
+                  label: Text('Start ${activeCadence.label} Review'),
+                ),
+            ],
           ),
-          child: SingleChildScrollView(
+        ),
+
+        // Pure Data View header (B-02)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 2, 4, 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.view_agenda_outlined, size: 16),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      '${activeCadence.label} Plan & Review · Pure Data View',
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(
+                activeCadence.description,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+
+        // Period Open Loops & Key Dates Shelf (B-02, B-03, D-19)
+        if (periodEntries.isNotEmpty)
+          Card(
+            margin: const EdgeInsets.symmetric(vertical: 4),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
               children: [
-                // Top cadence selector + Templates (B-11) & Configure Cadences (B-12)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Wrap(
-                          spacing: 6,
-                          runSpacing: 6,
-                          children: [
-                            for (final c in enabledList)
-                              ChoiceChip(
-                                visualDensity: VisualDensity.compact,
-                                label: Text(
-                                  c.label,
-                                  style: const TextStyle(fontSize: 12),
-                                ),
-                                selected: activeCadence == c,
-                                onSelected: (_) {
-                                  setState(() => _selectedCadence = c);
-                                },
-                              ),
-                            ActionChip(
-                              visualDensity: VisualDensity.compact,
-                              avatar: const Icon(
-                                Icons.auto_fix_high_outlined,
-                                size: 14,
-                              ),
-                              label: const Text(
-                                'Process Studio',
-                                style: TextStyle(fontSize: 12),
-                              ),
-                              onPressed: () {
-                                final initialRitual =
-                                    RitualKind.primaryForCadence(
-                                      activeCadence,
-                                    ) ??
-                                    RitualKind.weeklyReviewPlan;
-                                showProcessCustomizerDialog(
-                                  context,
-                                  initialRitual: initialRitual,
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      OutlinedButton.icon(
-                        onPressed: () => showCadenceTemplatesDialog(
-                          context,
-                          initialCadence: activeCadence,
-                        ),
-                        icon: const Icon(Icons.description_outlined, size: 16),
-                        label: const Text('Templates'),
-                      ),
-                      const SizedBox(width: 6),
-                      OutlinedButton.icon(
-                        onPressed: () => _openConfigureCadencesDialog(context),
-                        icon: const Icon(Icons.tune, size: 16),
-                        label: const Text('Cadences'),
-                      ),
-                    ],
+                ListTile(
+                  dense: true,
+                  leading: const Icon(Icons.playlist_add_check, size: 18),
+                  title: Text(
+                    '${activeCadence.label} Open Loops & Key Dates (${periodEntries.length})',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  trailing: IconButton(
+                    icon: Icon(
+                      _periodShelfExpanded
+                          ? Icons.expand_less
+                          : Icons.expand_more,
+                      size: 18,
+                    ),
+                    onPressed: () => setState(
+                      () => _periodShelfExpanded = !_periodShelfExpanded,
+                    ),
                   ),
                 ),
-
-                // Dynamic Horizon Threading Breadcrumbs (QY-04, B-12) + Start Review button
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      const Icon(Icons.account_tree_outlined, size: 15),
-                      Text(
-                        bridgedHorizons.isEmpty
-                            ? 'Horizon Threading:'
-                            : 'Horizon Threading (${bridgedHorizons.join(' ↔ ')}):',
-                        style: Theme.of(context).textTheme.labelSmall,
-                      ),
-                      for (final c in enabledList.where((c) => c != CadenceKind.future))
-                        ActionChip(
-                          visualDensity: VisualDensity.compact,
-                          backgroundColor: c == activeCadence
-                              ? Theme.of(context).colorScheme.primaryContainer
-                              : null,
-                          label: Text(
-                            CadenceFiles.relPathForCadence(c, now)
-                                .replaceAll('.md', '')
-                                .split('/')
-                                .last,
-                            style: const TextStyle(fontSize: 11),
-                          ),
-                          onPressed: () => setState(() => _selectedCadence = c),
-                        ),
-                      OutlinedButton.icon(
-                        onPressed: () => _openQuickAddToCadenceDialog(
-                          context,
-                          cadence: activeCadence,
-                          targetRelPath: currentRelPath,
-                          now: now,
-                        ),
-                        icon: const Icon(Icons.add, size: 16),
-                        label: Text('Add to ${activeCadence.label}'),
-                      ),
-                      if (activeCadence == CadenceKind.daily) ...[
-                        FilledButton.tonalIcon(
-                          onPressed: () => showPlanningReviewRitualSheet(
-                            context,
-                            ref,
-                            ritualKind: RitualKind.dailyMorningPlan,
-                          ),
-                          icon: const Icon(Icons.wb_sunny_outlined, size: 16),
-                          label: const Text('🌅 Morning Plan'),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: () => showPlanningReviewRitualSheet(
-                            context,
-                            ref,
-                            ritualKind: RitualKind.dailyEveningShutdown,
-                          ),
-                          icon: const Icon(Icons.nights_stay_outlined, size: 16),
-                          label: const Text('🌇 Evening Shutdown'),
-                        ),
-                      ] else if (activeCadence != CadenceKind.future) ...[
-                        FilledButton.icon(
-                          onPressed: () {
-                            final rk =
-                                RitualKind.primaryForCadence(activeCadence);
-                            if (rk != null) {
-                              showPlanningReviewRitualSheet(
-                                context,
-                                ref,
-                                ritualKind: rk,
-                              );
-                            }
-                          },
-                          icon: const Icon(Icons.explore_outlined, size: 16),
-                          label: Text('Guided ${activeCadence.label} Process'),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: () {
-                            final rk =
-                                RitualKind.primaryForCadence(activeCadence);
-                            if (rk != null) {
-                              showPlanningReviewRitualSheet(
-                                context,
-                                ref,
-                                ritualKind: rk,
-                                initialDepthOverride: RitualDepthMode.minimal,
-                              );
-                            }
-                          },
-                          icon: const Icon(Icons.bolt_outlined, size: 16),
-                          label: Text('⚡ Express ${activeCadence.label}'),
-                        ),
-                      ],
-                      if (activeCadence != CadenceKind.future)
-                        FilledButton.tonalIcon(
-                          onPressed: () {
-                            showModalBottomSheet<void>(
-                              context: context,
-                              isScrollControlled: true,
-                              builder: (ctx) => _GuidedCadenceReviewModal(
-                                cadence: activeCadence,
-                                targetRelPath: currentRelPath,
-                                allEntries: allEntries,
-                                allDocs: docs,
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.fact_check_outlined, size: 16),
-                          label: Text('Start ${activeCadence.label} Review'),
-                        ),
-                    ],
-                  ),
-                ),
-
-                // Period Open Loops & Key Dates Shelf (B-02, B-03, D-19)
-                if (periodEntries.isNotEmpty)
-                  Card(
-                    margin: const EdgeInsets.fromLTRB(12, 6, 12, 2),
+                if (_periodShelfExpanded)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        ListTile(
-                          dense: true,
-                          leading:
-                              const Icon(Icons.playlist_add_check, size: 18),
-                          title: Text(
-                            '${activeCadence.label} Open Loops & Key Dates (${periodEntries.length})',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          trailing: IconButton(
-                            icon: Icon(
-                              _periodShelfExpanded
-                                  ? Icons.expand_less
-                                  : Icons.expand_more,
-                              size: 18,
-                            ),
-                            onPressed: () => setState(
-                              () =>
-                                  _periodShelfExpanded = !_periodShelfExpanded,
-                            ),
-                          ),
-                        ),
-                        if (_periodShelfExpanded)
-                          ConstrainedBox(
-                            constraints: const BoxConstraints(maxHeight: 160),
-                            child: ListView.builder(
-                              shrinkWrap: true,
-                              padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-                              itemCount: periodEntries.length,
-                              itemBuilder: (context, index) => InPlaceTaskTile(
-                                item: periodEntries[index],
-                                dense: true,
-                              ),
-                            ),
-                          ),
+                        for (final entry in periodEntries)
+                          InPlaceTaskTile(item: entry, dense: true),
                       ],
                     ),
                   ),
               ],
             ),
           ),
-        ),
-        const Divider(height: 1),
 
-        // Planning page editor (created lazily on first use — B-09, B-11, D-11)
-        Expanded(
-          child: existsOnDisk
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                      child: Text(
-                        '${activeCadence.label} Planning Surface ($currentRelPath)',
-                        style: Theme.of(context).textTheme.labelLarge,
-                      ),
-                    ),
-                    Expanded(
-                      child: EmbeddedMarkdownEditor(relPath: currentRelPath),
-                    ),
-                  ],
-                )
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.explore_outlined, size: 40),
-                        const SizedBox(height: 12),
-                        Text(
-                          '${activeCadence.label} Log ($currentRelPath)',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          activeCadence.description,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        const SizedBox(height: 16),
-                        Wrap(
-                          spacing: 12,
-                          runSpacing: 8,
-                          alignment: WrapAlignment.center,
-                          children: [
-                            FilledButton.icon(
-                              onPressed: () async {
-                                await ref
-                                    .read(vaultMutationProvider)
-                                    .ensureCadenceDocument(activeCadence, now);
-                              },
-                              icon: const Icon(Icons.add),
-                              label: Text('Create $currentRelPath'),
-                            ),
-                            if (activeCadence != CadenceKind.future)
-                              OutlinedButton.icon(
-                                onPressed: () {
-                                  showModalBottomSheet<void>(
-                                    context: context,
-                                    isScrollControlled: true,
-                                    builder: (ctx) => _GuidedCadenceReviewModal(
-                                      cadence: activeCadence,
-                                      targetRelPath: currentRelPath,
-                                      allEntries: allEntries,
-                                      allDocs: docs,
-                                    ),
-                                  );
-                                },
-                                icon: const Icon(Icons.play_arrow),
-                                label: Text(
-                                  'Start Guided ${activeCadence.label} Review',
-                                ),
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+        // Pure database-driven Data View cards (B-02)
+        for (final query in dataViewQueries)
+          CitrineDataViewCard(
+            query: query,
+            referenceDate: now,
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<CitrineDataViewQuery> _dataViewQueriesForCadence(CadenceKind cadence) {
+    return switch (cadence) {
+      CadenceKind.daily => const [
+        CitrineDataViewQuery(
+          view: CitrineDataViewPreset.topFocus,
+          title: 'Top Focus',
+        ),
+        CitrineDataViewQuery(
+          view: CitrineDataViewPreset.dueToday,
+          includeOverdue: true,
+          title: 'Due Today & Overdue',
+        ),
+        CitrineDataViewQuery(
+          view: CitrineDataViewPreset.events,
+          filter: 'today',
+          title: 'Today\'s Schedule',
+        ),
+        CitrineDataViewQuery(
+          view: CitrineDataViewPreset.tasks,
+          filter: 'completed-today',
+          status: 'completed',
+          title: 'Completed Today',
         ),
       ],
-    );
+      CadenceKind.weekly => const [
+        CitrineDataViewQuery(
+          view: CitrineDataViewPreset.events,
+          filter: 'this-week',
+          title: 'This Week\'s Schedule',
+        ),
+        CitrineDataViewQuery(
+          view: CitrineDataViewPreset.dueThisWeek,
+          includeOverdue: true,
+          title: 'Tasks Due This Week & Overdue',
+        ),
+        CitrineDataViewQuery(
+          view: CitrineDataViewPreset.projects,
+          filter: 'active',
+          title: 'Active Projects',
+        ),
+        CitrineDataViewQuery(
+          view: CitrineDataViewPreset.tasks,
+          filter: 'completed-this-week',
+          status: 'completed',
+          title: 'Completed This Week',
+        ),
+      ],
+      CadenceKind.monthly => const [
+        CitrineDataViewQuery(
+          view: CitrineDataViewPreset.events,
+          filter: 'this-month',
+          title: 'This Month\'s Key Dates',
+        ),
+        CitrineDataViewQuery(
+          view: CitrineDataViewPreset.tasks,
+          filter: 'due-this-month',
+          includeOverdue: true,
+          title: 'Tasks Due This Month & Overdue',
+        ),
+        CitrineDataViewQuery(
+          view: CitrineDataViewPreset.projects,
+          filter: 'active',
+          title: 'Active Projects',
+        ),
+      ],
+      CadenceKind.quarterly => const [
+        CitrineDataViewQuery(
+          view: CitrineDataViewPreset.projects,
+          filter: 'active',
+          title: 'Active Projects & Milestones',
+        ),
+        CitrineDataViewQuery(
+          view: CitrineDataViewPreset.tasks,
+          filter: 'open',
+          title: 'Open Tasks',
+        ),
+      ],
+      CadenceKind.yearly => const [
+        CitrineDataViewQuery(
+          view: CitrineDataViewPreset.projects,
+          filter: 'active',
+          title: 'Active Projects & Annual Goals',
+        ),
+        CitrineDataViewQuery(
+          view: CitrineDataViewPreset.events,
+          filter: 'upcoming',
+          title: 'Upcoming Key Dates',
+        ),
+      ],
+      CadenceKind.future => const [
+        CitrineDataViewQuery(
+          view: CitrineDataViewPreset.events,
+          filter: 'upcoming',
+          title: 'Upcoming Scheduled Dates',
+        ),
+        CitrineDataViewQuery(
+          view: CitrineDataViewPreset.tasks,
+          filter: 'open',
+          title: 'Future & Undated Tasks',
+        ),
+      ],
+    };
   }
 
   void _openConfigureCadencesDialog(BuildContext context) {

@@ -155,6 +155,7 @@ class VaultMutationService {
 
   Future<void> _notifyFileUpdated(AppServices services, String relPath) async {
     await services.indexService.refreshFile(relPath);
+    if (!_ref.mounted) return;
     _ref.invalidate(documentRawTextProvider(relPath));
   }
 

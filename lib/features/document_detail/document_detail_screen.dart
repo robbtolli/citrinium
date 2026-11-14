@@ -364,6 +364,7 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
                                                       ? widget.document.title
                                                       : widget.document.relPath,
                                                 );
+                                            if (!mounted) return;
                                             ref.invalidate(
                                               unlinkedMentionsProvider(
                                                 widget.document,

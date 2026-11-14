@@ -19,15 +19,55 @@ import '../../shared/widgets/planning_review_ritual_sheet.dart';
 /// - Collapsible **Today's Focus Shelf** (Hard events + Top 3 pinned tasks +
 ///   Habits `D-17`)
 /// - Live **Daily Log** (`daily/YYYY-MM-DD.md`, created lazily on first use).
-class TodayCombinedScreen extends ConsumerWidget {
+class TodayCombinedScreen extends ConsumerStatefulWidget {
   const TodayCombinedScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TodayCombinedScreen> createState() =>
+      _TodayCombinedScreenState();
+}
+
+class _TodayCombinedScreenState extends ConsumerState<TodayCombinedScreen> {
+  DateTime? _selectedDate;
+
+  static bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  void _setSelectedDate(DateTime target, DateTime today) {
+    final normalized = DateTime(target.year, target.month, target.day);
+    setState(() {
+      _selectedDate = _isSameDay(normalized, today) ? null : normalized;
+    });
+  }
+
+  Future<void> _pickDate(
+    BuildContext context,
+    DateTime activeDate,
+    DateTime today,
+  ) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: activeDate,
+      firstDate: DateTime(today.year - 10, 1, 1),
+      lastDate: DateTime(today.year + 10, 12, 31),
+    );
+    if (picked != null && mounted) {
+      _setSelectedDate(picked, today);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final clock = ref.watch(appClockProvider);
     final now = clock.now();
-    final todayIso = NlDateParser.formatIsoDate(now);
-    final todayRelPath = CadenceFiles.dailyRelPath(now);
+    final today = clock.today();
+    final activeDate = _selectedDate ?? today;
+    final isViewingToday = _isSameDay(activeDate, today);
+
+    final todayIso = NlDateParser.formatIsoDate(today);
+    final todayRelPath = CadenceFiles.dailyRelPath(today);
+    final activeIso = NlDateParser.formatIsoDate(activeDate);
+    final activeRelPath = CadenceFiles.dailyRelPath(activeDate);
 
     final docsAsync = ref.watch(documentListProvider);
     final entriesAsync = ref.watch(allEntriesWithDocumentsProvider);
@@ -36,7 +76,7 @@ class TodayCombinedScreen extends ConsumerWidget {
     final docs = docsAsync.value ?? const [];
     final allEntries = entriesAsync.value ?? const [];
 
-    final todayDoc = docs.where((d) => d.relPath == todayRelPath).firstOrNull;
+    final activeDoc = docs.where((d) => d.relPath == activeRelPath).firstOrNull;
 
     // 1. Identify open tasks from past Daily Logs (`daily/*.md` where relPath < todayRelPath)
     // and open tasks in Today's Daily Log for Guided Daily Review / Migration (`B-06`, `B-07`, `R-02`)
@@ -235,38 +275,45 @@ class TodayCombinedScreen extends ConsumerWidget {
       ],
     );
 
-    if (todayDoc != null) {
-      final maxTopHeight = MediaQuery.of(context).size.height * 0.42;
-      return Column(
-        children: [
-          Flexible(
-            flex: 0,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxHeight: maxTopHeight),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-                child: topSection,
-              ),
-            ),
+    return Column(
+      children: [
+        _DateNavigationBar(
+          activeDate: activeDate,
+          activeIso: activeIso,
+          isViewingToday: isViewingToday,
+          onPreviousDay: () => _setSelectedDate(
+            activeDate.subtract(const Duration(days: 1)),
+            today,
           ),
-          const Divider(height: 1),
-          Expanded(
+          onNextDay: () => _setSelectedDate(
+            activeDate.add(const Duration(days: 1)),
+            today,
+          ),
+          onPickDate: () => _pickDate(context, activeDate, today),
+          onBackToToday: () => setState(() => _selectedDate = null),
+        ),
+        const Divider(height: 1),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+              if (isViewingToday) topSection,
+              if (activeDoc != null) ...[
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+                  padding: const EdgeInsets.fromLTRB(4, 6, 4, 4),
                   child: Row(
                     children: [
                       const Icon(Icons.edit_calendar_outlined, size: 16),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          'Daily Log ($todayRelPath)',
+                          'Daily Log ($activeRelPath)',
                           style: Theme.of(context).textTheme.labelLarge,
                         ),
                       ),
-                      if (dailyReviewCandidates.isNotEmpty)
+                      if (isViewingToday && dailyReviewCandidates.isNotEmpty)
                         TextButton.icon(
                           onPressed: () {
                             showModalBottomSheet<void>(
@@ -286,81 +333,177 @@ class TodayCombinedScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
-                Expanded(
-                  child: EmbeddedMarkdownEditor(relPath: todayRelPath),
+                EmbeddedMarkdownEditor(
+                  key: ValueKey(activeRelPath),
+                  relPath: activeRelPath,
+                  referenceDate: activeDate,
+                  shrinkWrap: true,
                 ),
-              ],
-            ),
-          ),
-        ],
-      );
-    }
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          topSection,
-          Card(
-            margin: const EdgeInsets.symmetric(vertical: 4),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              child: Row(
-                children: [
-                  const Icon(Icons.wb_twilight, size: 24),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Today\'s Daily Log ($todayRelPath)',
-                      style: Theme.of(context).textTheme.titleSmall,
+              ] else ...[
+                Card(
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.wb_twilight, size: 24),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                isViewingToday
+                                    ? 'Today\'s Daily Log ($activeRelPath)'
+                                    : 'No daily note recorded for $activeIso',
+                                style: Theme.of(context).textTheme.titleSmall,
+                              ),
+                              if (!isViewingToday)
+                                Text(
+                                  activeRelPath,
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton.icon(
+                          onPressed: () async {
+                            await ref
+                                .read(vaultMutationProvider)
+                                .ensureCadenceDocument(
+                                  CadenceKind.daily,
+                                  activeDate,
+                                  includeStarterTutorial:
+                                      isViewingToday && docs.isEmpty,
+                                );
+                          },
+                          icon: const Icon(Icons.add, size: 18),
+                          label: Text(
+                            isViewingToday
+                                ? 'Start Today\'s Daily Log'
+                                : 'Create Note for This Day',
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  FilledButton.icon(
-                    onPressed: () async {
-                      await ref
-                          .read(vaultMutationProvider)
-                          .ensureCadenceDocument(
-                            CadenceKind.daily,
-                            now,
-                            includeStarterTutorial: docs.isEmpty,
-                          );
-                    },
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Start Today\'s Daily Log'),
+                ),
+              ],
+              if (docs.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Text(
+                    'VAULT NOTES & LOGS',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ],
-              ),
+                ),
+                for (final document in docs)
+                  ListTile(
+                    dense: true,
+                    title: Text(
+                      document.title.isEmpty
+                          ? document.relPath
+                          : document.title,
+                    ),
+                    subtitle: Text(
+                      '${document.relPath} · ${document.docType}',
+                    ),
+                  onTap: () => context.push(
+                    '/documents/${document.id}',
+                    extra: document,
+                  ),
+                ),
+              ],
+            ],
             ),
           ),
-          if (docs.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Text(
-                'VAULT NOTES & LOGS',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
+        ),
+      ],
+    );
+  }
+}
+
+class _DateNavigationBar extends StatelessWidget {
+  const _DateNavigationBar({
+    required this.activeDate,
+    required this.activeIso,
+    required this.isViewingToday,
+    required this.onPreviousDay,
+    required this.onNextDay,
+    required this.onPickDate,
+    required this.onBackToToday,
+  });
+
+  final DateTime activeDate;
+  final String activeIso;
+  final bool isViewingToday;
+  final VoidCallback onPreviousDay;
+  final VoidCallback onNextDay;
+  final VoidCallback onPickDate;
+  final VoidCallback onBackToToday;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Material(
+      color: colorScheme.surfaceContainerLow,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Row(
+          children: [
+            IconButton(
+              key: const Key('today-date-prev'),
+              icon: const Icon(Icons.chevron_left),
+              tooltip: 'Previous Day',
+              onPressed: onPreviousDay,
+            ),
+            InkWell(
+              key: const Key('today-date-picker'),
+              borderRadius: BorderRadius.circular(8),
+              onTap: onPickDate,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.calendar_today_outlined, size: 16),
+                    const SizedBox(width: 6),
+                    Text(
+                      isViewingToday ? 'Today · $activeIso' : activeIso,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-            for (final document in docs)
-              ListTile(
-                dense: true,
-                title: Text(
-                  document.title.isEmpty ? document.relPath : document.title,
-                ),
-                subtitle: Text(
-                  '${document.relPath} · ${document.docType}',
-                ),
-                onTap: () => context.push(
-                  '/documents/${document.id}',
-                  extra: document,
-                ),
+            IconButton(
+              key: const Key('today-date-next'),
+              icon: const Icon(Icons.chevron_right),
+              tooltip: 'Next Day',
+              onPressed: onNextDay,
+            ),
+            const Spacer(),
+            if (!isViewingToday)
+              TextButton.icon(
+                key: const Key('today-back-to-today'),
+                onPressed: onBackToToday,
+                icon: const Icon(Icons.today, size: 16),
+                label: const Text('Back to Today'),
               ),
           ],
-        ],
+        ),
       ),
     );
   }

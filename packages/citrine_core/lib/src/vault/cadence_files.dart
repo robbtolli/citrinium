@@ -330,7 +330,16 @@ class CadenceFiles {
               'citrine:\n'
               '  type: dailyLog\n'
               '---\n'
-              '# Daily Log — $y-$m-$d\n\n'
+              '# Daily Note — $y-$m-$d\n\n'
+              '```citrine\n'
+              'view: top-focus\n'
+              '```\n\n'
+              '```citrine\n'
+              'view: tasks\n'
+              'filter: due-today\n'
+              'include_overdue: true\n'
+              '```\n\n'
+              '## Notes & Tasks\n'
               '- [ ] Tap this checkbox or click this task to edit it in-place @computer\n'
               '- [ ] Try Quick Capture below with a phrase like "tomorrow 5pm" @home\n'
               '- – Tip: Start lines with "- [ ]" for tasks, "- ○" for events, or "- –" for notes\n';
@@ -339,7 +348,16 @@ class CadenceFiles {
             'citrine:\n'
             '  type: dailyLog\n'
             '---\n'
-            '# Daily Log — $y-$m-$d\n\n';
+            '# Daily Note — $y-$m-$d\n\n'
+            '```citrine\n'
+            'view: top-focus\n'
+            '```\n\n'
+            '```citrine\n'
+            'view: tasks\n'
+            'filter: due-today\n'
+            'include_overdue: true\n'
+            '```\n\n'
+            '## Notes & Tasks\n';
 
       case CadenceKind.weekly:
         return '---\n'

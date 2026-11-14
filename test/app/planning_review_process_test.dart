@@ -140,8 +140,8 @@ void main() {
         await tester.ensureVisible(disableBtn);
         await tester.pump();
         await tester.tap(disableBtn);
+        await Future<void>.delayed(const Duration(milliseconds: 150));
         await tester.pump();
-        await tester.pump(const Duration(milliseconds: 300));
         expect(find.text('Disable Guidance'), findsNothing);
       });
     },

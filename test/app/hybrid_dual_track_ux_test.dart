@@ -103,7 +103,10 @@ void main() {
         // 2. Navigate to Actions & Inbox pillar and edit a task in-place (D-19)
         // without navigating away to the containing note!
         await tester.tap(find.text('Actions & Inbox'));
-        await tester.pumpAndSettle();
+        await _waitUntil(
+          tester,
+          () => find.text('Send summary @computer').evaluate().isNotEmpty,
+        );
 
         expect(find.text('Send summary @computer'), findsOneWidget);
 
@@ -154,7 +157,10 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('Weekly'), findsWidgets);
-        expect(find.textContaining('weekly/'), findsWidgets);
+        expect(
+          find.text('Weekly Plan & Review · Pure Data View'),
+          findsOneWidget,
+        );
       });
     },
   );
@@ -187,7 +193,10 @@ void main() {
         );
 
         await tester.tap(find.text('Actions & Inbox'));
-        await tester.pumpAndSettle();
+        await _waitUntil(
+          tester,
+          () => find.text('Send summary @computer').evaluate().isNotEmpty,
+        );
 
         // Open Inbox tab and launch Clarify Deck (G-01)
         await tester.tap(find.textContaining('📥 Inbox'));
@@ -378,7 +387,10 @@ void main() {
         );
 
         await tester.tap(find.text('Actions & Inbox'));
-        await tester.pumpAndSettle();
+        await _waitUntil(
+          tester,
+          () => find.text('Send summary @computer').evaluate().isNotEmpty,
+        );
 
         // Expand "Send summary @computer" in-place editor
         await tester.tap(find.text('Send summary @computer'));
@@ -478,10 +490,13 @@ void main() {
 
         // Today's Focus Shelf has the pre-pinned tutorial task
         expect(find.textContaining('Today\'s Focus Shelf (1/3 Top Focus)'), findsOneWidget);
-        expect(find.textContaining('Tap this task to edit it in-place'), findsOneWidget);
+        expect(find.textContaining('Tap this task to edit it in-place'), findsWidgets);
 
         // Getting Started checklist banner is visible
-        expect(find.textContaining('Getting Started with Citrine'), findsOneWidget);
+        expect(
+          find.textContaining('Getting Started with Citrine (0/5)'),
+          findsOneWidget,
+        );
 
         // Tap Field Guide button in banner
         await tester.tap(find.text('Field Guide'));
@@ -653,6 +668,7 @@ void main() {
         // Tap Weekly Review button
         final reviewButton = find.text('Start Weekly Review').first;
         await tester.ensureVisible(reviewButton);
+        await tester.pumpAndSettle();
         await tester.tap(reviewButton);
         await tester.pumpAndSettle();
 

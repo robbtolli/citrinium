@@ -7,6 +7,7 @@
 /// of a document is exactly its `rawText`.
 library;
 
+export 'src/domain/citrine_data_view.dart';
 export 'src/domain/entry_hierarchy.dart';
 export 'src/domain/planning_review_process.dart';
 export 'src/domain/recurrence_engine.dart';

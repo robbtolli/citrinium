@@ -4,28 +4,32 @@ import 'package:citrine_core/citrine_core.dart';
 import 'package:flutter/material.dart' hide Decoration;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/clock/app_clock.dart';
 import '../../core/editor/editor_save_pipeline.dart';
 import '../../core/editor/live_preview_controller.dart';
 import '../../core/editor/live_preview_editor.dart';
 import '../../core/index/app_services.dart';
 import '../../core/index/index_providers.dart';
+import 'citrine_data_view_card.dart';
 
 /// Mounts M6's [`LivePreviewEditor`](../../core/editor/live_preview_editor.dart)
-/// bound to [relPath] on disk, with debounced atomic saves and external-file
-/// change reconciliation.
-///
-/// Used by Today's Combined View (`daily/YYYY-MM-DD.md`), Inbox (`inbox.md`),
-/// and all enabled Horizons (`weekly/`, `monthly/`, `quarterly/`, `yearly/`,
-/// `future.md`).
+/// bound to [relPath] on disk, with debounced atomic saves, external-file
+/// change reconciliation, and inline ```` ```citrine ```` data view rendering.
 class EmbeddedMarkdownEditor extends ConsumerStatefulWidget {
   const EmbeddedMarkdownEditor({
     required this.relPath,
     this.padding = const EdgeInsets.all(16.0),
+    this.referenceDate,
+    this.shrinkWrap = false,
+    this.showDataViewToolbar = true,
     super.key,
   });
 
   final String relPath;
   final EdgeInsets padding;
+  final DateTime? referenceDate;
+  final bool shrinkWrap;
+  final bool showDataViewToolbar;
 
   @override
   ConsumerState<EmbeddedMarkdownEditor> createState() =>
@@ -135,8 +139,22 @@ class _EmbeddedMarkdownEditorState
           listenable: Listenable.merge([controller, pipeline]),
           builder: (context, _) {
             final conflict = pipeline.conflictState;
+            final refDate =
+                widget.referenceDate ?? ref.watch(appClockProvider).today();
+            final dataViewBlocks = findCitrineDataViewBlocks(controller.text);
+
+            final editorWidget = LivePreviewEditor(
+              controller: controller,
+              noteTitles: noteTitles,
+              tagNames: tagNames,
+              contextNames: contextNames,
+              padding: widget.padding,
+              onSaveRequested: () => pipeline.saveNow(),
+            );
 
             return Column(
+              mainAxisSize: widget.shrinkWrap ? MainAxisSize.min : MainAxisSize.max,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (conflict != null)
                   Container(
@@ -183,28 +201,104 @@ class _EmbeddedMarkdownEditorState
                       ],
                     ),
                   ),
-                if (pipeline.isDirty)
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 12, top: 4),
-                      child: TextButton.icon(
-                        onPressed: () => pipeline.saveNow(),
-                        icon: const Icon(Icons.save_outlined, size: 16),
-                        label: const Text('Save now'),
-                      ),
+                if (widget.showDataViewToolbar || pipeline.isDirty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
+                    child: Row(
+                      children: [
+                        if (widget.showDataViewToolbar)
+                          TextButton.icon(
+                            key: const Key('editor-insert-data-view'),
+                            onPressed: () async {
+                              final query =
+                                  await showCitrineDataViewPickerDialog(
+                                    context,
+                                  );
+                              if (query == null) return;
+                              final fence = query.toMarkdownFence();
+                              final text = controller.text;
+                              final sel = controller.selection;
+                              final insertAt = sel.isValid
+                                  ? sel.baseOffset.clamp(0, text.length)
+                                  : text.length;
+                              final prefix =
+                                  (insertAt > 0 && text[insertAt - 1] != '\n')
+                                  ? '\n\n'
+                                  : '';
+                              final suffix = '\n\n';
+                              final updated = text.replaceRange(
+                                insertAt,
+                                insertAt,
+                                '$prefix$fence$suffix',
+                              );
+                              controller.value = TextEditingValue(
+                                text: updated,
+                                selection: TextSelection.collapsed(
+                                  offset:
+                                      insertAt +
+                                      prefix.length +
+                                      fence.length +
+                                      suffix.length,
+                                ),
+                              );
+                            },
+                            icon: const Icon(
+                              Icons.view_agenda_outlined,
+                              size: 16,
+                            ),
+                            label: const Text('Insert Data View'),
+                          ),
+                        const Spacer(),
+                        if (pipeline.isDirty)
+                          TextButton.icon(
+                            onPressed: () => pipeline.saveNow(),
+                            icon: const Icon(Icons.save_outlined, size: 16),
+                            label: const Text('Save now'),
+                          ),
+                      ],
                     ),
                   ),
-                Expanded(
-                  child: LivePreviewEditor(
-                    controller: controller,
-                    noteTitles: noteTitles,
-                    tagNames: tagNames,
-                    contextNames: contextNames,
-                    padding: widget.padding,
-                    onSaveRequested: () => pipeline.saveNow(),
+                if (dataViewBlocks.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Column(
+                      children: [
+                        for (final block in dataViewBlocks)
+                          CitrineDataViewCard(
+                            query: block.query,
+                            referenceDate: refDate,
+                            onEditBlock: () async {
+                              final updatedQuery =
+                                  await showCitrineDataViewPickerDialog(
+                                    context,
+                                    initialQuery: block.query,
+                                  );
+                              if (updatedQuery == null) return;
+                              final updatedFence = updatedQuery
+                                  .toMarkdownFence();
+                              final text = controller.text;
+                              if (block.endOffset <= text.length) {
+                                final newText = text.replaceRange(
+                                  block.startOffset,
+                                  block.endOffset,
+                                  updatedFence,
+                                );
+                                controller.updateTextPreservingSelection(
+                                  newText,
+                                );
+                              }
+                            },
+                          ),
+                      ],
+                    ),
                   ),
-                ),
+                if (widget.shrinkWrap)
+                  editorWidget
+                else
+                  Expanded(child: editorWidget),
               ],
             );
           },
