@@ -6,6 +6,7 @@ import '../../core/index/index_providers.dart';
 import '../../core/workspace/workspace_state.dart';
 import '../../shared/widgets/embedded_markdown_editor.dart';
 import '../../shared/widgets/in_place_task_tile.dart';
+import '../../shared/widgets/planning_review_ritual_sheet.dart';
 
 /// Pillar 3 of the Hybrid Dual-Track UX (`design.md` §6.2):
 /// User-configurable planning & review cadences (`B-12`):
@@ -192,6 +193,28 @@ class _HorizonsReviewScreenState extends ConsumerState<HorizonsReviewScreen> {
                                   setState(() => _selectedCadence = c);
                                 },
                               ),
+                            ActionChip(
+                              visualDensity: VisualDensity.compact,
+                              avatar: const Icon(
+                                Icons.auto_fix_high_outlined,
+                                size: 14,
+                              ),
+                              label: const Text(
+                                'Process Studio',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                              onPressed: () {
+                                final initialRitual =
+                                    RitualKind.primaryForCadence(
+                                      activeCadence,
+                                    ) ??
+                                    RitualKind.weeklyReviewPlan;
+                                showProcessCustomizerDialog(
+                                  context,
+                                  initialRitual: initialRitual,
+                                );
+                              },
+                            ),
                           ],
                         ),
                       ),
@@ -254,6 +277,58 @@ class _HorizonsReviewScreenState extends ConsumerState<HorizonsReviewScreen> {
                         icon: const Icon(Icons.add, size: 16),
                         label: Text('Add to ${activeCadence.label}'),
                       ),
+                      if (activeCadence == CadenceKind.daily) ...[
+                        FilledButton.tonalIcon(
+                          onPressed: () => showPlanningReviewRitualSheet(
+                            context,
+                            ref,
+                            ritualKind: RitualKind.dailyMorningPlan,
+                          ),
+                          icon: const Icon(Icons.wb_sunny_outlined, size: 16),
+                          label: const Text('🌅 Morning Plan'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () => showPlanningReviewRitualSheet(
+                            context,
+                            ref,
+                            ritualKind: RitualKind.dailyEveningShutdown,
+                          ),
+                          icon: const Icon(Icons.nights_stay_outlined, size: 16),
+                          label: const Text('🌇 Evening Shutdown'),
+                        ),
+                      ] else if (activeCadence != CadenceKind.future) ...[
+                        FilledButton.icon(
+                          onPressed: () {
+                            final rk =
+                                RitualKind.primaryForCadence(activeCadence);
+                            if (rk != null) {
+                              showPlanningReviewRitualSheet(
+                                context,
+                                ref,
+                                ritualKind: rk,
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.explore_outlined, size: 16),
+                          label: Text('Guided ${activeCadence.label} Process'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            final rk =
+                                RitualKind.primaryForCadence(activeCadence);
+                            if (rk != null) {
+                              showPlanningReviewRitualSheet(
+                                context,
+                                ref,
+                                ritualKind: rk,
+                                initialDepthOverride: RitualDepthMode.minimal,
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.bolt_outlined, size: 16),
+                          label: Text('⚡ Express ${activeCadence.label}'),
+                        ),
+                      ],
                       if (activeCadence != CadenceKind.future)
                         FilledButton.tonalIcon(
                           onPressed: () {

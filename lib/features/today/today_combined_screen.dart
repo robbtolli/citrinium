@@ -8,6 +8,7 @@ import '../../core/workspace/workspace_state.dart';
 import '../../shared/widgets/citrine_help_sheet.dart';
 import '../../shared/widgets/embedded_markdown_editor.dart';
 import '../../shared/widgets/in_place_task_tile.dart';
+import '../../shared/widgets/planning_review_ritual_sheet.dart';
 
 /// Default Home surface in the Hybrid Dual-Track UX (`design.md` §6.2, `B-01`,
 /// `E-02`, `A-08`, `B-09`):
@@ -121,6 +122,9 @@ class TodayCombinedScreen extends ConsumerWidget {
             todayRelPath: todayRelPath,
           ),
 
+        // Daily Bookends (Morning Plan + Evening Shutdown) & Progressive Guidance Bar
+        _DailyBookendsAndGuidanceBar(todayIso: todayIso),
+
         // Collapsible Today's Focus Shelf (E-02, G-05, D-17)
         Card(
           margin: const EdgeInsets.symmetric(vertical: 4),
@@ -131,7 +135,9 @@ class TodayCombinedScreen extends ConsumerWidget {
                 dense: true,
                 leading: const Icon(Icons.wb_sunny_outlined),
                 title: Text(
-                  'Today\'s Focus Shelf (${pinnedTasks.length}/3 Top Focus)',
+                  workspace.isRuleOfOneOn(todayIso)
+                      ? 'Today\'s Focus Shelf (${pinnedTasks.length}/1 · 🛟 Rule of 1 Floor Day)'
+                      : 'Today\'s Focus Shelf (${pinnedTasks.length}/3 Top Focus)',
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 subtitle: Text(
@@ -868,3 +874,205 @@ class _OnboardingChecklistBannerState
     );
   }
 }
+
+/// Calm Daily Bookends bar (`🌅 Morning Plan` + `🌇 Evening Shutdown`) paired
+/// with Citrine's progressive learning stage indicator (`A-06`, `P-07`) and a
+/// 1-click "Disable Guidance / Customize Process" affordance.
+class _DailyBookendsAndGuidanceBar extends ConsumerWidget {
+  const _DailyBookendsAndGuidanceBar({required this.todayIso});
+
+  final String todayIso;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final workspace = ref.watch(workspaceStateProvider);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    final morningDone = workspace.isMorningPlanCompletedOn(todayIso);
+    final shutdownDone = workspace.isShutdownCompletedOn(todayIso);
+    final ruleOfOne = workspace.isRuleOfOneOn(todayIso);
+
+    // Progressive stage visibility:
+    // - If guidance is disabled, all bookends & horizons are visible without coaching banners.
+    // - If guidance is enabled:
+    //   Stage 1 focuses on Morning Plan;
+    //   Stage 2+ highlights Evening Shutdown;
+    //   Stage 3+ surfaces a contextual Weekly Review chip;
+    //   Stage 4 surfaces Monthly/Quarterly/Yearly readiness.
+    final showEveningBookend = !workspace.guidanceEnabled ||
+        workspace.learningStage.indexOrder >=
+            LearningStage.stage2EveningShutdown.indexOrder ||
+        morningDone;
+    final showWeeklyChip = !workspace.guidanceEnabled ||
+        workspace.learningStage.indexOrder >=
+            LearningStage.stage3WeeklyReview.indexOrder;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.compass_calibration_outlined, size: 18),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    workspace.guidanceEnabled
+                        ? 'Daily Bookends · ${workspace.learningStage.title}'
+                        : 'Daily Bookends & Planning Rituals',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  onPressed: () => showProcessCustomizerDialog(context),
+                  icon: const Icon(Icons.tune, size: 15),
+                  label: Text(
+                    workspace.guidanceEnabled
+                        ? 'Customize / Own Process'
+                        : 'Process Studio',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+            if (workspace.guidanceEnabled) ...[
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        workspace.learningStage.nextHint,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontSize: 11,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                      ),
+                      onPressed: () {
+                        ref
+                            .read(workspaceStateProvider.notifier)
+                            .setGuidanceEnabled(false);
+                      },
+                      child: const Text(
+                        'Disable Guidance',
+                        style: TextStyle(fontSize: 11),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                FilledButton.tonalIcon(
+                  onPressed: () {
+                    showPlanningReviewRitualSheet(
+                      context,
+                      ref,
+                      ritualKind: RitualKind.dailyMorningPlan,
+                    );
+                  },
+                  icon: Icon(
+                    morningDone ? Icons.check_circle : Icons.wb_sunny_outlined,
+                    size: 16,
+                  ),
+                  label: Text(
+                    morningDone ? '🌅 Morning Plan ✓' : '🌅 Morning Plan',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+                if (showEveningBookend)
+                  FilledButton.tonalIcon(
+                    onPressed: () {
+                      showPlanningReviewRitualSheet(
+                        context,
+                        ref,
+                        ritualKind: RitualKind.dailyEveningShutdown,
+                      );
+                    },
+                    icon: Icon(
+                      shutdownDone
+                          ? Icons.check_circle
+                          : Icons.nights_stay_outlined,
+                      size: 16,
+                    ),
+                    label: Text(
+                      shutdownDone
+                          ? '🌇 Evening Shutdown ✓'
+                          : '🌇 Evening Shutdown',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ActionChip(
+                  visualDensity: VisualDensity.compact,
+                  avatar: const Icon(Icons.bolt, size: 15),
+                  label: const Text(
+                    '⚡ 2m Express Plan',
+                    style: TextStyle(fontSize: 11),
+                  ),
+                  onPressed: () {
+                    showPlanningReviewRitualSheet(
+                      context,
+                      ref,
+                      ritualKind: RitualKind.dailyMorningPlan,
+                      initialDepthOverride: RitualDepthMode.minimal,
+                    );
+                  },
+                ),
+                FilterChip(
+                  visualDensity: VisualDensity.compact,
+                  selected: ruleOfOne,
+                  label: const Text(
+                    '🛟 Rule of 1 (Floor Day)',
+                    style: TextStyle(fontSize: 11),
+                  ),
+                  onSelected: (val) {
+                    ref
+                        .read(workspaceStateProvider.notifier)
+                        .toggleRuleOfOneFloorDay(todayIso, enabled: val);
+                  },
+                ),
+                if (showWeeklyChip &&
+                    workspace.enabledCadences.contains(CadenceKind.weekly))
+                  ActionChip(
+                    visualDensity: VisualDensity.compact,
+                    avatar: const Icon(Icons.fact_check_outlined, size: 14),
+                    label: const Text(
+                      '📆 Weekly Review',
+                      style: TextStyle(fontSize: 11),
+                    ),
+                    onPressed: () {
+                      showPlanningReviewRitualSheet(
+                        context,
+                        ref,
+                        ritualKind: RitualKind.weeklyReviewPlan,
+                      );
+                    },
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+

@@ -469,7 +469,11 @@ void main() {
         // Wait for indexer and Today screen to mount
         await _waitUntil(
           tester,
-          () => find.textContaining('Today\'s Focus Shelf').evaluate().isNotEmpty,
+          () =>
+              find
+                  .textContaining('Today\'s Focus Shelf (1/3 Top Focus)')
+                  .evaluate()
+                  .isNotEmpty,
         );
 
         // Today's Focus Shelf has the pre-pinned tutorial task

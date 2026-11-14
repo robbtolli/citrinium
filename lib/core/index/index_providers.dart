@@ -689,6 +689,126 @@ class VaultMutationService {
     );
     await _notifyFileUpdated(services, sourceRelPath);
   }
+
+  /// Writes all user-authored plans, priorities, and reflections from a
+  /// completed [RitualSessionOutput] as clean Markdown sections directly into
+  /// the cadence's `.md` log file (`P-11`, `D-15`), plus any tomorrow/next-horizon
+  /// bridge task if specified.
+  Future<String> commitRitualSessionOutput({
+    required RitualSessionOutput output,
+    required DateTime now,
+    String? overrideTargetRelPath,
+  }) async {
+    final services = await _requireServices();
+    final cadence = output.ritualKind.cadence;
+    final enabledCadences = _ref.read(workspaceStateProvider).enabledCadences;
+    final targetRelPath =
+        overrideTargetRelPath ?? CadenceFiles.relPathForCadence(cadence, now);
+    final initialContent = CadenceFiles.defaultContentForCadence(
+      cadence,
+      now,
+      vaultRootPath: services.vaultPath,
+      enabledCadences: enabledCadences,
+    );
+
+    await CadenceFiles.ensureVaultFile(
+      vaultRootPath: services.vaultPath,
+      relPath: targetRelPath,
+      initialContent: initialContent,
+      watcher: services.watcher,
+    );
+
+    final mdLines = output.toMarkdownLines();
+    for (final line in mdLines) {
+      await CadenceFiles.appendLineToVaultFile(
+        vaultRootPath: services.vaultPath,
+        relPath: targetRelPath,
+        lineText: line,
+        initialContentIfMissing: initialContent,
+        watcher: services.watcher,
+      );
+    }
+    await _notifyFileUpdated(services, targetRelPath);
+
+    // If Evening Shutdown specified Tomorrow's #1 Priority Lock, also seed it
+    // into tomorrow's Daily Log so it greets the user in the morning!
+    if (output.tomorrowTopPriority.trim().isNotEmpty) {
+      final tomorrow = now.add(const Duration(days: 1));
+      final tomorrowRel = CadenceFiles.dailyRelPath(tomorrow);
+      final tomorrowInit = CadenceFiles.defaultContentForCadence(
+        CadenceKind.daily,
+        tomorrow,
+        vaultRootPath: services.vaultPath,
+        enabledCadences: enabledCadences,
+      );
+      final raw = output.tomorrowTopPriority.trim();
+      final prefix = RegExp(r'^[-*+]\s+').hasMatch(raw) ? raw : '- [ ] $raw';
+      await CadenceFiles.appendLineToVaultFile(
+        vaultRootPath: services.vaultPath,
+        relPath: tomorrowRel,
+        lineText: prefix,
+        initialContentIfMissing: tomorrowInit,
+        watcher: services.watcher,
+      );
+      await _notifyFileUpdated(services, tomorrowRel);
+    }
+
+    // If a higher-horizon review defined a bridge action for the next lower
+    // cadence (e.g. Yearly -> Quarterly, or Quarterly -> Weekly), append it
+    // there too (`QY-04`).
+    if (output.bridgeActionForNextLowerCadence.trim().isNotEmpty) {
+      final idx = CadenceFiles.datedHierarchy.indexOf(cadence);
+      if (idx > 0) {
+        CadenceKind? lowerTarget;
+        for (var i = idx - 1; i >= 0; i--) {
+          final candidate = CadenceFiles.datedHierarchy[i];
+          if (enabledCadences.contains(candidate)) {
+            lowerTarget = candidate;
+            break;
+          }
+        }
+        lowerTarget ??= CadenceFiles.datedHierarchy[idx - 1];
+        final lowerRel = CadenceFiles.relPathForCadence(lowerTarget, now);
+        final lowerInit = CadenceFiles.defaultContentForCadence(
+          lowerTarget,
+          now,
+          vaultRootPath: services.vaultPath,
+          enabledCadences: enabledCadences,
+        );
+        final rawBridge = output.bridgeActionForNextLowerCadence.trim();
+        final line = RegExp(r'^[-*+]\s+').hasMatch(rawBridge)
+            ? rawBridge
+            : '- [ ] $rawBridge';
+        await CadenceFiles.appendLineToVaultFile(
+          vaultRootPath: services.vaultPath,
+          relPath: lowerRel,
+          lineText: line,
+          initialContentIfMissing: lowerInit,
+          watcher: services.watcher,
+        );
+        await _notifyFileUpdated(services, lowerRel);
+      }
+    }
+
+    return targetRelPath;
+  }
+
+  /// Writes `.citrine/process_config.json` into the active vault so custom
+  /// process configurations travel with the vault (`P-11`, `T-02`).
+  Future<void> syncPortableProcessConfigToVault() async {
+    final services = await _ref.read(appServicesProvider.future);
+    if (services == null) return;
+    final ws = _ref.read(workspaceStateProvider);
+    await PlanningPresetCatalog.savePortableConfigToVault(
+      vaultRootPath: services.vaultPath,
+      configs: {
+        for (final r in RitualKind.values) r: ws.configForRitual(r),
+      },
+      guidanceEnabled: ws.guidanceEnabled,
+      learningStage: ws.learningStage,
+      watcher: services.watcher,
+    );
+  }
 }
 
 final vaultMutationProvider = Provider<VaultMutationService>((ref) {

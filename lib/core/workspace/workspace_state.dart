@@ -144,6 +144,15 @@ class WorkspaceState {
       'gtd_clarify',
       'hard_calendar',
     },
+    this.guidanceEnabled = true,
+    this.learningStage = LearningStage.stage1DailyLaunch,
+    this.ruleOfOneFloorDayDates = const {},
+    this.morningPlanCompletedDates = const {},
+    this.shutdownCompletedDates = const {},
+    this.ritualCompletionCounts = const {},
+    this.resumableStepByRitual = const {},
+    this.lastCompletedIsoByRitual = const {},
+    this.ritualConfigs = const {},
   });
 
   factory WorkspaceState.initial() {
@@ -178,6 +187,17 @@ class WorkspaceState {
         'templates',
         'gtd_clarify',
         'hard_calendar',
+      },
+      guidanceEnabled: true,
+      learningStage: LearningStage.stage1DailyLaunch,
+      ruleOfOneFloorDayDates: const {},
+      morningPlanCompletedDates: const {},
+      shutdownCompletedDates: const {},
+      ritualCompletionCounts: const {},
+      resumableStepByRitual: const {},
+      lastCompletedIsoByRitual: const {},
+      ritualConfigs: {
+        for (final r in RitualKind.values) r: RitualProcessConfig.defaultFor(r),
       },
     );
   }
@@ -243,6 +263,38 @@ class WorkspaceState {
   /// IDs of enabled built-in core plugins (PL-08).
   final Set<String> enabledCorePlugins;
 
+  /// Whether progressive planning/review guidance is enabled (`A-06`, `P-07`).
+  /// Users can disable this in 1 click to use their own process immediately.
+  final bool guidanceEnabled;
+
+  /// Current contextual learning stage (`stage_1`..`stage_4`) when
+  /// [guidanceEnabled] is true.
+  final LearningStage learningStage;
+
+  /// ISO dates (`YYYY-MM-DD`) where the user activated the "Rule of 1 (Floor Day)"
+  /// anti-paralysis mode (`A-01`, `P-04`).
+  final Set<String> ruleOfOneFloorDayDates;
+
+  /// ISO dates (`YYYY-MM-DD`) where the Daily Morning Plan bookend was completed.
+  final Set<String> morningPlanCompletedDates;
+
+  /// ISO dates (`YYYY-MM-DD`) where the Daily Evening Shutdown bookend was completed.
+  final Set<String> shutdownCompletedDates;
+
+  /// Total completion count per [RitualKind]; coach tips auto-collapse once a
+  /// ritual reaches >= 3 completions.
+  final Map<RitualKind, int> ritualCompletionCounts;
+
+  /// Resumable step index per [RitualKind] (`R-04`).
+  final Map<RitualKind, int> resumableStepByRitual;
+
+  /// ISO timestamp of last completion per [RitualKind].
+  final Map<RitualKind, String> lastCompletedIsoByRitual;
+
+  /// Process configuration per [RitualKind] (preset, custom steps, or freeform
+  /// Markdown + preferred depth mode).
+  final Map<RitualKind, RitualProcessConfig> ritualConfigs;
+
   /// True if the user was active within the last 2 hours (`A-08`).
   bool isWithinTwoHourWindow(DateTime now) {
     if (lastActiveTimestampMs == null) return false;
@@ -259,6 +311,34 @@ class WorkspaceState {
     final dates = habitCompletionsByDate[habitKey];
     return dates != null && dates.contains(isoDate);
   }
+
+  bool isRuleOfOneOn(String isoDate) =>
+      ruleOfOneFloorDayDates.contains(isoDate);
+
+  bool isMorningPlanCompletedOn(String isoDate) =>
+      morningPlanCompletedDates.contains(isoDate);
+
+  bool isShutdownCompletedOn(String isoDate) =>
+      shutdownCompletedDates.contains(isoDate);
+
+  int completionCountForRitual(RitualKind kind) =>
+      ritualCompletionCounts[kind] ?? 0;
+
+  /// Coach tips stay expanded for the first 2 completions of a ritual (when
+  /// [guidanceEnabled] is true) and auto-collapse starting on the 3rd run.
+  bool shouldAutoExpandCoachTips(RitualKind kind) =>
+      guidanceEnabled && completionCountForRitual(kind) < 3;
+
+  int resumableStepForRitual(RitualKind kind) {
+    if (kind == RitualKind.weeklyReviewPlan &&
+        !resumableStepByRitual.containsKey(kind)) {
+      return weeklyReviewStep;
+    }
+    return resumableStepByRitual[kind] ?? 0;
+  }
+
+  RitualProcessConfig configForRitual(RitualKind kind) =>
+      ritualConfigs[kind] ?? RitualProcessConfig.defaultFor(kind);
 
   DateTime? snoozedUntil(String uniqueKey) {
     final ms = snoozedUntilMsByTaskKey[uniqueKey];
@@ -295,6 +375,15 @@ class WorkspaceState {
     String? weeklyReviewReminderTime,
     Map<String, PluginInstallRecord>? installedPlugins,
     Set<String>? enabledCorePlugins,
+    bool? guidanceEnabled,
+    LearningStage? learningStage,
+    Set<String>? ruleOfOneFloorDayDates,
+    Set<String>? morningPlanCompletedDates,
+    Set<String>? shutdownCompletedDates,
+    Map<RitualKind, int>? ritualCompletionCounts,
+    Map<RitualKind, int>? resumableStepByRitual,
+    Map<RitualKind, String>? lastCompletedIsoByRitual,
+    Map<RitualKind, RitualProcessConfig>? ritualConfigs,
   }) {
     return WorkspaceState(
       captureDestination: captureDestination ?? this.captureDestination,
@@ -335,6 +424,21 @@ class WorkspaceState {
           weeklyReviewReminderTime ?? this.weeklyReviewReminderTime,
       installedPlugins: installedPlugins ?? this.installedPlugins,
       enabledCorePlugins: enabledCorePlugins ?? this.enabledCorePlugins,
+      guidanceEnabled: guidanceEnabled ?? this.guidanceEnabled,
+      learningStage: learningStage ?? this.learningStage,
+      ruleOfOneFloorDayDates:
+          ruleOfOneFloorDayDates ?? this.ruleOfOneFloorDayDates,
+      morningPlanCompletedDates:
+          morningPlanCompletedDates ?? this.morningPlanCompletedDates,
+      shutdownCompletedDates:
+          shutdownCompletedDates ?? this.shutdownCompletedDates,
+      ritualCompletionCounts:
+          ritualCompletionCounts ?? this.ritualCompletionCounts,
+      resumableStepByRitual:
+          resumableStepByRitual ?? this.resumableStepByRitual,
+      lastCompletedIsoByRitual:
+          lastCompletedIsoByRitual ?? this.lastCompletedIsoByRitual,
+      ritualConfigs: ritualConfigs ?? this.ritualConfigs,
     );
   }
 
@@ -398,6 +502,20 @@ class WorkspaceState {
     buf.writeln('- **Current Review Step**: ${weeklyReviewStep == 0 ? "Not in progress (Step 0)" : "Resumable at Step $weeklyReviewStep"}');
     buf.writeln('- **Last Completed Review**: ${lastWeeklyReviewCompletedAt ?? "Never"}');
     buf.writeln('- **Weekly Reminder Enabled**: $weeklyReviewReminderEnabled (Day: $weeklyReviewReminderDay, Time: $weeklyReviewReminderTime)');
+    buf.writeln('\n## Planning & Review Process & Progressive Guidance');
+    buf.writeln('- **Progressive Guidance Enabled**: $guidanceEnabled');
+    buf.writeln('- **Current Learning Stage**: ${learningStage.title} (`${learningStage.id}`)');
+    if (ruleOfOneFloorDayDates.isNotEmpty) {
+      buf.writeln('- **Rule of 1 (Floor Days)**: ${ruleOfOneFloorDayDates.join(", ")}');
+    }
+    for (final r in RitualKind.values) {
+      final cfg = configForRitual(r);
+      final count = completionCountForRitual(r);
+      final last = lastCompletedIsoByRitual[r] ?? 'Never';
+      buf.writeln(
+        '- **${r.label}**: Mode=${cfg.executionMode.label}, Preset=`${cfg.selectedPresetId}`, Depth=${cfg.preferredDepth.label}, Completed=${count}x (Last: $last)',
+      );
+    }
     buf.writeln('\n## Plugins & Extensibility (PL-01, PL-04, PL-08)');
     buf.writeln('### Core Built-In Plugins');
     for (final coreId in const ['daily_notes', 'templates', 'gtd_clarify', 'hard_calendar']) {
@@ -438,6 +556,23 @@ class WorkspaceState {
       'weeklyReviewReminderTime': weeklyReviewReminderTime,
       'installedPlugins': {for (final e in installedPlugins.entries) e.key: e.value.toJson()},
       'enabledCorePlugins': enabledCorePlugins.toList(),
+      'guidanceEnabled': guidanceEnabled,
+      'learningStage': learningStage.id,
+      'ruleOfOneFloorDayDates': ruleOfOneFloorDayDates.toList(),
+      'morningPlanCompletedDates': morningPlanCompletedDates.toList(),
+      'shutdownCompletedDates': shutdownCompletedDates.toList(),
+      'ritualCompletionCounts': {
+        for (final e in ritualCompletionCounts.entries) e.key.id: e.value,
+      },
+      'resumableStepByRitual': {
+        for (final e in resumableStepByRitual.entries) e.key.id: e.value,
+      },
+      'lastCompletedIsoByRitual': {
+        for (final e in lastCompletedIsoByRitual.entries) e.key.id: e.value,
+      },
+      'ritualConfigs': {
+        for (final r in RitualKind.values) r.id: configForRitual(r).toJson(),
+      },
     });
   }
 }
@@ -529,6 +664,53 @@ class WorkspaceStateNotifier extends Notifier<WorkspaceState> {
               .toSet() ??
           const {'daily_notes', 'templates', 'gtd_clarify', 'hard_calendar'};
 
+      final countsRaw = map['ritualCompletionCounts'] as Map<String, Object?>?;
+      final countsMap = <RitualKind, int>{};
+      if (countsRaw != null) {
+        for (final e in countsRaw.entries) {
+          final k = RitualKind.fromId(e.key);
+          if (k != null && e.value is int) countsMap[k] = e.value! as int;
+        }
+      }
+
+      final resumableRaw =
+          map['resumableStepByRitual'] as Map<String, Object?>?;
+      final resumableMap = <RitualKind, int>{};
+      if (resumableRaw != null) {
+        for (final e in resumableRaw.entries) {
+          final k = RitualKind.fromId(e.key);
+          if (k != null && e.value is int) resumableMap[k] = e.value! as int;
+        }
+      }
+
+      final lastIsoRaw =
+          map['lastCompletedIsoByRitual'] as Map<String, Object?>?;
+      final lastIsoMap = <RitualKind, String>{};
+      if (lastIsoRaw != null) {
+        for (final e in lastIsoRaw.entries) {
+          final k = RitualKind.fromId(e.key);
+          if (k != null && e.value is String) {
+            lastIsoMap[k] = e.value! as String;
+          }
+        }
+      }
+
+      final configsRaw = map['ritualConfigs'] as Map<String, Object?>?;
+      final configsMap = <RitualKind, RitualProcessConfig>{
+        for (final r in RitualKind.values) r: RitualProcessConfig.defaultFor(r),
+      };
+      if (configsRaw != null) {
+        for (final e in configsRaw.entries) {
+          final k = RitualKind.fromId(e.key);
+          if (k != null && e.value is Map<String, Object?>) {
+            configsMap[k] = RitualProcessConfig.fromJson(
+              k,
+              e.value! as Map<String, Object?>,
+            );
+          }
+        }
+      }
+
       return WorkspaceState(
         captureDestination: captureDestination,
         enabledCadences: enabledCadences.isEmpty
@@ -567,6 +749,27 @@ class WorkspaceStateNotifier extends Notifier<WorkspaceState> {
             (map['weeklyReviewReminderTime'] as String?) ?? '17:00',
         installedPlugins: pluginsMap,
         enabledCorePlugins: coreRaw,
+        guidanceEnabled: (map['guidanceEnabled'] as bool?) ?? true,
+        learningStage: LearningStage.fromId(map['learningStage'] as String?),
+        ruleOfOneFloorDayDates:
+            (map['ruleOfOneFloorDayDates'] as List<Object?>?)
+                    ?.whereType<String>()
+                    .toSet() ??
+                const {},
+        morningPlanCompletedDates:
+            (map['morningPlanCompletedDates'] as List<Object?>?)
+                    ?.whereType<String>()
+                    .toSet() ??
+                const {},
+        shutdownCompletedDates:
+            (map['shutdownCompletedDates'] as List<Object?>?)
+                    ?.whereType<String>()
+                    .toSet() ??
+                const {},
+        ritualCompletionCounts: countsMap,
+        resumableStepByRitual: resumableMap,
+        lastCompletedIsoByRitual: lastIsoMap,
+        ritualConfigs: configsMap,
       );
     } on Object {
       return WorkspaceState.initial();
@@ -602,6 +805,25 @@ class WorkspaceStateNotifier extends Notifier<WorkspaceState> {
         'weeklyReviewReminderTime': next.weeklyReviewReminderTime,
         'installedPlugins': {for (final e in next.installedPlugins.entries) e.key: e.value.toJson()},
         'enabledCorePlugins': next.enabledCorePlugins.toList(),
+        'guidanceEnabled': next.guidanceEnabled,
+        'learningStage': next.learningStage.id,
+        'ruleOfOneFloorDayDates': next.ruleOfOneFloorDayDates.toList(),
+        'morningPlanCompletedDates': next.morningPlanCompletedDates.toList(),
+        'shutdownCompletedDates': next.shutdownCompletedDates.toList(),
+        'ritualCompletionCounts': {
+          for (final e in next.ritualCompletionCounts.entries) e.key.id: e.value,
+        },
+        'resumableStepByRitual': {
+          for (final e in next.resumableStepByRitual.entries) e.key.id: e.value,
+        },
+        'lastCompletedIsoByRitual': {
+          for (final e in next.lastCompletedIsoByRitual.entries)
+            e.key.id: e.value,
+        },
+        'ritualConfigs': {
+          for (final r in RitualKind.values)
+            r.id: next.configForRitual(r).toJson(),
+        },
       }),
     );
   }
@@ -833,6 +1055,140 @@ class WorkspaceStateNotifier extends Notifier<WorkspaceState> {
       next.remove(coreId);
     }
     await _persist(state.copyWith(enabledCorePlugins: next));
+  }
+
+  /// Enables or disables progressive planning/review guidance (`A-06`, `P-07`).
+  /// When disabled, unlocks all stages immediately so the user can use their
+  /// own process without coaching prompts.
+  Future<void> setGuidanceEnabled(bool enabled) async {
+    await _persist(
+      state.copyWith(
+        guidanceEnabled: enabled,
+        learningStage:
+            enabled ? state.learningStage : LearningStage.stage4MultiHorizon,
+      ),
+    );
+  }
+
+  /// Explicitly sets the user's progressive [LearningStage].
+  Future<void> setLearningStage(LearningStage stage) async {
+    await _persist(state.copyWith(learningStage: stage));
+  }
+
+  /// Toggles "Rule of 1 (Floor Day)" anti-paralysis mode on [isoDate] (`P-04`).
+  Future<void> toggleRuleOfOneFloorDay(String isoDate, {bool? enabled}) async {
+    final next = Set<String>.from(state.ruleOfOneFloorDayDates);
+    final shouldEnable = enabled ?? !next.contains(isoDate);
+    if (shouldEnable) {
+      next.add(isoDate);
+      // If more than 1 task is pinned, keep only the #1 pinned task
+      final trimmedPins = state.topThreePinnedKeys.take(1).toList();
+      await _persist(
+        state.copyWith(
+          ruleOfOneFloorDayDates: next,
+          topThreePinnedKeys: trimmedPins,
+        ),
+      );
+    } else {
+      next.remove(isoDate);
+      await _persist(state.copyWith(ruleOfOneFloorDayDates: next));
+    }
+  }
+
+  /// Saves the resumable step index for [kind] (`R-04`).
+  Future<void> setRitualResumableStep(RitualKind kind, int step) async {
+    final nextMap = Map<RitualKind, int>.from(state.resumableStepByRitual);
+    nextMap[kind] = step < 0 ? 0 : step;
+    await _persist(
+      state.copyWith(
+        resumableStepByRitual: nextMap,
+        weeklyReviewStep: kind == RitualKind.weeklyReviewPlan
+            ? step.clamp(0, 10)
+            : state.weeklyReviewStep,
+      ),
+    );
+  }
+
+  /// Resets the resumable step for [kind] back to 0 (`R-04`).
+  Future<void> resetRitualProgress(RitualKind kind) async {
+    final nextMap = Map<RitualKind, int>.from(state.resumableStepByRitual);
+    nextMap[kind] = 0;
+    await _persist(
+      state.copyWith(
+        resumableStepByRitual: nextMap,
+        weeklyReviewStep:
+            kind == RitualKind.weeklyReviewPlan ? 0 : state.weeklyReviewStep,
+      ),
+    );
+  }
+
+  /// Records completion of [kind] at [now], increments its completion counter
+  /// (so coach tips auto-collapse after 3 completions), resets its resumable
+  /// step to 0, and advances [learningStage] progressively if applicable.
+  Future<void> recordRitualCompleted(RitualKind kind, DateTime now) async {
+    final isoDate = NlDateParser.formatIsoDate(now);
+    final isoFull = now.toIso8601String();
+
+    final nextCounts = Map<RitualKind, int>.from(state.ritualCompletionCounts);
+    nextCounts[kind] = (nextCounts[kind] ?? 0) + 1;
+
+    final nextResumable =
+        Map<RitualKind, int>.from(state.resumableStepByRitual);
+    nextResumable[kind] = 0;
+
+    final nextLastIso =
+        Map<RitualKind, String>.from(state.lastCompletedIsoByRitual);
+    nextLastIso[kind] = isoFull;
+
+    final nextMorning = Set<String>.from(state.morningPlanCompletedDates);
+    final nextShutdown = Set<String>.from(state.shutdownCompletedDates);
+    if (kind == RitualKind.dailyMorningPlan) {
+      nextMorning.add(isoDate);
+    } else if (kind == RitualKind.dailyEveningShutdown) {
+      nextShutdown.add(isoDate);
+    }
+
+    // Progressive learning stage advancement
+    var nextStage = state.learningStage;
+    if (kind == RitualKind.dailyMorningPlan &&
+        nextStage == LearningStage.stage1DailyLaunch) {
+      nextStage = LearningStage.stage2EveningShutdown;
+    } else if (kind == RitualKind.dailyEveningShutdown &&
+        nextStage.indexOrder < LearningStage.stage3WeeklyReview.indexOrder) {
+      nextStage = LearningStage.stage3WeeklyReview;
+    } else if (kind == RitualKind.weeklyReviewPlan &&
+        nextStage.indexOrder < LearningStage.stage4MultiHorizon.indexOrder) {
+      nextStage = LearningStage.stage4MultiHorizon;
+    }
+
+    await _persist(
+      state.copyWith(
+        ritualCompletionCounts: nextCounts,
+        resumableStepByRitual: nextResumable,
+        lastCompletedIsoByRitual: nextLastIso,
+        morningPlanCompletedDates: nextMorning,
+        shutdownCompletedDates: nextShutdown,
+        learningStage: nextStage,
+        weeklyReviewStep:
+            kind == RitualKind.weeklyReviewPlan ? 0 : state.weeklyReviewStep,
+        lastWeeklyReviewCompletedAt: kind == RitualKind.weeklyReviewPlan
+            ? isoFull
+            : state.lastWeeklyReviewCompletedAt,
+      ),
+    );
+  }
+
+  /// Updates the [RitualProcessConfig] for [kind] (preset selection, custom
+  /// steps, depth mode, or freeform Markdown mode).
+  Future<void> updateRitualProcessConfig(
+    RitualKind kind,
+    RitualProcessConfig config,
+  ) async {
+    final next = <RitualKind, RitualProcessConfig>{
+      for (final r in RitualKind.values) r: state.configForRitual(r),
+    };
+    next[kind] = config;
+    await _persist(state.copyWith(ritualConfigs: next));
   }
 }
 

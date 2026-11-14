@@ -7,6 +7,7 @@ import '../../core/index/index_providers.dart';
 import '../../core/vault/vault_path_provider.dart';
 import '../../core/workspace/workspace_state.dart';
 import '../../shared/widgets/citrine_help_sheet.dart';
+import '../../shared/widgets/planning_review_ritual_sheet.dart';
 import '../horizons/horizons_review_screen.dart';
 
 /// Settings screen (`docs/milestones/m0.md` W4): vault path, index stats,
@@ -147,11 +148,39 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: OutlinedButton.icon(
-              onPressed: () => showCadenceTemplatesDialog(context),
-              icon: const Icon(Icons.description_outlined),
-              label: const Text('Customize Cadence Templates (B-11)'),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => showCadenceTemplatesDialog(context),
+                  icon: const Icon(Icons.description_outlined),
+                  label: const Text('Customize Cadence Templates (B-11)'),
+                ),
+                FilledButton.tonalIcon(
+                  onPressed: () => showProcessCustomizerDialog(context),
+                  icon: const Icon(Icons.auto_fix_high_outlined),
+                  label: const Text('Planning & Review Process Studio'),
+                ),
+              ],
             ),
+          ),
+          SwitchListTile(
+            title: const Text('Progressive Planning & Review Guidance'),
+            subtitle: Text(
+              workspace.guidanceEnabled
+                  ? 'Active (${workspace.learningStage.title}) — introduces rituals progressively and auto-collapses coach tips after 3 uses.'
+                  : 'Guidance disabled — Citrine stays out of the way so you can run your own planning & review process.',
+            ),
+            value: workspace.guidanceEnabled,
+            onChanged: (enabled) async {
+              ref
+                  .read(workspaceStateProvider.notifier)
+                  .setGuidanceEnabled(enabled);
+              await ref
+                  .read(vaultMutationProvider)
+                  .syncPortableProcessConfigToVault();
+            },
           ),
           const Divider(height: 32),
 

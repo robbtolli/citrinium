@@ -265,10 +265,19 @@ class _CitrineHelpSheetState extends ConsumerState<_CitrineHelpSheet>
                         const SizedBox(height: 12),
                         _buildSectionHeader('3. 🧭 Horizons & Review'),
                         _buildRecipeCard(
-                          title: 'Forgiving Migration (Daily & Weekly)',
+                          title: 'Daily Bookends & Express Mode',
                           steps: [
-                            'At day\'s end, tap "Daily Migration" to triage open tasks into Today, Scheduled, or Dropped without guilt.',
-                            'Configure cadences (Daily, Weekly, Monthly, Future Log) to match your natural planning rhythm.',
+                            'Start your day with "🌅 Morning Plan" (Hard Landscape -> Carryover Triage -> Top 3 -> 2m Micro-Step & If-Then Cue) or "⚡ 2m Express Plan".',
+                            'On low-energy days, toggle "🛟 Rule of 1 (Floor Day)" so doing just 1 priority task counts as a 100% win.',
+                            'Close your day with "🌇 Evening Shutdown" to capture loose ends, migrate open tasks, and pre-lock tomorrow\'s #1 priority.',
+                          ],
+                        ),
+                        _buildRecipeCard(
+                          title: 'Three-Layer Process Customization (Your Own Process)',
+                          steps: [
+                            'Open "Process Studio" on Today, Horizons & Review, or Settings to switch between built-in presets (Citrine Canonical, Ivy Lee, Franklin, Newport, GTD, BuJo, 12-Week Year, Gates Think Week, Ferriss 80/20).',
+                            'Customize individual steps (toggle steps on/off, reorder, add custom Reflection Prompts or Checklists) or switch any cadence to Freeform Markdown.',
+                            'Toggle "Disable Guidance" in 1 click anytime if you already have your own workflow.',
                           ],
                         ),
                         const SizedBox(height: 12),

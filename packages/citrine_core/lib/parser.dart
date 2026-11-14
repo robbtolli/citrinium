@@ -8,6 +8,7 @@
 library;
 
 export 'src/domain/entry_hierarchy.dart';
+export 'src/domain/planning_review_process.dart';
 export 'src/domain/recurrence_engine.dart';
 export 'src/domain/reminder_scheduler.dart';
 export 'src/parser/bujo.dart';
