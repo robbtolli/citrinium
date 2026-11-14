@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:citrine_core/citrine_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../clock/app_clock.dart';
 import '../workspace/workspace_state.dart';
 import 'app_services.dart';
 
@@ -172,7 +173,7 @@ class VaultMutationService {
     final hasBulletPrefix = RegExp(r'^[-*+]\s+').hasMatch(trimmed);
     final formattedLine = hasBulletPrefix ? trimmed : '$defaultPrefix$trimmed';
 
-    final effectiveNow = now ?? DateTime.now();
+    final effectiveNow = now ?? _ref.read(appClockProvider).now();
     final relPath = toTodayLog
         ? CadenceFiles.dailyRelPath(effectiveNow)
         : CadenceFiles.inboxRelPath;
@@ -311,7 +312,7 @@ class VaultMutationService {
     IndexedEntryWithDocument item, {
     DateTime? now,
   }) async {
-    final currentNow = now ?? DateTime.now();
+    final currentNow = now ?? _ref.read(appClockProvider).now();
     final todayIso = NlDateParser.formatIsoDate(currentNow);
     final rule = RecurrenceRule.tryParse(item.entry.recurrenceRaw);
 

@@ -2,6 +2,7 @@ import 'package:citrine_core/citrine_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/clock/app_clock.dart';
 import '../../core/index/index_providers.dart';
 import '../../core/workspace/workspace_state.dart';
 import '../../shared/widgets/embedded_markdown_editor.dart';
@@ -140,7 +141,7 @@ class _HorizonsReviewScreenState extends ConsumerState<HorizonsReviewScreen> {
         ? _selectedCadence
         : (enabledList.isNotEmpty ? enabledList.first : CadenceKind.daily);
 
-    final now = DateTime.now();
+    final now = ref.watch(appClockProvider).now();
     final currentRelPath = CadenceFiles.relPathForCadence(activeCadence, now);
     final docs = docsAsync.value ?? const [];
     final allEntries = entriesAsync.value ?? const [];

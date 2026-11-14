@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/clock/app_clock.dart';
 import '../../core/index/index_providers.dart';
 import '../../core/workspace/workspace_state.dart';
 import '../../shared/widgets/citrine_help_sheet.dart';
@@ -23,7 +24,8 @@ class TodayCombinedScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final now = DateTime.now();
+    final clock = ref.watch(appClockProvider);
+    final now = clock.now();
     final todayIso = NlDateParser.formatIsoDate(now);
     final todayRelPath = CadenceFiles.dailyRelPath(now);
 
@@ -384,7 +386,7 @@ class _HabitCheckChip extends ConsumerWidget {
     final summary = HabitTrackerEngine.summarize(
       rule: rule,
       completedIsoDates: completedDates,
-      referenceDate: DateTime.now(),
+      referenceDate: ref.watch(appClockProvider).now(),
       windowDays: 7,
     );
     final rhythmDots = summary.recentDays
@@ -568,7 +570,7 @@ class _DailyMigrationDeckSheetState
     }
     final current = widget.tasks[_index];
     final theme = Theme.of(context);
-    final now = DateTime.now();
+    final now = ref.read(appClockProvider).now();
 
     return SafeArea(
       child: Padding(

@@ -412,8 +412,8 @@ void main() {
         await tester.tap(find.text('Snooze +15m'));
         await tester.pumpAndSettle();
 
-        // Open 🔔 Reminders center from AppBar and verify snoozed reminder with direct actions (E-12)
-        await tester.tap(find.byTooltip('Reminders & Snooze (E-08, E-12)'));
+        // Open 🔔 Reminders center from AppBar and verify snoozed reminder with direct actions
+        await tester.tap(find.byTooltip('Reminders & Snooze'));
         await tester.pumpAndSettle();
 
         expect(

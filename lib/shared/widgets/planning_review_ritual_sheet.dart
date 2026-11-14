@@ -2,6 +2,7 @@ import 'package:citrine_core/citrine_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/clock/app_clock.dart';
 import '../../core/index/index_providers.dart';
 import '../../core/workspace/workspace_state.dart';
 import 'in_place_task_tile.dart';
@@ -20,7 +21,7 @@ Future<void> showPlanningReviewRitualSheet(
 }) async {
   final workspace = ref.read(workspaceStateProvider);
   final config = workspace.configForRitual(ritualKind);
-  final now = DateTime.now();
+  final now = ref.read(appClockProvider).now();
 
   if (config.executionMode == CadenceExecutionMode.freeformMarkdown) {
     final relPath = await ref
@@ -179,7 +180,7 @@ class _PlanningReviewRitualModalState
     RitualProcessConfig config,
     String todayIso,
   ) async {
-    final now = DateTime.now();
+    final now = ref.read(appClockProvider).now();
     final ws = ref.read(workspaceStateProvider);
     final presetName = config.executionMode == CadenceExecutionMode.customSteps
         ? 'Custom Process'
@@ -266,7 +267,7 @@ class _PlanningReviewRitualModalState
 
     final allEntries = entriesAsync.value ?? const [];
     final allDocs = docsAsync.value ?? const [];
-    final now = DateTime.now();
+    final now = ref.watch(appClockProvider).now();
     final todayIso = NlDateParser.formatIsoDate(now);
     final targetRelPath =
         CadenceFiles.relPathForCadence(widget.ritualKind.cadence, now);

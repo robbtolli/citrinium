@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../clock/app_clock.dart';
 import '../index/index_providers.dart';
 import '../workspace/workspace_state.dart';
 
@@ -142,9 +143,10 @@ final rollingReminderWindowProvider = Provider<List<ScheduledReminder>>((ref) {
   final bridge = ref.watch(platformNotificationBridgeProvider);
 
   final entries = entriesAsync.value ?? const [];
+  final clock = ref.watch(appClockProvider);
   final window = ReminderDerivationEngine.deriveRollingWindow(
     entries: entries,
-    now: DateTime.now(),
+    now: clock.now(),
     snoozedUntilMsByTaskKey: workspace.snoozedUntilMsByTaskKey,
     reminderLeadMinutesByTaskKey: workspace.reminderLeadMinutesByTaskKey,
     defaultLeadMinutes: workspace.defaultReminderLeadMinutes,
@@ -163,7 +165,7 @@ Future<void> executeReminderNotificationAction({
   required NotificationActionKind action,
   DateTime? now,
 }) async {
-  final currentNow = now ?? DateTime.now();
+  final currentNow = now ?? ref.read(appClockProvider).now();
   final workspaceNotifier = ref.read(workspaceStateProvider.notifier);
   final entries = ref.read(allEntriesWithDocumentsProvider).value ?? const [];
   final item = entries

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/vault/vault_path_provider.dart';
+import '../features/about/about_screen.dart';
 import '../features/document_detail/document_detail_screen.dart';
 import '../features/plugins/plugins_screen.dart';
 import '../features/settings/settings_screen.dart';
@@ -61,6 +62,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           final document = state.extra! as Document;
           return DocumentDetailScreen(document: document);
         },
+      ),
+      GoRoute(
+        path: '/about',
+        builder: (context, state) => const AboutScreen(),
       ),
       GoRoute(
         path: '/settings',

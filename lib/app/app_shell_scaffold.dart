@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/clock/app_clock.dart';
 import '../core/index/index_providers.dart';
 import '../core/notifications/notification_service.dart';
 import '../core/workspace/workspace_state.dart';
@@ -11,7 +12,10 @@ import '../features/documents/document_list_screen.dart';
 import '../features/horizons/horizons_review_screen.dart';
 import '../features/search/search_dialog.dart';
 import '../features/today/today_combined_screen.dart';
+import '../shared/widgets/citrine_emblem.dart';
 import '../shared/widgets/citrine_help_sheet.dart';
+import '../shared/widgets/debug_date_override_dialog.dart';
+import '../shared/widgets/planning_review_ritual_sheet.dart';
 import '../shared/widgets/quick_capture_bar.dart';
 
 enum AppPillar {
@@ -82,7 +86,7 @@ class _AppShellScaffoldState extends ConsumerState<AppShellScaffold> {
     if (_checkedTwoHourRestore) return;
     _checkedTwoHourRestore = true;
 
-    final now = DateTime.now();
+    final now = ref.read(appClockProvider).now();
     final recent = workspace.mostRecentItem;
     if (recent != null && workspace.isWithinTwoHourWindow(now)) {
       final doc = docs.where((d) => d.relPath == recent.relPath).firstOrNull;
@@ -174,11 +178,148 @@ class _AppShellScaffoldState extends ConsumerState<AppShellScaffold> {
     SearchDialog.show(context);
   }
 
+  Widget _buildDrawer(BuildContext context, List<Document> allDocs) {
+    final debugEnabled = ref.watch(debugModeProvider);
+    final clock = ref.watch(appClockProvider);
+    final theme = Theme.of(context);
+
+    return Drawer(
+      child: SafeArea(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.5,
+                ),
+              ),
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: Image.asset(
+                      'assets/icons/citrine_icon.png',
+                      width: 52,
+                      height: 52,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => const CitrineEmblem(size: 52),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Citrine',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Calm planning & notes',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.history),
+              title: const Text('Recent Views & Documents'),
+              onTap: () {
+                Navigator.of(context).pop();
+                _openRecentSwitcher(context, allDocs);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.tune),
+              title: const Text('Planning Process Setup'),
+              onTap: () {
+                Navigator.of(context).pop();
+                showProcessCustomizerDialog(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.help_outline),
+              title: const Text('Field Guide & Help'),
+              onTap: () {
+                Navigator.of(context).pop();
+                showCitrineHelpSheet(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.settings_outlined),
+              title: const Text('Settings'),
+              onTap: () {
+                Navigator.of(context).pop();
+                context.push('/settings');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.info_outline),
+              title: const Text('About Citrine'),
+              onTap: () {
+                Navigator.of(context).pop();
+                context.push('/about');
+              },
+            ),
+            if (debugEnabled) ...[
+              const Divider(),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                child: Text(
+                  'DEBUG',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.1,
+                  ),
+                ),
+              ),
+              ListTile(
+                key: const Key('drawer-debug-override-date'),
+                leading: const Icon(Icons.calendar_month_outlined),
+                title: const Text('Override Current Date'),
+                subtitle: Text(
+                  clock.isOverridden
+                      ? 'Active: ${clock.todayIso}'
+                      : 'Using real system date',
+                ),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  showDebugDateOverrideDialog(context, ref);
+                },
+              ),
+              ListTile(
+                key: const Key('drawer-debug-disable'),
+                leading: const Icon(Icons.bug_report_outlined),
+                title: const Text('Disable Debug Mode'),
+                onTap: () async {
+                  Navigator.of(context).pop();
+                  await ref.read(debugModeProvider.notifier).setEnabled(false);
+                },
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final workspace = ref.watch(workspaceStateProvider);
     final docsAsync = ref.watch(documentListProvider);
     final reminders = ref.watch(rollingReminderWindowProvider);
+    final clock = ref.watch(appClockProvider);
     final allDocs = docsAsync.value ?? const [];
 
     if (docsAsync.hasValue) {
@@ -195,6 +336,7 @@ class _AppShellScaffoldState extends ConsumerState<AppShellScaffold> {
     };
 
     return Scaffold(
+      drawer: _buildDrawer(context, allDocs),
       appBar: AppBar(
         title: const Text('Citrine'),
         actions: [
@@ -214,17 +356,17 @@ class _AppShellScaffoldState extends ConsumerState<AppShellScaffold> {
               label: Text('${reminders.length}'),
               child: const Icon(Icons.notifications_outlined),
             ),
-            tooltip: 'Reminders & Snooze (E-08, E-12)',
+            tooltip: 'Reminders & Snooze',
             onPressed: () => showRemindersCenterSheet(context),
           ),
           IconButton(
             icon: const Icon(Icons.search),
-            tooltip: 'Quick Switcher & Search (N-04)',
+            tooltip: 'Quick Switcher & Search',
             onPressed: () => _openQuickSwitcherDialog(context, allDocs),
           ),
           IconButton(
             icon: const Icon(Icons.help_outline),
-            tooltip: 'Field Guide & Cheat Sheet (A-06)',
+            tooltip: 'Field Guide & Help',
             onPressed: () => showCitrineHelpSheet(context),
           ),
           IconButton(
@@ -236,6 +378,71 @@ class _AppShellScaffoldState extends ConsumerState<AppShellScaffold> {
       ),
       body: Column(
         children: [
+          if (clock.isOverridden)
+            Material(
+              color: Theme.of(context).colorScheme.tertiaryContainer,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.science_outlined,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.onTertiaryContainer,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => showDebugDateOverrideDialog(context, ref),
+                        child: Text(
+                          'Debug Date: ${clock.todayIso}',
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onTertiaryContainer,
+                              ),
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () =>
+                          ref.read(appClockProvider.notifier).stepDays(-1),
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        minimumSize: const Size(0, 28),
+                      ),
+                      child: const Text('-1d'),
+                    ),
+                    TextButton(
+                      onPressed: () =>
+                          ref.read(appClockProvider.notifier).stepDays(1),
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        minimumSize: const Size(0, 28),
+                      ),
+                      child: const Text('+1d'),
+                    ),
+                    TextButton(
+                      onPressed: () =>
+                          ref.read(appClockProvider.notifier).reset(),
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        minimumSize: const Size(0, 28),
+                      ),
+                      child: const Text('Reset'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           Expanded(
             child: isWide
                 ? Row(
