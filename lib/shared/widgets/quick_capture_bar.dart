@@ -22,7 +22,12 @@ enum RapidCaptureKind {
 /// - Live natural-language date/time detection (`NlDateParser`, `C-04`) with
 ///   explicit user confirmation before rewriting the matched span.
 class QuickCaptureBar extends ConsumerStatefulWidget {
-  const QuickCaptureBar({super.key});
+  const QuickCaptureBar({
+    this.hideWhenExternalKeyboardOpen = false,
+    super.key,
+  });
+
+  final bool hideWhenExternalKeyboardOpen;
 
   @override
   ConsumerState<QuickCaptureBar> createState() => _QuickCaptureBarState();
@@ -109,10 +114,139 @@ class _QuickCaptureBarState extends ConsumerState<QuickCaptureBar> {
 
   @override
   Widget build(BuildContext context) {
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    if (widget.hideWhenExternalKeyboardOpen && keyboardOpen && !_isEditing) {
+      return const SizedBox.shrink();
+    }
+
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final workspace = ref.watch(workspaceStateProvider);
     final dest = workspace.captureDestination;
+    final isNarrow = MediaQuery.sizeOf(context).width < 480;
+
+    final typeButton = PopupMenuButton<RapidCaptureKind>(
+      tooltip: 'Entry type (${_kind.label})',
+      initialValue: _kind,
+      onSelected: (k) => setState(() => _kind = k),
+      itemBuilder: (context) => [
+        for (final k in RapidCaptureKind.values)
+          PopupMenuItem(
+            value: k,
+            child: Row(
+              children: [
+                Icon(k.icon, size: 18),
+                const SizedBox(width: 8),
+                Text('${k.label} (${k.prefix.trim()})'),
+              ],
+            ),
+          ),
+      ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 8,
+          vertical: 6,
+        ),
+        decoration: BoxDecoration(
+          color: colorScheme.secondaryContainer,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              _kind.icon,
+              size: 16,
+              color: colorScheme.onSecondaryContainer,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              _kind.label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: colorScheme.onSecondaryContainer,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final destToggle = SegmentedButton<CaptureDestination>(
+      style: const ButtonStyle(
+        visualDensity: VisualDensity.compact,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+      showSelectedIcon: false,
+      segments: const [
+        ButtonSegment(
+          value: CaptureDestination.inbox,
+          label: Text('Inbox', style: TextStyle(fontSize: 12)),
+        ),
+        ButtonSegment(
+          value: CaptureDestination.today,
+          label: Text('Today', style: TextStyle(fontSize: 12)),
+        ),
+      ],
+      selected: {dest},
+      onSelectionChanged: (selection) {
+        ref
+            .read(workspaceStateProvider.notifier)
+            .setCaptureDestination(selection.first);
+      },
+    );
+
+    final inputWidget = _isEditing
+        ? TextField(
+            controller: _controller,
+            autofocus: true,
+            decoration: InputDecoration(
+              hintText:
+                  'Quick capture ${_kind.label.toLowerCase()} to ${dest.label} (e.g. "tomorrow 5pm @phone")...',
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            onSubmitted: (_) => _submitCapture(),
+          )
+        : InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: () => setState(() => _isEditing = true),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 9,
+              ),
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: colorScheme.outlineVariant,
+                ),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                isNarrow
+                    ? 'Capture to ${dest.label}...'
+                    : 'Quick capture ${_kind.label.toLowerCase()} to ${dest.label}...',
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          );
+
+    final sendButton = IconButton.filled(
+      tooltip: 'Add to ${dest.label}',
+      icon: const Icon(Icons.send, size: 18),
+      onPressed: _submitCapture,
+    );
 
     return Material(
       elevation: 3,
@@ -129,155 +263,60 @@ class _QuickCaptureBarState extends ConsumerState<QuickCaptureBar> {
               if (_detectedMatch != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 6),
-                  child: Row(
-                    children: [
-                      FilterChip(
-                        visualDensity: VisualDensity.compact,
-                        selected: _applyNlDate,
-                        avatar: const Icon(Icons.auto_awesome, size: 14),
-                        label: Text(
-                          'Recognized "${_detectedMatch!.matchedText}" → ${_detectedMatch!.summaryLabel}',
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        onSelected: (v) => setState(() => _applyNlDate = v),
-                      ),
-                    ],
+                  child: FilterChip(
+                    visualDensity: VisualDensity.compact,
+                    selected: _applyNlDate,
+                    avatar: const Icon(Icons.auto_awesome, size: 14),
+                    label: Text(
+                      'Recognized "${_detectedMatch!.matchedText}" → ${_detectedMatch!.summaryLabel}',
+                      style: const TextStyle(fontSize: 12),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    onSelected: (v) => setState(() => _applyNlDate = v),
                   ),
                 ),
-
-              Row(
-                children: [
-                  // Entry type cycle button (Task / Event / Note — C-03)
-                  PopupMenuButton<RapidCaptureKind>(
-                    tooltip: 'Entry type (${_kind.label})',
-                    initialValue: _kind,
-                    onSelected: (k) => setState(() => _kind = k),
-                    itemBuilder: (context) => [
-                      for (final k in RapidCaptureKind.values)
-                        PopupMenuItem(
-                          value: k,
-                          child: Row(
-                            children: [
-                              Icon(k.icon, size: 18),
-                              const SizedBox(width: 8),
-                              Text('${k.label} (${k.prefix.trim()})'),
-                            ],
-                          ),
-                        ),
-                    ],
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 6,
+              if (isNarrow && _isEditing) ...[
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    typeButton,
+                    destToggle,
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
                       ),
-                      decoration: BoxDecoration(
-                        color: colorScheme.secondaryContainer,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            _kind.icon,
-                            size: 16,
-                            color: colorScheme.onSecondaryContainer,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            _kind.label,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: colorScheme.onSecondaryContainer,
-                            ),
-                          ),
-                        ],
-                      ),
+                      onPressed: () => setState(() => _isEditing = false),
+                      child: const Text('Done'),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-
-                  // Quick capture text input (mounts TextField when active so
-                  // idle screens don't hold an extra EditableText focus node)
-                  Expanded(
-                    child: _isEditing
-                        ? TextField(
-                            controller: _controller,
-                            autofocus: true,
-                            decoration: InputDecoration(
-                              hintText:
-                                  'Quick capture ${_kind.label.toLowerCase()} to ${dest.label} (e.g. "tomorrow 5pm @phone")...',
-                              isDense: true,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 10,
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            onSubmitted: (_) => _submitCapture(),
-                          )
-                        : InkWell(
-                            borderRadius: BorderRadius.circular(8),
-                            onTap: () => setState(() => _isEditing = true),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 9,
-                              ),
-                              decoration: BoxDecoration(
-                                border: Border.all(
-                                  color: colorScheme.outlineVariant,
-                                ),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                'Quick capture ${_kind.label.toLowerCase()} to ${dest.label}...',
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ),
-                          ),
-                  ),
-                  const SizedBox(width: 8),
-
-                  // Sticky [ Inbox | Today ] destination toggle (C-01)
-                  SegmentedButton<CaptureDestination>(
-                    style: const ButtonStyle(
-                      visualDensity: VisualDensity.compact,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    showSelectedIcon: false,
-                    segments: const [
-                      ButtonSegment(
-                        value: CaptureDestination.inbox,
-                        label: Text('Inbox', style: TextStyle(fontSize: 12)),
-                      ),
-                      ButtonSegment(
-                        value: CaptureDestination.today,
-                        label: Text('Today', style: TextStyle(fontSize: 12)),
-                      ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Expanded(child: inputWidget),
+                    const SizedBox(width: 6),
+                    sendButton,
+                  ],
+                ),
+              ] else
+                Row(
+                  children: [
+                    if (!isNarrow) ...[
+                      typeButton,
+                      const SizedBox(width: 8),
                     ],
-                    selected: {dest},
-                    onSelectionChanged: (selection) {
-                      ref
-                          .read(workspaceStateProvider.notifier)
-                          .setCaptureDestination(selection.first);
-                    },
-                  ),
-                  const SizedBox(width: 6),
-
-                  IconButton.filled(
-                    tooltip: 'Add to ${dest.label}',
-                    icon: const Icon(Icons.send, size: 18),
-                    onPressed: _submitCapture,
-                  ),
-                ],
-              ),
+                    Expanded(child: inputWidget),
+                    const SizedBox(width: 8),
+                    destToggle,
+                    if (!isNarrow || _isEditing) ...[
+                      const SizedBox(width: 6),
+                      sendButton,
+                    ],
+                  ],
+                ),
             ],
           ),
         ),

@@ -509,8 +509,10 @@ class _LivePreviewEditorState extends State<LivePreviewEditor> {
   }
 
   Widget _buildAutocompleteOverlay(BuildContext context) {
+    final maxWidth =
+        (MediaQuery.sizeOf(context).width - 32).clamp(180.0, 250.0);
     return Positioned(
-      width: 250.0,
+      width: maxWidth,
       child: CompositedTransformFollower(
         link: _layerLink,
         showWhenUnlinked: false,
@@ -519,18 +521,21 @@ class _LivePreviewEditorState extends State<LivePreviewEditor> {
           elevation: 6.0,
           borderRadius: BorderRadius.circular(8.0),
           color: Theme.of(context).colorScheme.surfaceContainerHigh,
-          child: ListView.builder(
-            shrinkWrap: true,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 200),
+            child: ListView.builder(
+              shrinkWrap: true,
             padding: const EdgeInsets.symmetric(vertical: 4.0),
             itemCount: _autocompleteResults.length,
             itemBuilder: (context, index) {
               final item = _autocompleteResults[index];
-              return ListTile(
-                dense: true,
-                title: Text(item, style: const TextStyle(fontSize: 14.0)),
-                onTap: () => _insertAutocompleteCompletion(item),
-              );
-            },
+                return ListTile(
+                  dense: true,
+                  title: Text(item, style: const TextStyle(fontSize: 14.0)),
+                  onTap: () => _insertAutocompleteCompletion(item),
+                );
+              },
+            ),
           ),
         ),
       ),

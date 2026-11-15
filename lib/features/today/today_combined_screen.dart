@@ -303,18 +303,30 @@ class _TodayCombinedScreenState extends ConsumerState<TodayCombinedScreen> {
               if (activeDoc != null) ...[
                 Padding(
                   padding: const EdgeInsets.fromLTRB(4, 6, 4, 4),
-                  child: Row(
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    alignment: WrapAlignment.spaceBetween,
                     children: [
-                      const Icon(Icons.edit_calendar_outlined, size: 16),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          'Daily Log ($activeRelPath)',
-                          style: Theme.of(context).textTheme.labelLarge,
-                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.edit_calendar_outlined, size: 16),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              'Daily Log ($activeRelPath)',
+                              style: Theme.of(context).textTheme.labelLarge,
+                            ),
+                          ),
+                        ],
                       ),
                       if (isViewingToday && dailyReviewCandidates.isNotEmpty)
                         TextButton.icon(
+                          style: TextButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                          ),
                           onPressed: () {
                             showModalBottomSheet<void>(
                               context: context,
@@ -347,48 +359,83 @@ class _TodayCombinedScreenState extends ConsumerState<TodayCombinedScreen> {
                       horizontal: 12,
                       vertical: 10,
                     ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.wb_twilight, size: 24),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                isViewingToday
-                                    ? 'Today\'s Daily Log ($activeRelPath)'
-                                    : 'No daily note recorded for $activeIso',
-                                style: Theme.of(context).textTheme.titleSmall,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isNarrow = constraints.maxWidth < 440;
+                        final headerRow = Row(
+                          children: [
+                            const Icon(Icons.wb_twilight, size: 24),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    isViewingToday
+                                        ? 'Today\'s Daily Log ($activeRelPath)'
+                                        : 'No daily note recorded for $activeIso',
+                                    style:
+                                        Theme.of(context).textTheme.titleSmall,
+                                  ),
+                                  if (!isViewingToday)
+                                    Text(
+                                      activeRelPath,
+                                      style:
+                                          Theme.of(context).textTheme.bodySmall,
+                                    ),
+                                ],
                               ),
-                              if (!isViewingToday)
-                                Text(
-                                  activeRelPath,
-                                  style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            if (!isNarrow) ...[
+                              const SizedBox(width: 8),
+                              FilledButton.icon(
+                                onPressed: () async {
+                                  await ref
+                                      .read(vaultMutationProvider)
+                                      .ensureCadenceDocument(
+                                        CadenceKind.daily,
+                                        activeDate,
+                                        includeStarterTutorial:
+                                            isViewingToday && docs.isEmpty,
+                                      );
+                                },
+                                icon: const Icon(Icons.add, size: 18),
+                                label: Text(
+                                  isViewingToday
+                                      ? 'Start Today\'s Daily Log'
+                                      : 'Create Note for This Day',
                                 ),
+                              ),
                             ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        FilledButton.icon(
-                          onPressed: () async {
-                            await ref
-                                .read(vaultMutationProvider)
-                                .ensureCadenceDocument(
-                                  CadenceKind.daily,
-                                  activeDate,
-                                  includeStarterTutorial:
-                                      isViewingToday && docs.isEmpty,
-                                );
-                          },
-                          icon: const Icon(Icons.add, size: 18),
-                          label: Text(
-                            isViewingToday
-                                ? 'Start Today\'s Daily Log'
-                                : 'Create Note for This Day',
-                          ),
-                        ),
-                      ],
+                          ],
+                        );
+                        if (!isNarrow) return headerRow;
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            headerRow,
+                            const SizedBox(height: 8),
+                            FilledButton.icon(
+                              onPressed: () async {
+                                await ref
+                                    .read(vaultMutationProvider)
+                                    .ensureCadenceDocument(
+                                      CadenceKind.daily,
+                                      activeDate,
+                                      includeStarterTutorial:
+                                          isViewingToday && docs.isEmpty,
+                                    );
+                              },
+                              icon: const Icon(Icons.add, size: 18),
+                              label: Text(
+                                isViewingToday
+                                    ? 'Start Today\'s Daily Log'
+                                    : 'Create Note for This Day',
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ),
                 ),
@@ -464,27 +511,33 @@ class _DateNavigationBar extends StatelessWidget {
               tooltip: 'Previous Day',
               onPressed: onPreviousDay,
             ),
-            InkWell(
-              key: const Key('today-date-picker'),
-              borderRadius: BorderRadius.circular(8),
-              onTap: onPickDate,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.calendar_today_outlined, size: 16),
-                    const SizedBox(width: 6),
-                    Text(
-                      isViewingToday ? 'Today · $activeIso' : activeIso,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
+            Flexible(
+              child: InkWell(
+                key: const Key('today-date-picker'),
+                borderRadius: BorderRadius.circular(8),
+                onTap: onPickDate,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 6,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.calendar_today_outlined, size: 16),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          isViewingToday ? 'Today · $activeIso' : activeIso,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -500,7 +553,11 @@ class _DateNavigationBar extends StatelessWidget {
                 key: const Key('today-back-to-today'),
                 onPressed: onBackToToday,
                 icon: const Icon(Icons.today, size: 16),
-                label: const Text('Back to Today'),
+                label: Text(
+                  MediaQuery.sizeOf(context).width < 420
+                      ? 'Today'
+                      : 'Back to Today',
+                ),
               ),
           ],
         ),
@@ -643,28 +700,45 @@ class _PastDailyMigrationBanner extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isNarrow = MediaQuery.sizeOf(context).width < 480;
     return Card(
       color: colorScheme.tertiaryContainer,
       margin: const EdgeInsets.only(bottom: 8),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.autorenew, color: colorScheme.onTertiaryContainer),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                '${openTasks.length} open task${openTasks.length == 1 ? '' : 's'} from earlier Daily Logs. Ready for a quick 1-minute migration?',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: colorScheme.onTertiaryContainer,
+            Row(
+              children: [
+                Icon(Icons.autorenew, color: colorScheme.onTertiaryContainer),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    '${openTasks.length} open task${openTasks.length == 1 ? '' : 's'} from earlier Daily Logs. Ready for a quick 1-minute migration?',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: colorScheme.onTertiaryContainer,
+                    ),
+                  ),
                 ),
+                if (!isNarrow) ...[
+                  const SizedBox(width: 8),
+                  FilledButton.tonal(
+                    onPressed: () => _openDailyMigrationModal(context),
+                    child: const Text('Review & Migrate'),
+                  ),
+                ],
+              ],
+            ),
+            if (isNarrow) ...[
+              const SizedBox(height: 8),
+              FilledButton.tonal(
+                onPressed: () => _openDailyMigrationModal(context),
+                child: const Text('Review & Migrate'),
               ),
-            ),
-            FilledButton.tonal(
-              onPressed: () => _openDailyMigrationModal(context),
-              child: const Text('Review & Migrate'),
-            ),
+            ],
           ],
         ),
       ),
@@ -716,7 +790,7 @@ class _DailyMigrationDeckSheetState
     final now = ref.read(appClockProvider).now();
 
     return SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -944,11 +1018,13 @@ class _OnboardingChecklistBannerState
                     ),
                   ),
                 ),
-                TextButton(
-                  onPressed: () => showCitrineHelpSheet(context),
-                  child: const Text('Field Guide'),
-                ),
+                if (MediaQuery.sizeOf(context).width >= 440)
+                  TextButton(
+                    onPressed: () => showCitrineHelpSheet(context),
+                    child: const Text('Field Guide'),
+                  ),
                 IconButton(
+                  visualDensity: VisualDensity.compact,
                   icon: Icon(
                     _expanded ? Icons.expand_less : Icons.expand_more,
                     size: 20,
@@ -957,6 +1033,7 @@ class _OnboardingChecklistBannerState
                   onPressed: () => setState(() => _expanded = !_expanded),
                 ),
                 IconButton(
+                  visualDensity: VisualDensity.compact,
                   icon: const Icon(Icons.close, size: 18),
                   tooltip: 'Dismiss checklist',
                   onPressed: () {
@@ -967,6 +1044,19 @@ class _OnboardingChecklistBannerState
                 ),
               ],
             ),
+            if (MediaQuery.sizeOf(context).width < 440)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                  ),
+                  onPressed: () => showCitrineHelpSheet(context),
+                  icon: const Icon(Icons.help_outline, size: 15),
+                  label: const Text('Field Guide'),
+                ),
+              ),
             if (_expanded) ...[
               const Divider(height: 12),
               for (final step in steps) ...[
@@ -1060,19 +1150,28 @@ class _DailyBookendsAndGuidanceBar extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              alignment: WrapAlignment.spaceBetween,
               children: [
-                const Icon(Icons.compass_calibration_outlined, size: 18),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    workspace.guidanceEnabled
-                        ? 'Daily Bookends · ${workspace.learningStage.title}'
-                        : 'Daily Bookends & Planning Rituals',
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.compass_calibration_outlined, size: 18),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        workspace.guidanceEnabled
+                            ? 'Daily Bookends · ${workspace.learningStage.title}'
+                            : 'Daily Bookends & Planning Rituals',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
                 TextButton.icon(
                   style: TextButton.styleFrom(
@@ -1092,15 +1191,16 @@ class _DailyBookendsAndGuidanceBar extends ConsumerWidget {
             if (workspace.guidanceEnabled) ...[
               Padding(
                 padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 2,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Expanded(
-                      child: Text(
-                        workspace.learningStage.nextHint,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontSize: 11,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
+                    Text(
+                      workspace.learningStage.nextHint,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontSize: 11,
+                        color: colorScheme.onSurfaceVariant,
                       ),
                     ),
                     TextButton(

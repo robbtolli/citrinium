@@ -500,7 +500,7 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
                     onTap: _toggleCompleted,
                     borderRadius: BorderRadius.circular(4),
                     child: Padding(
-                      padding: const EdgeInsets.all(4.0),
+                      padding: const EdgeInsets.all(8.0),
                       child: _buildStateLeadingIcon(colorScheme),
                     ),
                   ),
@@ -526,11 +526,14 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
                             workspace.snoozedUntil(widget.item.uniqueKey) !=
                                 null ||
                             widget.item.contexts.isNotEmpty ||
-                            widget.item.tags.isNotEmpty) ...[
+                            widget.item.tags.isNotEmpty ||
+                            (widget.showSourceBadge &&
+                                MediaQuery.sizeOf(context).width < 420)) ...[
                           const SizedBox(height: 4),
                           Wrap(
                             spacing: 6,
                             runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               if (widget.item.entry.dueDate != null ||
                                   widget.item.entry.dueTime != null)
@@ -567,6 +570,32 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
                                   color: colorScheme.tertiaryContainer,
                                   textColor: colorScheme.onTertiaryContainer,
                                 ),
+                              if (widget.showSourceBadge &&
+                                  MediaQuery.sizeOf(context).width < 420)
+                                ActionChip(
+                                  visualDensity: VisualDensity.compact,
+                                  avatar: const Icon(
+                                    Icons.description_outlined,
+                                    size: 14,
+                                  ),
+                                  label: ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 140,
+                                    ),
+                                    child: Text(
+                                      widget.item.document.title.isNotEmpty
+                                          ? widget.item.document.title
+                                          : widget.item.document.relPath,
+                                      style: const TextStyle(fontSize: 11),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  tooltip:
+                                      'Peek surrounding context in ${widget.item.document.relPath}',
+                                  onPressed: () =>
+                                      _openSourcePeekSheet(context),
+                                ),
                             ],
                           ),
                         ],
@@ -582,7 +611,8 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
                         color: colorScheme.primary,
                       ),
                     ),
-                  if (widget.showSourceBadge)
+                  if (widget.showSourceBadge &&
+                      MediaQuery.sizeOf(context).width >= 420)
                     ActionChip(
                       visualDensity: VisualDensity.compact,
                       avatar: const Icon(Icons.description_outlined, size: 14),
@@ -624,10 +654,12 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
                       Expanded(
                         child: TextField(
                           controller: _textController,
-                          decoration: const InputDecoration(
-                            labelText: 'Edit task in-place (updates source .md file)',
+                          decoration: InputDecoration(
+                            labelText: MediaQuery.sizeOf(context).width < 480
+                                ? 'Edit task'
+                                : 'Edit task in-place (updates source .md file)',
                             isDense: true,
-                            border: OutlineInputBorder(),
+                            border: const OutlineInputBorder(),
                           ),
                           onSubmitted: (_) => _saveEditedText(),
                         ),
@@ -647,11 +679,12 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
                     minLines: 1,
                     maxLines: 3,
                     onChanged: (_) => _loadedChildNote = true,
-                    decoration: const InputDecoration(
-                      labelText:
-                          'Indented note / comment (stored beneath line in .md)',
+                    decoration: InputDecoration(
+                      labelText: MediaQuery.sizeOf(context).width < 480
+                          ? 'Indented note (in .md)'
+                          : 'Indented note / comment (stored beneath line in .md)',
                       isDense: true,
-                      border: OutlineInputBorder(),
+                      border: const OutlineInputBorder(),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -902,26 +935,35 @@ class _SourceContextPeekSheet extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              alignment: WrapAlignment.spaceBetween,
               children: [
-                const Icon(Icons.description_outlined),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.document.title.isNotEmpty
-                            ? item.document.title
-                            : item.document.relPath,
-                        style: theme.textTheme.titleMedium,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.description_outlined),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.document.title.isNotEmpty
+                                ? item.document.title
+                                : item.document.relPath,
+                            style: theme.textTheme.titleMedium,
+                          ),
+                          Text(
+                            '${item.document.relPath} · line ${item.entry.lineIndex + 1}',
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ],
                       ),
-                      Text(
-                        '${item.document.relPath} · line ${item.entry.lineIndex + 1}',
-                        style: theme.textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
                 FilledButton.icon(
                   onPressed: () {
@@ -951,28 +993,32 @@ class _SourceContextPeekSheet extends ConsumerWidget {
                     color: theme.colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      for (final line in snippetLines)
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 2,
-                            horizontal: 4,
-                          ),
-                          color: line.index == item.entry.lineIndex
-                              ? theme.colorScheme.primaryContainer.withValues(alpha: 0.5)
-                              : null,
-                          child: Text(
-                            '${(line.index + 1).toString().padLeft(2)}: ${doc.rawText.substring(line.span.start, line.span.end)}',
-                            style: const TextStyle(
-                              fontFamily: 'monospace',
-                              fontSize: 13,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: IntrinsicWidth(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (final line in snippetLines)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 2,
+                                horizontal: 4,
+                              ),
+                              color: line.index == item.entry.lineIndex
+                                  ? theme.colorScheme.primaryContainer.withValues(alpha: 0.5)
+                                  : null,
+                              child: Text(
+                                '${(line.index + 1).toString().padLeft(2)}: ${doc.rawText.substring(line.span.start, line.span.end)}',
+                                style: const TextStyle(
+                                  fontFamily: 'monospace',
+                                  fontSize: 13,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                    ],
+                        ],
+                      ),
+                    ),
                   ),
                 );
               },

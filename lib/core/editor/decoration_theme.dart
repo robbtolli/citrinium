@@ -308,19 +308,22 @@ class _TaskCheckboxWidget extends StatelessWidget {
     }
 
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
       onLongPress: onLongPress,
       onSecondaryTap: onLongPress,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 2.0),
-        width: 16.0,
-        height: 16.0,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(3.0),
-          border: border,
-          color: boxColor,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 4.0),
+        child: Container(
+          width: 16.0,
+          height: 16.0,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(3.0),
+            border: border,
+            color: boxColor,
+          ),
+          child: child,
         ),
-        child: child,
       ),
     );
   }

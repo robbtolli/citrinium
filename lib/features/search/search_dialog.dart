@@ -131,8 +131,12 @@ class _SearchDialogState extends ConsumerState<SearchDialog> {
         children: [
           const Icon(Icons.search, size: 22),
           const SizedBox(width: 8),
-          const Text('Search & Quick Switcher'),
-          const Spacer(),
+          const Expanded(
+            child: Text(
+              'Search & Quick Switcher',
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.close, size: 20),
             onPressed: () => Navigator.of(context).pop(),
@@ -141,7 +145,10 @@ class _SearchDialogState extends ConsumerState<SearchDialog> {
       ),
       content: SizedBox(
         width: 580,
-        height: 480,
+        height: ((MediaQuery.sizeOf(context).height -
+                    MediaQuery.viewInsetsOf(context).bottom) *
+                0.72)
+            .clamp(220.0, 480.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

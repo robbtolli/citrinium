@@ -102,6 +102,10 @@ class _CitrineHelpSheetState extends ConsumerState<_CitrineHelpSheet>
               const SizedBox(height: 8),
               TabBar(
                 controller: _tabController,
+                isScrollable: MediaQuery.sizeOf(context).width < 480,
+                tabAlignment: MediaQuery.sizeOf(context).width < 480
+                    ? TabAlignment.start
+                    : TabAlignment.fill,
                 tabs: const [
                   Tab(text: 'Getting Started'),
                   Tab(text: '4 Pillars & Recipes'),
@@ -194,10 +198,12 @@ class _CitrineHelpSheetState extends ConsumerState<_CitrineHelpSheet>
                                       size: 20,
                                     ),
                                     const SizedBox(width: 8),
-                                    Text(
-                                      'Add Citrine Guides to Vault',
-                                      style: theme.textTheme.titleSmall?.copyWith(
-                                        fontWeight: FontWeight.bold,
+                                    Expanded(
+                                      child: Text(
+                                        'Add Citrine Guides to Vault',
+                                        style: theme.textTheme.titleSmall?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
                                   ],

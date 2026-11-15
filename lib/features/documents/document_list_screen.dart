@@ -166,35 +166,60 @@ class _DocumentListScreenState extends ConsumerState<DocumentListScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.search, size: 18),
-                    hintText: 'Search notes, collections, projects, or logs...',
-                    isDense: true,
-                    border: OutlineInputBorder(),
-                  ),
-                  onChanged: (v) => setState(() => _searchQuery = v.trim()),
+          child: Builder(
+            builder: (context) {
+              final isNarrow = MediaQuery.sizeOf(context).width < 520;
+              final searchField = TextField(
+                decoration: const InputDecoration(
+                  prefixIcon: Icon(Icons.search, size: 18),
+                  hintText: 'Search notes, collections, projects, or logs...',
+                  isDense: true,
+                  border: OutlineInputBorder(),
                 ),
-              ),
-              const SizedBox(width: 8),
-              OutlinedButton.icon(
+                onChanged: (v) => setState(() => _searchQuery = v.trim()),
+              );
+              final collectionBtn = OutlinedButton.icon(
                 onPressed: () => _openCreateNoteOrCollectionDialog(
                   context,
                   initialType: 'collection',
                 ),
                 icon: const Icon(Icons.collections_bookmark_outlined, size: 16),
                 label: const Text('+ Collection'),
-              ),
-              const SizedBox(width: 6),
-              FilledButton.icon(
+              );
+              final newNoteBtn = FilledButton.icon(
                 onPressed: () => _openCreateNoteOrCollectionDialog(context),
                 icon: const Icon(Icons.note_add_outlined, size: 16),
                 label: const Text('New Note'),
-              ),
-            ],
+              );
+
+              if (isNarrow) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    searchField,
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      alignment: WrapAlignment.end,
+                      children: [
+                        collectionBtn,
+                        newNoteBtn,
+                      ],
+                    ),
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: searchField),
+                  const SizedBox(width: 8),
+                  collectionBtn,
+                  const SizedBox(width: 6),
+                  newNoteBtn,
+                ],
+              );
+            },
           ),
         ),
         Padding(

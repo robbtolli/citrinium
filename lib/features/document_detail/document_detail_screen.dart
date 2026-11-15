@@ -264,9 +264,15 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
                             () => _showBacklinksPanel = !_showBacklinksPanel,
                           ),
                         ),
-                        if (_showBacklinksPanel)
+                        if (_showBacklinksPanel &&
+                            !(MediaQuery.sizeOf(context).width < 600 &&
+                                MediaQuery.viewInsetsOf(context).bottom > 0))
                           ConstrainedBox(
-                            constraints: const BoxConstraints(maxHeight: 240),
+                            constraints: BoxConstraints(
+                              maxHeight:
+                                  (MediaQuery.sizeOf(context).height * 0.30)
+                                      .clamp(120.0, 240.0),
+                            ),
                             child: ListView(
                               shrinkWrap: true,
                               padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),

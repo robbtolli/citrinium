@@ -286,15 +286,19 @@ class _PlanningReviewRitualModalState
     final savedStep = workspace.resumableStepForRitual(widget.ritualKind);
     final isResumed = savedStep > 0 && safeStepIndex == savedStep;
 
+    final viewInsetsBottom = MediaQuery.viewInsetsOf(context).bottom;
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    final availableHeight = (screenHeight - viewInsetsBottom).clamp(260.0, 900.0);
+
     return Padding(
       padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 16,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + 16,
+        left: 16,
+        right: 16,
+        top: 12,
+        bottom: viewInsetsBottom + 12,
       ),
       child: SizedBox(
-        height: MediaQuery.sizeOf(context).height * 0.86,
+        height: availableHeight * 0.86,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -346,240 +350,269 @@ class _PlanningReviewRitualModalState
             ),
             const SizedBox(height: 8),
 
-            // Full vs. Minimal (Express) Toggle Bar + Estimated Time
-            Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                SegmentedButton<RitualDepthMode>(
-                  showSelectedIcon: false,
-                  style: const ButtonStyle(
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  segments: [
-                    ButtonSegment(
-                      value: RitualDepthMode.full,
-                      label: Text(
-                        'Full (${widget.ritualKind.defaultFullMinutes})',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ),
-                    ButtonSegment(
-                      value: RitualDepthMode.minimal,
-                      label: Text(
-                        '⚡ Minimal (${widget.ritualKind.defaultMinimalMinutes})',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ),
-                  ],
-                  selected: {_depthMode},
-                  onSelectionChanged: (sel) {
-                    final nextDepth = sel.first;
-                    setState(() {
-                      _depthMode = nextDepth;
-                      _stepIndex = 0;
-                    });
-                    ref
-                        .read(workspaceStateProvider.notifier)
-                        .updateRitualProcessConfig(
-                          widget.ritualKind,
-                          config.copyWith(preferredDepth: nextDepth),
-                        );
-                  },
-                ),
-                Chip(
-                  visualDensity: VisualDensity.compact,
-                  avatar: const Icon(Icons.timer_outlined, size: 14),
-                  label: Text(
-                    '~${currentStep.estimatedMinutes} min step',
-                    style: const TextStyle(fontSize: 11),
-                  ),
-                ),
-                if (currentStep.coachWhy.isNotEmpty ||
-                    currentStep.coachAvoidTrap.isNotEmpty)
-                  ActionChip(
-                    visualDensity: VisualDensity.compact,
-                    avatar: Icon(
-                      _coachExpanded
-                          ? Icons.lightbulb
-                          : Icons.lightbulb_outline,
-                      size: 14,
-                    ),
-                    label: Text(
-                      _coachExpanded ? 'Hide Coach Tip' : '💡 Why & How',
-                      style: const TextStyle(fontSize: 11),
-                    ),
-                    onPressed: () =>
-                        setState(() => _coachExpanded = !_coachExpanded),
-                  ),
-              ],
-            ),
-
-            if (isResumed)
-              Container(
-                margin: const EdgeInsets.only(top: 6),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: colorScheme.secondaryContainer.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.history, size: 16),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'Resumed at Step ${safeStepIndex + 1}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        ref
-                            .read(workspaceStateProvider.notifier)
-                            .resetRitualProgress(widget.ritualKind);
-                        setState(() => _stepIndex = 0);
-                      },
-                      child: const Text(
-                        'Start Fresh',
-                        style: TextStyle(fontSize: 11),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
             const SizedBox(height: 8),
             LinearProgressIndicator(
               value: (safeStepIndex + 1) / steps.length,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
 
-            // Step Title & Subtitle
-            Text(
-              currentStep.title,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            if (currentStep.subtitle.isNotEmpty) ...[
-              const SizedBox(height: 2),
-              Text(
-                currentStep.subtitle,
-                style: theme.textTheme.bodySmall,
-              ),
-            ],
-
-            // Progressive Coaching Callout (Auto-collapses after 3 completions, or 1-click disable)
-            if (_coachExpanded &&
-                (currentStep.coachWhy.isNotEmpty ||
-                    currentStep.coachAvoidTrap.isNotEmpty)) ...[
-              const SizedBox(height: 6),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 105),
-                child: Card(
-                  elevation: 0,
-                  color: colorScheme.secondaryContainer.withValues(alpha: 0.45),
-                  margin: EdgeInsets.zero,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+            Expanded(
+              child: NestedScrollView(
+                headerSliverBuilder: (context, innerBoxIsScrolled) => [
+                  SliverToBoxAdapter(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (currentStep.coachWhy.isNotEmpty)
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Icon(
-                                Icons.psychology_outlined,
-                                size: 16,
-                                color: colorScheme.onSecondaryContainer,
-                              ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  'Why this works: ${currentStep.coachWhy}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: colorScheme.onSecondaryContainer,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        if (currentStep.coachAvoidTrap.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Icon(
-                                Icons.shield_outlined,
-                                size: 16,
-                                color: colorScheme.onSecondaryContainer,
-                              ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  'Avoid overwhelm: ${currentStep.coachAvoidTrap}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: colorScheme.onSecondaryContainer,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
+                        // Full vs. Minimal (Express) Toggle Bar + Estimated Time
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
-                            TextButton(
-                              style: TextButton.styleFrom(
+                            SegmentedButton<RitualDepthMode>(
+                              showSelectedIcon: false,
+                              style: const ButtonStyle(
                                 visualDensity: VisualDensity.compact,
                               ),
-                              onPressed: () {
+                              segments: [
+                                ButtonSegment(
+                                  value: RitualDepthMode.full,
+                                  label: Text(
+                                    'Full (${widget.ritualKind.defaultFullMinutes})',
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                                ButtonSegment(
+                                  value: RitualDepthMode.minimal,
+                                  label: Text(
+                                    '⚡ Minimal (${widget.ritualKind.defaultMinimalMinutes})',
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                              ],
+                              selected: {_depthMode},
+                              onSelectionChanged: (sel) {
+                                final nextDepth = sel.first;
+                                setState(() {
+                                  _depthMode = nextDepth;
+                                  _stepIndex = 0;
+                                });
                                 ref
                                     .read(workspaceStateProvider.notifier)
-                                    .setGuidanceEnabled(false);
-                                setState(() => _coachExpanded = false);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Guidance disabled. You can re-enable it or customize your process anytime.',
-                                    ),
-                                  ),
-                                );
+                                    .updateRitualProcessConfig(
+                                      widget.ritualKind,
+                                      config.copyWith(
+                                        preferredDepth: nextDepth,
+                                      ),
+                                    );
                               },
-                              child: const Text(
-                                'Disable Guidance (I have my own process)',
-                                style: TextStyle(fontSize: 11),
+                            ),
+                            Chip(
+                              visualDensity: VisualDensity.compact,
+                              avatar: const Icon(Icons.timer_outlined, size: 14),
+                              label: Text(
+                                '~${currentStep.estimatedMinutes} min step',
+                                style: const TextStyle(fontSize: 11),
                               ),
                             ),
+                            if (currentStep.coachWhy.isNotEmpty ||
+                                currentStep.coachAvoidTrap.isNotEmpty)
+                              ActionChip(
+                                visualDensity: VisualDensity.compact,
+                                avatar: Icon(
+                                  _coachExpanded
+                                      ? Icons.lightbulb
+                                      : Icons.lightbulb_outline,
+                                  size: 14,
+                                ),
+                                label: Text(
+                                  _coachExpanded
+                                      ? 'Hide Coach Tip'
+                                      : '💡 Why & How',
+                                  style: const TextStyle(fontSize: 11),
+                                ),
+                                onPressed: () => setState(
+                                  () => _coachExpanded = !_coachExpanded,
+                                ),
+                              ),
                           ],
                         ),
+
+                        if (isResumed)
+                          Container(
+                            margin: const EdgeInsets.only(top: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colorScheme.secondaryContainer
+                                  .withValues(alpha: 0.5),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.history, size: 16),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    'Resumed at Step ${safeStepIndex + 1}',
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: () {
+                                    ref
+                                        .read(workspaceStateProvider.notifier)
+                                        .resetRitualProgress(widget.ritualKind);
+                                    setState(() => _stepIndex = 0);
+                                  },
+                                  child: const Text(
+                                    'Start Fresh',
+                                    style: TextStyle(fontSize: 11),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                        const SizedBox(height: 8),
+
+                        // Step Title & Subtitle
+                        Text(
+                          currentStep.title,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (currentStep.subtitle.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            currentStep.subtitle,
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ],
+
+                        // Progressive Coaching Callout (Auto-collapses after 3 completions, or 1-click disable)
+                        if (_coachExpanded &&
+                            (currentStep.coachWhy.isNotEmpty ||
+                                currentStep.coachAvoidTrap.isNotEmpty)) ...[
+                          const SizedBox(height: 6),
+                          Card(
+                            elevation: 0,
+                            color: colorScheme.secondaryContainer
+                                .withValues(alpha: 0.45),
+                            margin: EdgeInsets.zero,
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (currentStep.coachWhy.isNotEmpty)
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Icon(
+                                          Icons.psychology_outlined,
+                                          size: 16,
+                                          color:
+                                              colorScheme.onSecondaryContainer,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            'Why this works: ${currentStep.coachWhy}',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: colorScheme
+                                                  .onSecondaryContainer,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  if (currentStep.coachAvoidTrap.isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Icon(
+                                          Icons.shield_outlined,
+                                          size: 16,
+                                          color:
+                                              colorScheme.onSecondaryContainer,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            'Avoid overwhelm: ${currentStep.coachAvoidTrap}',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: colorScheme
+                                                  .onSecondaryContainer,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      TextButton(
+                                        style: TextButton.styleFrom(
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                        onPressed: () {
+                                          ref
+                                              .read(
+                                                workspaceStateProvider.notifier,
+                                              )
+                                              .setGuidanceEnabled(false);
+                                          setState(
+                                            () => _coachExpanded = false,
+                                          );
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Guidance disabled. You can re-enable it or customize your process anytime.',
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                        child: const Text(
+                                          'Disable Guidance (I have my own process)',
+                                          style: TextStyle(fontSize: 11),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 10),
                       ],
                     ),
                   ),
+                ],
+                // Interactive Step Body
+                body: _buildStepBody(
+                  context: context,
+                  step: currentStep,
+                  workspace: workspace,
+                  allEntries: allEntries,
+                  allDocs: allDocs,
+                  now: now,
+                  todayIso: todayIso,
+                  targetRelPath: targetRelPath,
                 ),
-              ),
-            ],
-
-            const SizedBox(height: 10),
-
-            // Interactive Step Body
-            Expanded(
-              child: _buildStepBody(
-                context: context,
-                step: currentStep,
-                workspace: workspace,
-                allEntries: allEntries,
-                allDocs: allDocs,
-                now: now,
-                todayIso: todayIso,
-                targetRelPath: targetRelPath,
               ),
             ),
 
@@ -1588,32 +1621,47 @@ class _PlanningReviewRitualModalState
           itemCount: futureItems.length,
           itemBuilder: (ctx, idx) {
             final item = futureItems[idx];
+            final isNarrow = MediaQuery.sizeOf(context).width < 480;
+            final pullButton = FilledButton.tonalIcon(
+              onPressed: () {
+                ref
+                    .read(vaultMutationProvider)
+                    .migrateOrScheduleEntry(
+                      item,
+                      targetRelPath: targetRelPath,
+                      targetInitialContent:
+                          CadenceFiles.defaultContentForCadence(
+                            widget.ritualKind.cadence,
+                            now,
+                          ),
+                    );
+              },
+              icon: const Icon(Icons.download_outlined, size: 16),
+              label: Text('Pull to ${widget.ritualKind.cadence.label}'),
+            );
             return Card(
               margin: const EdgeInsets.only(bottom: 8),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
-                child: Row(
-                  children: [
-                    Expanded(child: InPlaceTaskTile(item: item, dense: true)),
-                    FilledButton.tonalIcon(
-                      onPressed: () {
-                        ref
-                            .read(vaultMutationProvider)
-                            .migrateOrScheduleEntry(
-                              item,
-                              targetRelPath: targetRelPath,
-                              targetInitialContent:
-                                  CadenceFiles.defaultContentForCadence(
-                                    widget.ritualKind.cadence,
-                                    now,
-                                  ),
-                            );
-                      },
-                      icon: const Icon(Icons.download_outlined, size: 16),
-                      label: Text('Pull to ${widget.ritualKind.cadence.label}'),
-                    ),
-                  ],
-                ),
+                child: isNarrow
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          InPlaceTaskTile(item: item, dense: true),
+                          const SizedBox(height: 6),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: pullButton,
+                          ),
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          Expanded(child: InPlaceTaskTile(item: item, dense: true)),
+                          const SizedBox(width: 8),
+                          pullButton,
+                        ],
+                      ),
               ),
             );
           },
@@ -2174,22 +2222,24 @@ class _ProcessCustomizerDialogState
                 ),
               ),
               const SizedBox(height: 6),
-              SegmentedButton<CadenceExecutionMode>(
-                showSelectedIcon: false,
-                segments: [
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
                   for (final mode in CadenceExecutionMode.values)
-                    ButtonSegment(
-                      value: mode,
+                    ChoiceChip(
                       label: Text(
                         mode.label,
                         style: const TextStyle(fontSize: 12),
                       ),
+                      selected: config.executionMode == mode,
+                      onSelected: (selected) {
+                        if (selected) {
+                          _saveConfig(config.copyWith(executionMode: mode));
+                        }
+                      },
                     ),
                 ],
-                selected: {config.executionMode},
-                onSelectionChanged: (sel) {
-                  _saveConfig(config.copyWith(executionMode: sel.first));
-                },
               ),
               const SizedBox(height: 6),
               Text(
@@ -2276,14 +2326,15 @@ class _ProcessCustomizerDialogState
 
               // Layer 2 UI: Step Customizer (Toggle, Reorder, Minimal Flag, Add Custom)
               if (config.executionMode == CadenceExecutionMode.customSteps) ...[
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Expanded(
-                      child: Text(
-                        'Customize Steps (${config.customSteps.length}):',
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                    Text(
+                      'Customize Steps (${config.customSteps.length}):',
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                     TextButton.icon(
@@ -2319,6 +2370,93 @@ class _ProcessCustomizerDialogState
                   Builder(
                     builder: (ctx) {
                       final step = config.customSteps[i];
+                      final isNarrow = MediaQuery.sizeOf(ctx).width < 480;
+                      final minChip = FilterChip(
+                        visualDensity: VisualDensity.compact,
+                        label: const Text(
+                          '⚡ Min',
+                          style: TextStyle(fontSize: 10),
+                        ),
+                        selected: step.includedInMinimal,
+                        onSelected: (val) {
+                          final updated = List<RitualStepSpec>.from(
+                            config.customSteps,
+                          );
+                          updated[i] = step.copyWith(includedInMinimal: val);
+                          _saveConfig(
+                            config.copyWith(customSteps: updated),
+                          );
+                        },
+                      );
+                      final reorderButtons = <Widget>[
+                        if (i > 0)
+                          IconButton(
+                            visualDensity: VisualDensity.compact,
+                            icon: const Icon(
+                              Icons.arrow_upward,
+                              size: 16,
+                            ),
+                            onPressed: () {
+                              final updated = List<RitualStepSpec>.from(
+                                config.customSteps,
+                              );
+                              final item = updated.removeAt(i);
+                              updated.insert(i - 1, item);
+                              _saveConfig(
+                                config.copyWith(customSteps: updated),
+                              );
+                            },
+                          ),
+                        if (i < config.customSteps.length - 1)
+                          IconButton(
+                            visualDensity: VisualDensity.compact,
+                            icon: const Icon(
+                              Icons.arrow_downward,
+                              size: 16,
+                            ),
+                            onPressed: () {
+                              final updated = List<RitualStepSpec>.from(
+                                config.customSteps,
+                              );
+                              final item = updated.removeAt(i);
+                              updated.insert(i + 1, item);
+                              _saveConfig(
+                                config.copyWith(customSteps: updated),
+                              );
+                            },
+                          ),
+                      ];
+                      final titleColumn = Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            step.title,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                          ),
+                          Text(
+                            step.includedInMinimal
+                                ? 'Included in Full & ⚡ Minimal'
+                                : 'Full Process only',
+                            style: theme.textTheme.labelSmall,
+                          ),
+                        ],
+                      );
+                      final checkbox = Checkbox(
+                        value: step.enabled,
+                        onChanged: (val) {
+                          if (val == null) return;
+                          final updated = List<RitualStepSpec>.from(
+                            config.customSteps,
+                          );
+                          updated[i] = step.copyWith(enabled: val);
+                          _saveConfig(
+                            config.copyWith(customSteps: updated),
+                          );
+                        },
+                      );
                       return Card(
                         margin: const EdgeInsets.only(bottom: 6),
                         child: Padding(
@@ -2326,97 +2464,34 @@ class _ProcessCustomizerDialogState
                             horizontal: 8,
                             vertical: 4,
                           ),
-                          child: Row(
-                            children: [
-                              Checkbox(
-                                value: step.enabled,
-                                onChanged: (val) {
-                                  if (val == null) return;
-                                  final updated = List<RitualStepSpec>.from(
-                                    config.customSteps,
-                                  );
-                                  updated[i] = step.copyWith(enabled: val);
-                                  _saveConfig(
-                                    config.copyWith(customSteps: updated),
-                                  );
-                                },
-                              ),
-                              Expanded(
-                                child: Column(
+                          child: isNarrow
+                              ? Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      step.title,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 12,
-                                      ),
+                                    Row(
+                                      children: [
+                                        checkbox,
+                                        Expanded(child: titleColumn),
+                                      ],
                                     ),
-                                    Text(
-                                      step.includedInMinimal
-                                          ? 'Included in Full & ⚡ Minimal'
-                                          : 'Full Process only',
-                                      style: theme.textTheme.labelSmall,
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        minChip,
+                                        const SizedBox(width: 4),
+                                        ...reorderButtons,
+                                      ],
                                     ),
                                   ],
+                                )
+                              : Row(
+                                  children: [
+                                    checkbox,
+                                    Expanded(child: titleColumn),
+                                    minChip,
+                                    ...reorderButtons,
+                                  ],
                                 ),
-                              ),
-                              FilterChip(
-                                visualDensity: VisualDensity.compact,
-                                label: const Text(
-                                  '⚡ Min',
-                                  style: TextStyle(fontSize: 10),
-                                ),
-                                selected: step.includedInMinimal,
-                                onSelected: (val) {
-                                  final updated = List<RitualStepSpec>.from(
-                                    config.customSteps,
-                                  );
-                                  updated[i] =
-                                      step.copyWith(includedInMinimal: val);
-                                  _saveConfig(
-                                    config.copyWith(customSteps: updated),
-                                  );
-                                },
-                              ),
-                              if (i > 0)
-                                IconButton(
-                                  visualDensity: VisualDensity.compact,
-                                  icon: const Icon(
-                                    Icons.arrow_upward,
-                                    size: 16,
-                                  ),
-                                  onPressed: () {
-                                    final updated = List<RitualStepSpec>.from(
-                                      config.customSteps,
-                                    );
-                                    final item = updated.removeAt(i);
-                                    updated.insert(i - 1, item);
-                                    _saveConfig(
-                                      config.copyWith(customSteps: updated),
-                                    );
-                                  },
-                                ),
-                              if (i < config.customSteps.length - 1)
-                                IconButton(
-                                  visualDensity: VisualDensity.compact,
-                                  icon: const Icon(
-                                    Icons.arrow_downward,
-                                    size: 16,
-                                  ),
-                                  onPressed: () {
-                                    final updated = List<RitualStepSpec>.from(
-                                      config.customSteps,
-                                    );
-                                    final item = updated.removeAt(i);
-                                    updated.insert(i + 1, item);
-                                    _saveConfig(
-                                      config.copyWith(customSteps: updated),
-                                    );
-                                  },
-                                ),
-                            ],
-                          ),
                         ),
                       );
                     },

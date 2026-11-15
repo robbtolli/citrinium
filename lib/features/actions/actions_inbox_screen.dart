@@ -55,32 +55,49 @@ class _ActionsInboxScreenState extends ConsumerState<ActionsInboxScreen> {
           e.entry.taskState != 'dropped';
     }).toList();
 
+    final isCompactPhone = MediaQuery.sizeOf(context).width < 600;
+    final tabChips = [
+      for (final (tab, label) in [
+        (ActionsSubTab.inbox, '📥 Inbox (${inboxItems.length})'),
+        (ActionsSubTab.nextActions, '⚡ Next Actions'),
+        (ActionsSubTab.calendar, '📅 Calendar'),
+        (ActionsSubTab.projects, '📁 Projects'),
+        (ActionsSubTab.waiting, '⏳ Waiting'),
+        (ActionsSubTab.someday, '🌱 Someday'),
+      ])
+        ChoiceChip(
+          visualDensity: VisualDensity.compact,
+          label: Text(label),
+          selected: _tab == tab,
+          onSelected: (_) => setState(() => _tab = tab),
+        ),
+    ];
+
     return Column(
       children: [
         // Top navigation bar across GTD Organize & Calendar views
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              for (final (tab, label) in [
-                (ActionsSubTab.inbox, '📥 Inbox (${inboxItems.length})'),
-                (ActionsSubTab.nextActions, '⚡ Next Actions'),
-                (ActionsSubTab.calendar, '📅 Calendar'),
-                (ActionsSubTab.projects, '📁 Projects'),
-                (ActionsSubTab.waiting, '⏳ Waiting'),
-                (ActionsSubTab.someday, '🌱 Someday'),
-              ])
-                ChoiceChip(
-                  visualDensity: VisualDensity.compact,
-                  label: Text(label),
-                  selected: _tab == tab,
-                  onSelected: (_) => setState(() => _tab = tab),
-                ),
-            ],
+        if (isCompactPhone)
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            child: Row(
+              children: [
+                for (var i = 0; i < tabChips.length; i++) ...[
+                  if (i > 0) const SizedBox(width: 6),
+                  tabChips[i],
+                ],
+              ],
+            ),
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: tabChips,
+            ),
           ),
-        ),
         const Divider(height: 1),
         Expanded(
           child: switch (_tab) {
@@ -357,76 +374,87 @@ class _ActionsInboxScreenState extends ConsumerState<ActionsInboxScreen> {
       return d.compareTo(todayIso) < 0 && !e.isCompletedTask;
     }).toList();
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
-          child: Row(
+    final headerCard = Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Schedule & Events (${commitments.length})',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    Text(
-                      'Only explicit date/time commitments appear here — undated tasks stay in Next Actions (G-05).',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
+              Text(
+                'Schedule & Events (${commitments.length})',
+                style: Theme.of(context).textTheme.titleMedium,
               ),
-              FilledButton.icon(
-                onPressed: () => _openAddCalendarCommitmentDialog(context),
-                icon: const Icon(Icons.event_available, size: 16),
-                label: const Text('Add Commitment'),
+              Text(
+                'Only explicit date/time commitments appear here — undated tasks stay in Next Actions (G-05).',
+                style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
           ),
-        ),
-        Expanded(
-          child: commitments.isEmpty
-              ? const Center(
-                  child: Text(
-                    'No date-specific commitments yet. Add 📅 YYYY-MM-DD to any task or event.',
-                  ),
-                )
-              : ListView(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  children: [
-                    if (earlierItems.isNotEmpty)
-                      _buildCalendarSection(
-                        context,
-                        'EARLIER OPEN COMMITMENTS',
-                        earlierItems,
-                      ),
-                    _buildCalendarSection(
-                      context,
-                      'TODAY ($todayIso)',
-                      todayItems,
-                    ),
-                    _buildCalendarSection(
-                      context,
-                      'TOMORROW ($tomorrowIso)',
-                      tomorrowItems,
-                    ),
-                    if (upcomingWeekItems.isNotEmpty)
-                      _buildCalendarSection(
-                        context,
-                        'NEXT 7 DAYS',
-                        upcomingWeekItems,
-                      ),
-                    if (laterItems.isNotEmpty)
-                      _buildCalendarSection(
-                        context,
-                        'LATER SCHEDULED',
-                        laterItems,
-                      ),
-                  ],
+          FilledButton.icon(
+            onPressed: () => _openAddCalendarCommitmentDialog(context),
+            icon: const Icon(Icons.event_available, size: 16),
+            label: const Text('Add Commitment'),
+          ),
+        ],
+      ),
+    );
+
+    if (commitments.isEmpty) {
+      return Column(
+        children: [
+          headerCard,
+          const Expanded(
+            child: Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text(
+                  'No date-specific commitments yet. Add 📅 YYYY-MM-DD to any task or event.',
+                  textAlign: TextAlign.center,
                 ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 16),
+      children: [
+        headerCard,
+        if (earlierItems.isNotEmpty)
+          _buildCalendarSection(
+            context,
+            'EARLIER OPEN COMMITMENTS',
+            earlierItems,
+          ),
+        _buildCalendarSection(
+          context,
+          'TODAY ($todayIso)',
+          todayItems,
         ),
+        _buildCalendarSection(
+          context,
+          'TOMORROW ($tomorrowIso)',
+          tomorrowItems,
+        ),
+        if (upcomingWeekItems.isNotEmpty)
+          _buildCalendarSection(
+            context,
+            'NEXT 7 DAYS',
+            upcomingWeekItems,
+          ),
+        if (laterItems.isNotEmpty)
+          _buildCalendarSection(
+            context,
+            'LATER SCHEDULED',
+            laterItems,
+          ),
       ],
     );
   }
@@ -481,56 +509,78 @@ class _ActionsInboxScreenState extends ConsumerState<ActionsInboxScreen> {
           title: const Text('Add Scheduled Event'),
           content: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SegmentedButton<bool>(
-                  segments: const [
-                    ButtonSegment(value: true, label: Text('○ Event')),
-                    ButtonSegment(value: false, label: Text('[ ] Due Task')),
-                  ],
-                  selected: {isEvent},
-                  onSelectionChanged: (s) =>
-                      setDialogState(() => isEvent = s.first),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: titleCtrl,
-                  autofocus: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Commitment title',
-                    hintText: 'e.g. Dentist appointment',
-                    border: OutlineInputBorder(),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SegmentedButton<bool>(
+                    segments: const [
+                      ButtonSegment(value: true, label: Text('○ Event')),
+                      ButtonSegment(value: false, label: Text('[ ] Due Task')),
+                    ],
+                    selected: {isEvent},
+                    onSelectionChanged: (s) =>
+                        setDialogState(() => isEvent = s.first),
                   ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: dateCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Date (YYYY-MM-DD)',
-                          prefixText: '📅 ',
-                          border: OutlineInputBorder(),
-                        ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: titleCtrl,
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Commitment title',
+                      hintText: 'e.g. Dentist appointment',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  if (MediaQuery.sizeOf(ctx).width < 460) ...[
+                    TextField(
+                      controller: dateCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Date (YYYY-MM-DD)',
+                        prefixText: '📅 ',
+                        border: OutlineInputBorder(),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: timeCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Time (optional HH:MM)',
-                          prefixText: '⏰ ',
-                          hintText: '14:00',
-                          border: OutlineInputBorder(),
-                        ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: timeCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Time (optional HH:MM)',
+                        prefixText: '⏰ ',
+                        hintText: '14:00',
+                        border: OutlineInputBorder(),
                       ),
                     ),
-                  ],
-                ),
-              ],
+                  ] else
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: dateCtrl,
+                            decoration: const InputDecoration(
+                              labelText: 'Date (YYYY-MM-DD)',
+                              prefixText: '📅 ',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: timeCtrl,
+                            decoration: const InputDecoration(
+                              labelText: 'Time (optional HH:MM)',
+                              prefixText: '⏰ ',
+                              hintText: '14:00',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
             ),
           ),
           actions: [
@@ -716,10 +766,11 @@ void showCreateProjectDialogWithOutcomePrompt(
         title: const Text('New Project'),
         content: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 440),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               TextField(
                 controller: titleCtrl,
                 decoration: const InputDecoration(
@@ -764,6 +815,7 @@ void showCreateProjectDialogWithOutcomePrompt(
                 ),
               ],
             ],
+            ),
           ),
         ),
         actions: [

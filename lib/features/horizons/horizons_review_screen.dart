@@ -160,53 +160,49 @@ class _HorizonsReviewScreenState extends ConsumerState<HorizonsReviewScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
         // Top cadence selector + Templates (B-11) & Configure Cadences (B-12)
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Expanded(
-              child: Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  for (final c in enabledList)
-                    ChoiceChip(
-                      visualDensity: VisualDensity.compact,
-                      label: Text(
-                        c.label,
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      selected: activeCadence == c,
-                      onSelected: (_) {
-                        setState(() => _selectedCadence = c);
-                      },
-                    ),
-                  ActionChip(
-                    visualDensity: VisualDensity.compact,
-                    avatar: const Icon(
-                      Icons.auto_fix_high_outlined,
-                      size: 14,
-                    ),
-                    label: const Text(
-                      'Process Studio',
-                      style: TextStyle(fontSize: 12),
-                    ),
-                    onPressed: () {
-                      final initialRitual =
-                          RitualKind.primaryForCadence(
-                            activeCadence,
-                          ) ??
-                          RitualKind.weeklyReviewPlan;
-                      showProcessCustomizerDialog(
-                        context,
-                        initialRitual: initialRitual,
-                      );
-                    },
-                  ),
-                ],
+            for (final c in enabledList)
+              ChoiceChip(
+                visualDensity: VisualDensity.compact,
+                label: Text(
+                  c.label,
+                  style: const TextStyle(fontSize: 12),
+                ),
+                selected: activeCadence == c,
+                onSelected: (_) {
+                  setState(() => _selectedCadence = c);
+                },
               ),
+            ActionChip(
+              visualDensity: VisualDensity.compact,
+              avatar: const Icon(
+                Icons.auto_fix_high_outlined,
+                size: 14,
+              ),
+              label: const Text(
+                'Process Studio',
+                style: TextStyle(fontSize: 12),
+              ),
+              onPressed: () {
+                final initialRitual =
+                    RitualKind.primaryForCadence(
+                      activeCadence,
+                    ) ??
+                    RitualKind.weeklyReviewPlan;
+                showProcessCustomizerDialog(
+                  context,
+                  initialRitual: initialRitual,
+                );
+              },
             ),
-            const SizedBox(width: 8),
             OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+              ),
               onPressed: () => showCadenceTemplatesDialog(
                 context,
                 initialCadence: activeCadence,
@@ -214,8 +210,10 @@ class _HorizonsReviewScreenState extends ConsumerState<HorizonsReviewScreen> {
               icon: const Icon(Icons.description_outlined, size: 16),
               label: const Text('Templates'),
             ),
-            const SizedBox(width: 6),
             OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+              ),
               onPressed: () => _openConfigureCadencesDialog(context),
               icon: const Icon(Icons.tune, size: 16),
               label: const Text('Cadences'),
@@ -451,10 +449,10 @@ class _HorizonsReviewScreenState extends ConsumerState<HorizonsReviewScreen> {
           dragHandle: ReorderableDragStartListener(
             index: index,
             child: const Padding(
-              padding: EdgeInsets.only(right: 6),
+              padding: EdgeInsets.all(6),
               child: Tooltip(
                 message: 'Drag to reorder',
-                child: Icon(Icons.drag_indicator, size: 18),
+                child: Icon(Icons.drag_indicator, size: 20),
               ),
             ),
           ),
@@ -903,11 +901,15 @@ class _GuidedCadenceReviewModalState
         workspace.weeklyReviewStep > 0 &&
         _step == workspace.weeklyReviewStep;
 
+    final viewInsetsBottom = MediaQuery.viewInsetsOf(context).bottom;
+    final availableHeight =
+        (MediaQuery.sizeOf(context).height - viewInsetsBottom).clamp(260.0, 900.0);
+
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.fromLTRB(16, 16, 16, viewInsetsBottom + 16),
         child: SizedBox(
-          height: MediaQuery.of(context).size.height * 0.82,
+          height: availableHeight * 0.85,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1559,8 +1561,7 @@ class _GuidedCadenceReviewModalState
   }
 
   Widget _buildStepSetPriorities(ThemeData theme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return ListView(
       children: [
         Text(
           '4. Choose Outcomes & Intentions 🎯',

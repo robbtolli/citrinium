@@ -24,32 +24,38 @@ import '../shared/widgets/quick_capture_bar.dart';
 enum AppPillar {
   today(
     label: 'Today',
+    shortLabel: 'Today',
     icon: Icons.wb_sunny_outlined,
     selectedIcon: Icons.wb_sunny,
   ),
   actions(
     label: 'Actions & Inbox',
+    shortLabel: 'Actions',
     icon: Icons.check_circle_outline,
     selectedIcon: Icons.check_circle,
   ),
   horizons(
     label: 'Plan & Review',
+    shortLabel: 'Plan',
     icon: Icons.explore_outlined,
     selectedIcon: Icons.explore,
   ),
   notes(
     label: 'Notes & Index',
+    shortLabel: 'Notes',
     icon: Icons.library_books_outlined,
     selectedIcon: Icons.library_books,
   );
 
   const AppPillar({
     required this.label,
+    required this.shortLabel,
     required this.icon,
     required this.selectedIcon,
   });
 
   final String label;
+  final String shortLabel;
   final IconData icon;
   final IconData selectedIcon;
 }
@@ -172,9 +178,16 @@ class _AppShellScaffoldState extends ConsumerState<AppShellScaffold>
                 children: [
                   const Icon(Icons.history),
                   const SizedBox(width: 8),
-                  Text(
-                    'Recent Views & Documents (Pick up where you left off)',
-                    style: Theme.of(context).textTheme.titleMedium,
+                  Expanded(
+                    child: Text(
+                      'Recent Views & Documents (Pick up where you left off)',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20),
+                    tooltip: 'Close',
+                    onPressed: () => Navigator.of(ctx).pop(),
                   ),
                 ],
               ),
@@ -373,7 +386,10 @@ class _AppShellScaffoldState extends ConsumerState<AppShellScaffold>
       _checkTwoHourSessionRestore(workspace, allDocs);
     }
 
-    final isWide = MediaQuery.of(context).size.width >= 760;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isWide = screenWidth >= 760;
+    final isCompactPhone = screenWidth < 600;
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
 
     final bodyContent = switch (_pillar) {
       AppPillar.today => const TodayCombinedScreen(),
@@ -397,15 +413,26 @@ class _AppShellScaffoldState extends ConsumerState<AppShellScaffold>
         title: const Text('Citrine'),
         actions: [
           // Recent Views / Documents switcher (N-04, A-08)
-          TextButton.icon(
-            onPressed: () => _openRecentSwitcher(context, allDocs),
-            icon: const Icon(Icons.history, size: 18),
-            label: Text(
-              workspace.recentItems.isEmpty
-                  ? 'Recent'
-                  : 'Recent (${workspace.recentItems.length})',
+          if (isCompactPhone)
+            IconButton(
+              icon: Badge(
+                isLabelVisible: workspace.recentItems.isNotEmpty,
+                label: Text('${workspace.recentItems.length}'),
+                child: const Icon(Icons.history),
+              ),
+              tooltip: 'Recent Views & Documents',
+              onPressed: () => _openRecentSwitcher(context, allDocs),
+            )
+          else
+            TextButton.icon(
+              onPressed: () => _openRecentSwitcher(context, allDocs),
+              icon: const Icon(Icons.history, size: 18),
+              label: Text(
+                workspace.recentItems.isEmpty
+                    ? 'Recent'
+                    : 'Recent (${workspace.recentItems.length})',
+              ),
             ),
-          ),
           IconButton(
             icon: Badge(
               isLabelVisible: reminders.isNotEmpty,
@@ -420,16 +447,18 @@ class _AppShellScaffoldState extends ConsumerState<AppShellScaffold>
             tooltip: 'Quick Switcher & Search',
             onPressed: () => _openQuickSwitcherDialog(context, allDocs),
           ),
-          IconButton(
-            icon: const Icon(Icons.help_outline),
-            tooltip: 'Field Guide & Help',
-            onPressed: () => showCitrineHelpSheet(context),
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Settings',
-            onPressed: () => context.push('/settings'),
-          ),
+          if (!isCompactPhone) ...[
+            IconButton(
+              icon: const Icon(Icons.help_outline),
+              tooltip: 'Field Guide & Help',
+              onPressed: () => showCitrineHelpSheet(context),
+            ),
+            IconButton(
+              icon: const Icon(Icons.settings_outlined),
+              tooltip: 'Settings',
+              onPressed: () => context.push('/settings'),
+            ),
+          ],
         ],
       ),
       body: Column(
@@ -507,46 +536,116 @@ class _AppShellScaffoldState extends ConsumerState<AppShellScaffold>
                   horizontal: 12,
                   vertical: 6,
                 ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.task_alt_outlined,
-                      size: 18,
-                      color: Theme.of(context).colorScheme.onSecondaryContainer,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Citrine has detected new markdown files in the vault '
-                        'that contain tasks. Would you like to import them?',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSecondaryContainer,
-                        ),
+                child: isCompactPhone
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.task_alt_outlined,
+                                size: 18,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSecondaryContainer,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'New markdown tasks found in vault. Import them?',
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSecondaryContainer,
+                                      ),
+                                ),
+                              ),
+                              IconButton(
+                                visualDensity: VisualDensity.compact,
+                                icon: const Icon(Icons.close, size: 16),
+                                tooltip: 'Dismiss',
+                                onPressed: () => ref
+                                    .read(
+                                      externalUntaggedTasksProvider.notifier,
+                                    )
+                                    .dismiss(),
+                              ),
+                            ],
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              TextButton(
+                                style: TextButton.styleFrom(
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                                onPressed: () => ref
+                                    .read(
+                                      externalUntaggedTasksProvider.notifier,
+                                    )
+                                    .dismiss(),
+                                child: const Text('No'),
+                              ),
+                              TextButton(
+                                style: TextButton.styleFrom(
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                                onPressed: () => ref
+                                    .read(
+                                      externalUntaggedTasksProvider.notifier,
+                                    )
+                                    .acceptAndImport(),
+                                child: const Text('Yes, Import'),
+                              ),
+                            ],
+                          ),
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          Icon(
+                            Icons.task_alt_outlined,
+                            size: 18,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSecondaryContainer,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Citrine has detected new markdown files in the vault '
+                              'that contain tasks. Would you like to import them?',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSecondaryContainer,
+                                  ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () => ref
+                                .read(externalUntaggedTasksProvider.notifier)
+                                .acceptAndImport(),
+                            child: const Text('Yes'),
+                          ),
+                          TextButton(
+                            onPressed: () => ref
+                                .read(externalUntaggedTasksProvider.notifier)
+                                .dismiss(),
+                            child: const Text('No'),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close, size: 16),
+                            tooltip: 'Dismiss',
+                            onPressed: () => ref
+                                .read(externalUntaggedTasksProvider.notifier)
+                                .dismiss(),
+                          ),
+                        ],
                       ),
-                    ),
-                    TextButton(
-                      onPressed: () => ref
-                          .read(externalUntaggedTasksProvider.notifier)
-                          .acceptAndImport(),
-                      child: const Text('Yes'),
-                    ),
-                    TextButton(
-                      onPressed: () => ref
-                          .read(externalUntaggedTasksProvider.notifier)
-                          .dismiss(),
-                      child: const Text('No'),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, size: 16),
-                      tooltip: 'Dismiss',
-                      onPressed: () => ref
-                          .read(externalUntaggedTasksProvider.notifier)
-                          .dismiss(),
-                    ),
-                  ],
-                ),
               ),
             ),
           if (bgWork.isRunning)
@@ -595,10 +694,10 @@ class _AppShellScaffoldState extends ConsumerState<AppShellScaffold>
                   )
                 : bodyContent,
           ),
-          const QuickCaptureBar(),
+          QuickCaptureBar(hideWhenExternalKeyboardOpen: !isWide),
         ],
       ),
-      bottomNavigationBar: isWide
+      bottomNavigationBar: (isWide || keyboardOpen)
           ? null
           : NavigationBar(
               selectedIndex: _pillar.index,
@@ -610,7 +709,8 @@ class _AppShellScaffoldState extends ConsumerState<AppShellScaffold>
                   NavigationDestination(
                     icon: Icon(p.icon),
                     selectedIcon: Icon(p.selectedIcon),
-                    label: p.label,
+                    label: isCompactPhone ? p.shortLabel : p.label,
+                    tooltip: p.label,
                   ),
               ],
             ),
