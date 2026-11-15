@@ -98,7 +98,6 @@ class _EmbeddedMarkdownEditorState
       final updatedText = await readVaultFile(File(absPath));
       if (!mounted) return;
       if (updatedText.text != beforeText) {
-        _lastLoadedDiskText = updatedText.text;
         final delta = updatedText.text.length - beforeText.length;
         final oldSel = controller.selection;
         controller.updateTextPreservingSelection(updatedText.text);
@@ -144,7 +143,10 @@ class _EmbeddedMarkdownEditorState
             services.watcher.suppressSelfWrite(VaultPath(relPath));
           }
 
-          _lastLoadedDiskText = text;
+          // Do not overwrite _lastLoadedDiskText here: self-write suppression
+          // keeps documentRawTextProvider at its previous emission until an
+          // external change arrives, so updating _lastLoadedDiskText early would
+          // make the next rebuild treat that stale emission as an external edit.
           await writeVaultFileAtomic(
             file,
             VaultFileContents(text: text, hadBom: false),

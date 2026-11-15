@@ -72,7 +72,8 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
             services.watcher.suppressSelfWrite(VaultPath(relPath));
           }
 
-          _lastLoadedDiskText = text;
+          // Keep _lastLoadedDiskText aligned with documentRawTextProvider's
+          // latest emission (see EmbeddedMarkdownEditor._syncEditorWithDisk).
           await writeVaultFileAtomic(file, VaultFileContents(text: text, hadBom: false));
           if (services != null) {
             await services.indexService.refreshFile(relPath);
