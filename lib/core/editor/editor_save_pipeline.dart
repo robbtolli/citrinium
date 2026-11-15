@@ -37,6 +37,7 @@ class EditorSavePipeline extends ChangeNotifier {
 
   bool _isSaving = false;
   bool _pendingSaveAfterCurrent = false;
+  bool _disposed = false;
   ConflictState? _conflictState;
   final Set<String> _recentSavedTexts = {};
 
@@ -74,7 +75,7 @@ class EditorSavePipeline extends ChangeNotifier {
     _debounceTimer?.cancel();
 
     _isSaving = true;
-    notifyListeners();
+    if (!_disposed) notifyListeners();
 
     try {
       final textToSave = _bufferText;
@@ -86,10 +87,12 @@ class EditorSavePipeline extends ChangeNotifier {
       _lastSavedText = textToSave;
     } finally {
       _isSaving = false;
-      notifyListeners();
-      if (_pendingSaveAfterCurrent) {
-        _pendingSaveAfterCurrent = false;
-        saveNow(force: force);
+      if (!_disposed) {
+        notifyListeners();
+        if (_pendingSaveAfterCurrent) {
+          _pendingSaveAfterCurrent = false;
+          saveNow(force: force);
+        }
       }
     }
   }
@@ -149,6 +152,7 @@ class EditorSavePipeline extends ChangeNotifier {
     if (isDirty) {
       saveNow();
     }
+    _disposed = true;
     super.dispose();
   }
 }

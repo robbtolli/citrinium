@@ -405,14 +405,87 @@ class _HorizonsReviewScreenState extends ConsumerState<HorizonsReviewScreen> {
           ),
 
         // Pure database-driven Data View cards (B-02)
-        for (final query in dataViewQueries)
-          CitrineDataViewCard(
-            query: query,
-            referenceDate: now,
-          ),
+        _buildReorderableDataViews(
+          cadence: activeCadence,
+          queries: dataViewQueries,
+          savedOrder: workspace.cadenceDataViewOrder[activeCadence.name],
+          referenceDate: now,
+        ),
         ],
       ),
     );
+  }
+
+  static String _dataViewQueryId(CitrineDataViewQuery query) =>
+      '${query.view.name}|${query.filter ?? ''}|${query.status}|${query.resolvedTitle}';
+
+  Widget _buildReorderableDataViews({
+    required CadenceKind cadence,
+    required List<CitrineDataViewQuery> queries,
+    required List<String>? savedOrder,
+    required DateTime referenceDate,
+  }) {
+    final ordered = _applySavedOrder(queries, savedOrder);
+    return ReorderableListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      buildDefaultDragHandles: false,
+      itemCount: ordered.length,
+      onReorderItem: (oldIndex, newIndex) {
+        if (oldIndex == newIndex) return;
+        final next = List<CitrineDataViewQuery>.from(ordered);
+        final moved = next.removeAt(oldIndex);
+        next.insert(newIndex, moved);
+        ref.read(workspaceStateProvider.notifier).reorderCadenceDataView(
+              cadence.name,
+              [for (final q in next) _dataViewQueryId(q)],
+            );
+      },
+      itemBuilder: (context, index) {
+        final query = ordered[index];
+        final id = _dataViewQueryId(query);
+        return CitrineDataViewCard(
+          key: ValueKey('horizon_dv_${cadence.name}_$id'),
+          query: query,
+          referenceDate: referenceDate,
+          dragHandle: ReorderableDragStartListener(
+            index: index,
+            child: const Padding(
+              padding: EdgeInsets.only(right: 6),
+              child: Tooltip(
+                message: 'Drag to reorder',
+                child: Icon(Icons.drag_indicator, size: 18),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  List<CitrineDataViewQuery> _applySavedOrder(
+    List<CitrineDataViewQuery> queries,
+    List<String>? savedOrder,
+  ) {
+    if (savedOrder == null || savedOrder.isEmpty) return queries;
+    final byId = <String, CitrineDataViewQuery>{
+      for (final q in queries) _dataViewQueryId(q): q,
+    };
+    final result = <CitrineDataViewQuery>[];
+    final used = <String>{};
+    for (final id in savedOrder) {
+      final q = byId[id];
+      if (q != null && used.add(id)) {
+        result.add(q);
+      }
+    }
+    for (final q in queries) {
+      final id = _dataViewQueryId(q);
+      if (used.add(id)) {
+        result.add(q);
+      }
+    }
+    return result;
   }
 
   List<CitrineDataViewQuery> _dataViewQueriesForCadence(CadenceKind cadence) {

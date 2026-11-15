@@ -153,6 +153,7 @@ class WorkspaceState {
     this.resumableStepByRitual = const {},
     this.lastCompletedIsoByRitual = const {},
     this.ritualConfigs = const {},
+    this.cadenceDataViewOrder = const {},
   });
 
   factory WorkspaceState.initial() {
@@ -295,6 +296,9 @@ class WorkspaceState {
   /// Markdown + preferred depth mode).
   final Map<RitualKind, RitualProcessConfig> ritualConfigs;
 
+  /// Custom ordering of pure UI data view IDs per [CadenceKind.name].
+  final Map<String, List<String>> cadenceDataViewOrder;
+
   /// True if the user was active within the last 2 hours (`A-08`).
   bool isWithinTwoHourWindow(DateTime now) {
     if (lastActiveTimestampMs == null) return false;
@@ -384,6 +388,7 @@ class WorkspaceState {
     Map<RitualKind, int>? resumableStepByRitual,
     Map<RitualKind, String>? lastCompletedIsoByRitual,
     Map<RitualKind, RitualProcessConfig>? ritualConfigs,
+    Map<String, List<String>>? cadenceDataViewOrder,
   }) {
     return WorkspaceState(
       captureDestination: captureDestination ?? this.captureDestination,
@@ -439,6 +444,7 @@ class WorkspaceState {
       lastCompletedIsoByRitual:
           lastCompletedIsoByRitual ?? this.lastCompletedIsoByRitual,
       ritualConfigs: ritualConfigs ?? this.ritualConfigs,
+      cadenceDataViewOrder: cadenceDataViewOrder ?? this.cadenceDataViewOrder,
     );
   }
 
@@ -573,6 +579,7 @@ class WorkspaceState {
       'ritualConfigs': {
         for (final r in RitualKind.values) r.id: configForRitual(r).toJson(),
       },
+      'cadenceDataViewOrder': cadenceDataViewOrder,
     });
   }
 }
@@ -770,6 +777,9 @@ class WorkspaceStateNotifier extends Notifier<WorkspaceState> {
         resumableStepByRitual: resumableMap,
         lastCompletedIsoByRitual: lastIsoMap,
         ritualConfigs: configsMap,
+        cadenceDataViewOrder: _parseCadenceDataViewOrder(
+          map['cadenceDataViewOrder'],
+        ),
       );
     } on Object {
       return WorkspaceState.initial();
@@ -824,8 +834,31 @@ class WorkspaceStateNotifier extends Notifier<WorkspaceState> {
           for (final r in RitualKind.values)
             r.id: next.configForRitual(r).toJson(),
         },
+        'cadenceDataViewOrder': next.cadenceDataViewOrder,
       }),
     );
+  }
+
+  static Map<String, List<String>> _parseCadenceDataViewOrder(Object? raw) {
+    if (raw is! Map) return const {};
+    final out = <String, List<String>>{};
+    for (final entry in raw.entries) {
+      final k = entry.key;
+      final v = entry.value;
+      if (k is String && v is List) {
+        out[k] = v.whereType<String>().toList();
+      }
+    }
+    return out;
+  }
+
+  Future<void> reorderCadenceDataView(
+    String cadenceName,
+    List<String> orderedIds,
+  ) async {
+    final updated = Map<String, List<String>>.from(state.cadenceDataViewOrder);
+    updated[cadenceName] = List<String>.unmodifiable(orderedIds);
+    await _persist(state.copyWith(cadenceDataViewOrder: updated));
   }
 
   Future<void> setCaptureDestination(CaptureDestination destination) async {

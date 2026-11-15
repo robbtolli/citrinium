@@ -13,12 +13,16 @@ class CitrineDataViewCard extends ConsumerWidget {
     required this.query,
     required this.referenceDate,
     this.onEditBlock,
+    this.onToggleSourceMode,
+    this.dragHandle,
     super.key,
   });
 
   final CitrineDataViewQuery query;
   final DateTime referenceDate;
   final VoidCallback? onEditBlock;
+  final VoidCallback? onToggleSourceMode;
+  final Widget? dragHandle;
 
   IconData _iconForView(CitrineDataViewPreset view) {
     return switch (view) {
@@ -61,6 +65,7 @@ class CitrineDataViewCard extends ConsumerWidget {
           children: [
             Row(
               children: [
+                ?dragHandle,
                 Icon(
                   _iconForView(query.view),
                   size: 18,
@@ -109,6 +114,13 @@ class CitrineDataViewCard extends ConsumerWidget {
                     tooltip: 'Edit Data View Query',
                     visualDensity: VisualDensity.compact,
                     onPressed: onEditBlock,
+                  ),
+                if (onToggleSourceMode != null)
+                  IconButton(
+                    icon: const Icon(Icons.code, size: 16),
+                    tooltip: 'Source Mode',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: onToggleSourceMode,
                   ),
               ],
             ),

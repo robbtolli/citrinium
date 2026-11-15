@@ -44,9 +44,13 @@ class _EmbeddedMarkdownEditorState
   String? _lastLoadedDiskText;
   int? _previousCursorLine;
   bool _isTaggingLine = false;
+  final Set<int> _sourceModeBlockIndices = <int>{};
+  AppServices? _cachedServices;
+  bool _isDisposed = false;
 
   @override
   void dispose() {
+    _isDisposed = true;
     _pipeline?.dispose();
     _controller?.dispose();
     super.dispose();
@@ -122,6 +126,7 @@ class _EmbeddedMarkdownEditorState
 
       _loadedRelPath = widget.relPath;
       _lastLoadedDiskText = diskText;
+      _sourceModeBlockIndices.clear();
       _controller = LivePreviewController(text: diskText);
       _pipeline = EditorSavePipeline(
         filePath: widget.relPath,
@@ -130,7 +135,11 @@ class _EmbeddedMarkdownEditorState
           final absPath = VaultPath(relPath).toAbsolute(vaultPath);
           final file = File(absPath);
 
-          final services = await ref.read(appServicesProvider.future);
+          final services =
+              _cachedServices ??
+              ((!_isDisposed && mounted)
+                  ? await ref.read(appServicesProvider.future)
+                  : null);
           if (services != null) {
             services.watcher.suppressSelfWrite(VaultPath(relPath));
           }
@@ -183,6 +192,7 @@ class _EmbeddedMarkdownEditorState
     final docsAsync = ref.watch(documentListProvider);
     final entriesAsync = ref.watch(allEntriesWithDocumentsProvider);
     final appServicesAsync = ref.watch(appServicesProvider);
+    _cachedServices = appServicesAsync.value ?? _cachedServices;
 
     final vaultPath = appServicesAsync.value?.vaultPath ?? '';
     final noteTitles =
@@ -377,7 +387,7 @@ class _EmbeddedMarkdownEditorState
     required List<String> contextNames,
   }) {
     final text = controller.text;
-    final items = <Widget>[];
+    final items = <_InterleavedItem>[];
     var cursor = 0;
 
     for (var i = 0; i < dataViewBlocks.length; i++) {
@@ -386,79 +396,294 @@ class _EmbeddedMarkdownEditorState
         final segText = text.substring(cursor, block.startOffset);
         if (segText.trim().isNotEmpty) {
           items.add(
-            _MarkdownSegmentEditor(
-              key: ValueKey('seg_${widget.relPath}_${i}_$cursor'),
-              masterController: controller,
+            _MarkdownSliceItem(
               startOffset: cursor,
               endOffset: block.startOffset,
-              noteTitles: noteTitles,
-              tagNames: tagNames,
-              contextNames: contextNames,
-              padding: widget.padding,
-              onSaveRequested: () => pipeline.saveNow(),
-              onLeftGlobalLine: _onLeftLine,
+              text: segText,
             ),
           );
         }
       }
-
-      items.add(
-        Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: widget.padding.horizontal / 2,
-          ),
-          child: CitrineDataViewCard(
-            query: block.query,
-            referenceDate: refDate,
-            onEditBlock: () async {
-              final updatedQuery = await showCitrineDataViewPickerDialog(
-                context,
-                initialQuery: block.query,
-              );
-              if (updatedQuery == null) return;
-              final updatedFence = updatedQuery.toMarkdownFence();
-              final current = controller.text;
-              if (block.endOffset <= current.length) {
-                final newText = current.replaceRange(
-                  block.startOffset,
-                  block.endOffset,
-                  updatedFence,
-                );
-                controller.updateTextPreservingSelection(newText);
-              }
-            },
-          ),
-        ),
-      );
+      items.add(_DataViewBlockItem(blockIndex: i, block: block));
       cursor = block.endOffset;
     }
 
     if (cursor < text.length) {
       items.add(
-        _MarkdownSegmentEditor(
-          key: ValueKey('seg_${widget.relPath}_tail_$cursor'),
-          masterController: controller,
+        _MarkdownSliceItem(
           startOffset: cursor,
           endOffset: text.length,
+          text: text.substring(cursor),
+          isTail: true,
+        ),
+      );
+    }
+
+    final listWidget = ReorderableListView.builder(
+      shrinkWrap: widget.shrinkWrap,
+      physics: widget.shrinkWrap ? const NeverScrollableScrollPhysics() : null,
+      buildDefaultDragHandles: false,
+      itemCount: items.length,
+      onReorderItem: (oldIndex, newIndex) =>
+          _handleReorder(items, oldIndex, newIndex, controller),
+      itemBuilder: (context, index) => _buildInterleavedItem(
+        context: context,
+        item: items[index],
+        itemIndex: index,
+        controller: controller,
+        pipeline: pipeline,
+        refDate: refDate,
+        noteTitles: noteTitles,
+        tagNames: tagNames,
+        contextNames: contextNames,
+      ),
+    );
+
+    if (widget.shrinkWrap) return listWidget;
+    return Expanded(child: listWidget);
+  }
+
+  Widget _buildInterleavedItem({
+    required BuildContext context,
+    required _InterleavedItem item,
+    required int itemIndex,
+    required LivePreviewController controller,
+    required EditorSavePipeline pipeline,
+    required DateTime refDate,
+    required List<String> noteTitles,
+    required List<String> tagNames,
+    required List<String> contextNames,
+  }) {
+    switch (item) {
+      case _MarkdownSliceItem():
+        final keyLabel = item.isTail
+            ? 'seg_${widget.relPath}_tail_${item.startOffset}'
+            : 'seg_${widget.relPath}_${item.startOffset}';
+        return _MarkdownSegmentEditor(
+          key: ValueKey(keyLabel),
+          masterController: controller,
+          startOffset: item.startOffset,
+          endOffset: item.endOffset,
           noteTitles: noteTitles,
           tagNames: tagNames,
           contextNames: contextNames,
           padding: widget.padding,
           onSaveRequested: () => pipeline.saveNow(),
           onLeftGlobalLine: _onLeftLine,
+        );
+      case _DataViewBlockItem():
+        final block = item.block;
+        final isSourceMode = _sourceModeBlockIndices.contains(item.blockIndex);
+        final dragHandle = ReorderableDragStartListener(
+          index: itemIndex,
+          child: const Padding(
+            padding: EdgeInsets.only(right: 6),
+            child: Tooltip(
+              message: 'Drag to reorder',
+              child: Icon(Icons.drag_indicator, size: 18),
+            ),
+          ),
+        );
+        return Padding(
+          key: ValueKey('dv_${widget.relPath}_${item.blockIndex}'),
+          padding: EdgeInsets.symmetric(
+            horizontal: widget.padding.horizontal / 2,
+          ),
+          child: isSourceMode
+              ? _buildSourceModeDataViewCard(
+                  context: context,
+                  blockIndex: item.blockIndex,
+                  block: block,
+                  dragHandle: dragHandle,
+                  controller: controller,
+                  pipeline: pipeline,
+                  noteTitles: noteTitles,
+                  tagNames: tagNames,
+                  contextNames: contextNames,
+                )
+              : CitrineDataViewCard(
+                  query: block.query,
+                  referenceDate: refDate,
+                  dragHandle: dragHandle,
+                  onToggleSourceMode: () => setState(
+                    () => _sourceModeBlockIndices.add(item.blockIndex),
+                  ),
+                  onEditBlock: () async {
+                    final updatedQuery = await showCitrineDataViewPickerDialog(
+                      context,
+                      initialQuery: block.query,
+                    );
+                    if (updatedQuery == null) return;
+                    final updatedFence = updatedQuery.toMarkdownFence();
+                    final current = controller.text;
+                    if (block.endOffset <= current.length) {
+                      final newText = current.replaceRange(
+                        block.startOffset,
+                        block.endOffset,
+                        updatedFence,
+                      );
+                      controller.updateTextPreservingSelection(newText);
+                    }
+                  },
+                ),
+        );
+    }
+  }
+
+  Widget _buildSourceModeDataViewCard({
+    required BuildContext context,
+    required int blockIndex,
+    required CitrineDataViewBlock block,
+    required Widget dragHandle,
+    required LivePreviewController controller,
+    required EditorSavePipeline pipeline,
+    required List<String> noteTitles,
+    required List<String> tagNames,
+    required List<String> contextNames,
+  }) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                dragHandle,
+                Icon(Icons.code, size: 18, color: colorScheme.secondary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Citrine Data View (Source)',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.visibility_outlined, size: 16),
+                  tooltip: 'Preview Data View',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => setState(
+                    () => _sourceModeBlockIndices.remove(blockIndex),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Container(
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.5,
+                ),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: _MarkdownSegmentEditor(
+                key: ValueKey('dv_src_${widget.relPath}_$blockIndex'),
+                masterController: controller,
+                startOffset: block.startOffset,
+                endOffset: block.endOffset,
+                noteTitles: noteTitles,
+                tagNames: tagNames,
+                contextNames: contextNames,
+                padding: const EdgeInsets.all(8),
+                isSourceMode: true,
+                onSaveRequested: () => pipeline.saveNow(),
+                onLeftGlobalLine: _onLeftLine,
+              ),
+            ),
+          ],
         ),
-      );
+      ),
+    );
+  }
+
+  void _handleReorder(
+    List<_InterleavedItem> items,
+    int oldIndex,
+    int newIndex,
+    LivePreviewController controller,
+  ) {
+    if (oldIndex == newIndex) return;
+
+    final reordered = List<_InterleavedItem>.from(items);
+    final moved = reordered.removeAt(oldIndex);
+    reordered.insert(newIndex, moved);
+
+    final sourceBlocks = <CitrineDataViewBlock>{
+      for (final it in items)
+        if (it is _DataViewBlockItem &&
+            _sourceModeBlockIndices.contains(it.blockIndex))
+          it.block,
+    };
+    final nextSourceIndices = <int>{};
+    var dvIdx = 0;
+    for (final it in reordered) {
+      if (it is _DataViewBlockItem) {
+        if (sourceBlocks.contains(it.block)) {
+          nextSourceIndices.add(dvIdx);
+        }
+        dvIdx++;
+      }
     }
 
-    final column = Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: items,
-    );
+    final pieces = <String>[];
+    for (final it in reordered) {
+      final raw = switch (it) {
+        _MarkdownSliceItem() => it.text,
+        _DataViewBlockItem() => controller.text.substring(
+          it.block.startOffset,
+          it.block.endOffset,
+        ),
+      };
+      final trimmed = raw.replaceAll(RegExp(r'^\n+|\n+$'), '');
+      if (trimmed.isNotEmpty) {
+        pieces.add(trimmed);
+      }
+    }
+    final hadTrailingNewline = controller.text.endsWith('\n');
+    final rebuilt =
+        pieces.join('\n\n') +
+        (hadTrailingNewline && pieces.isNotEmpty ? '\n' : '');
 
-    if (widget.shrinkWrap) return column;
-    return Expanded(child: SingleChildScrollView(child: column));
+    setState(() {
+      _sourceModeBlockIndices
+        ..clear()
+        ..addAll(nextSourceIndices);
+    });
+    controller.updateTextPreservingSelection(rebuilt);
   }
+}
+
+sealed class _InterleavedItem {
+  const _InterleavedItem();
+}
+
+class _MarkdownSliceItem extends _InterleavedItem {
+  const _MarkdownSliceItem({
+    required this.startOffset,
+    required this.endOffset,
+    required this.text,
+    this.isTail = false,
+  });
+
+  final int startOffset;
+  final int endOffset;
+  final String text;
+  final bool isTail;
+}
+
+class _DataViewBlockItem extends _InterleavedItem {
+  const _DataViewBlockItem({
+    required this.blockIndex,
+    required this.block,
+  });
+
+  final int blockIndex;
+  final CitrineDataViewBlock block;
 }
 
 /// Edits a single contiguous Markdown slice `[startOffset, endOffset)` of
@@ -475,6 +700,7 @@ class _MarkdownSegmentEditor extends StatefulWidget {
     required this.padding,
     required this.onSaveRequested,
     required this.onLeftGlobalLine,
+    this.isSourceMode = false,
     super.key,
   });
 
@@ -487,6 +713,7 @@ class _MarkdownSegmentEditor extends StatefulWidget {
   final EdgeInsets padding;
   final VoidCallback onSaveRequested;
   final Future<void> Function(int globalLine) onLeftGlobalLine;
+  final bool isSourceMode;
 
   @override
   State<_MarkdownSegmentEditor> createState() => _MarkdownSegmentEditorState();
@@ -506,6 +733,7 @@ class _MarkdownSegmentEditorState extends State<_MarkdownSegmentEditor> {
     _endOffset = widget.endOffset;
     _segmentController = LivePreviewController(
       text: _sliceFromMaster(),
+      isSourceMode: widget.isSourceMode,
     );
     _segmentController.addListener(_onSegmentChanged);
     widget.masterController.addListener(_onMasterChanged);

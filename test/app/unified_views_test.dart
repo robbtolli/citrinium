@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:citrine/app/citrine_app.dart';
 import 'package:citrine/core/vault/vault_path_provider.dart';
+import 'package:citrine/core/workspace/workspace_state.dart';
 import 'package:citrine/shared/widgets/citrine_data_view_card.dart';
 import 'package:citrine/shared/widgets/embedded_markdown_editor.dart';
 import 'package:citrine_core/citrine_core.dart';
@@ -216,6 +217,181 @@ void main() {
             findsOneWidget,
           );
           expect(find.byType(EmbeddedMarkdownEditor), findsNothing);
+        });
+      },
+    );
+
+    testWidgets(
+      'Rendered data views in markdown documents have a Source Mode button and can be dragged to reorder',
+      (tester) async {
+        await tester.runAsync(() async {
+          final now = DateTime.now();
+          final todayIso = NlDateParser.formatIsoDate(now);
+          final dailyFile = File(p.join(tempDir.path, 'daily', '$todayIso.md'));
+          await dailyFile.writeAsString(
+            '# $todayIso\n\n'
+            '```citrine\n'
+            'view: top-focus\n'
+            '```\n\n'
+            '```citrine\n'
+            'view: tasks\n'
+            'filter: due-today\n'
+            '```\n\n'
+            '- [ ] Test task 📅 $todayIso\n',
+          );
+
+          SharedPreferences.setMockInitialValues({'vaultPath': tempDir.path});
+          final prefs = await SharedPreferences.getInstance();
+          final container = ProviderContainer(
+            overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+          );
+          addTearDown(container.dispose);
+
+          await tester.pumpWidget(
+            UncontrolledProviderScope(
+              container: container,
+              child: const CitrineApp(),
+            ),
+          );
+          await waitUntil(
+            tester,
+            () => find.byType(CitrineDataViewCard).evaluate().length >= 2,
+          );
+
+          // Each rendered data view card has a Source Mode button in the top right
+          final sourceButtons = find.byTooltip('Source Mode');
+          expect(sourceButtons, findsNWidgets(2));
+          await tester.ensureVisible(sourceButtons.first);
+          await tester.pumpAndSettle();
+          final firstCardRect = tester.getRect(
+            find.byType(CitrineDataViewCard).first,
+          );
+          final firstSourceBtnRect = tester.getRect(sourceButtons.first);
+          expect(
+            firstSourceBtnRect.center.dx,
+            greaterThan(firstCardRect.center.dx),
+          );
+          expect(
+            firstSourceBtnRect.center.dy,
+            lessThan(firstCardRect.center.dy),
+          );
+
+          // Switch the first data view into source mode and edit its citrine block
+          await tester.tap(sourceButtons.first);
+          await tester.pumpAndSettle();
+          expect(find.text('Citrine Data View (Source)'), findsOneWidget);
+
+          final sourceEditable = find.byWidgetPredicate(
+            (w) => w is EditableText && w.controller.text.contains('view: top-focus'),
+          );
+          expect(sourceEditable, findsOneWidget);
+          final editableWidget = tester.widget<EditableText>(sourceEditable);
+          editableWidget.controller.text =
+              '```citrine\nview: top-focus\ntitle: My Custom Focus\n```';
+          await tester.pump();
+
+          // Switch back to rendered preview mode
+          await tester.ensureVisible(find.byTooltip('Preview Data View'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.byTooltip('Preview Data View'));
+          await tester.pumpAndSettle();
+          expect(find.text('Citrine Data View (Source)'), findsNothing);
+          expect(find.text('My Custom Focus'), findsOneWidget);
+
+          // Drag the second data view up above the first data view
+          final dragHandles = find.byTooltip('Drag to reorder');
+          expect(dragHandles, findsNWidgets(2));
+          await tester.ensureVisible(dragHandles.at(1));
+          await tester.pumpAndSettle();
+          final firstHandleCenter = tester.getCenter(dragHandles.first);
+          final secondHandleCenter = tester.getCenter(dragHandles.at(1));
+          await tester.timedDragFrom(
+            secondHandleCenter,
+            Offset(0, firstHandleCenter.dy - secondHandleCenter.dy - 20),
+            const Duration(milliseconds: 300),
+          );
+          await tester.pumpAndSettle();
+
+          final cardsAfter = tester
+              .widgetList<CitrineDataViewCard>(find.byType(CitrineDataViewCard))
+              .toList();
+          expect(cardsAfter.length, 2);
+          expect(cardsAfter[0].query.resolvedTitle, 'Tasks Due Today');
+          expect(cardsAfter[1].query.resolvedTitle, 'My Custom Focus');
+        });
+      },
+    );
+
+    testWidgets(
+      'UI data views in Plan & Review can be dragged to reorder and persist',
+      (tester) async {
+        await tester.runAsync(() async {
+          final now = DateTime.now();
+          final todayIso = NlDateParser.formatIsoDate(now);
+          await File(p.join(tempDir.path, 'daily', '$todayIso.md'))
+              .writeAsString('# $todayIso\n\n- [ ] Weekly task 📅 $todayIso\n');
+
+          SharedPreferences.setMockInitialValues({'vaultPath': tempDir.path});
+          final prefs = await SharedPreferences.getInstance();
+          final container = ProviderContainer(
+            overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+          );
+          addTearDown(container.dispose);
+
+          await tester.pumpWidget(
+            UncontrolledProviderScope(
+              container: container,
+              child: const CitrineApp(),
+            ),
+          );
+          await waitUntil(
+            tester,
+            () => find.text('Plan & Review').evaluate().isNotEmpty,
+          );
+
+          await tester.tap(find.text('Plan & Review').first);
+          await waitUntil(
+            tester,
+            () =>
+                find
+                    .text('Weekly Plan & Review · Pure Data View')
+                    .evaluate()
+                    .isNotEmpty &&
+                find.byType(CitrineDataViewCard).evaluate().length >= 2,
+          );
+
+          // Pure UI data views have drag handles, but no markdown Source Mode button
+          expect(find.byTooltip('Source Mode'), findsNothing);
+          final dragHandles = find.byTooltip('Drag to reorder');
+          expect(dragHandles, findsAtLeastNWidgets(2));
+
+          final cardsBefore = tester
+              .widgetList<CitrineDataViewCard>(find.byType(CitrineDataViewCard))
+              .toList();
+          final firstTitleBefore = cardsBefore[0].query.resolvedTitle;
+          final secondTitleBefore = cardsBefore[1].query.resolvedTitle;
+
+          await tester.ensureVisible(dragHandles.at(1));
+          await tester.pumpAndSettle();
+          final firstHandleCenter = tester.getCenter(dragHandles.first);
+          final secondHandleCenter = tester.getCenter(dragHandles.at(1));
+          await tester.timedDragFrom(
+            secondHandleCenter,
+            Offset(0, firstHandleCenter.dy - secondHandleCenter.dy - 20),
+            const Duration(milliseconds: 300),
+          );
+          await tester.pumpAndSettle();
+
+          final cardsAfter = tester
+              .widgetList<CitrineDataViewCard>(find.byType(CitrineDataViewCard))
+              .toList();
+          expect(cardsAfter[0].query.resolvedTitle, secondTitleBefore);
+          expect(cardsAfter[1].query.resolvedTitle, firstTitleBefore);
+
+          final savedOrder =
+              container.read(workspaceStateProvider).cadenceDataViewOrder['weekly'];
+          expect(savedOrder, isNotNull);
+          expect(savedOrder!.first, contains(secondTitleBefore));
         });
       },
     );
