@@ -3,7 +3,9 @@ import 'dart:io';
 import 'package:citrine/app/citrine_app.dart';
 import 'package:citrine/core/vault/vault_path_provider.dart';
 import 'package:citrine/core/workspace/workspace_state.dart';
+import 'package:citrine/shared/widgets/planning_review_ritual_sheet.dart';
 import 'package:citrine_core/citrine_core.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -215,6 +217,73 @@ void main() {
             .configForRitual(RitualKind.dailyMorningPlan);
         expect(config.executionMode, CadenceExecutionMode.freeformMarkdown);
         expect(config.selectedPresetId, 'ivy_lee_morning');
+      });
+    },
+  );
+
+  testWidgets(
+    'Daily Morning Plan Step 1 does not overflow on phone viewport when keyboard opens',
+    (tester) async {
+      // Pixel 9a-like logical dimensions (412x915) with system bars and soft keyboard.
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(412, 915);
+      tester.view.viewPadding = const FakeViewPadding(top: 48, bottom: 24);
+      addTearDown(tester.view.reset);
+
+      await tester.runAsync(() async {
+        SharedPreferences.setMockInitialValues({'vaultPath': vault.path});
+        final prefs = await SharedPreferences.getInstance();
+
+        final container = ProviderContainer(
+          overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        );
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              home: Scaffold(
+                body: Consumer(
+                  builder: (context, ref, _) => Center(
+                    child: FilledButton(
+                      onPressed: () => showPlanningReviewRitualSheet(
+                        context,
+                        ref,
+                        ritualKind: RitualKind.dailyMorningPlan,
+                      ),
+                      child: const Text('Open Morning Plan'),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        await tester.tap(find.text('Open Morning Plan'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+
+        expect(
+          find.textContaining('Daily Morning Plan · Step 1 of 4'),
+          findsOneWidget,
+        );
+
+        final eventField = find.byType(TextField, skipOffstage: false);
+        expect(eventField, findsOneWidget);
+        await tester.ensureVisible(eventField);
+        await tester.pump();
+
+        // Tap the scheduled event field and simulate the soft keyboard opening.
+        await tester.tap(eventField);
+        tester.view.viewInsets = const FakeViewPadding(bottom: 350);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(tester.takeException(), isNull);
+        expect(eventField, findsOneWidget);
       });
     },
   );

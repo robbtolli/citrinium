@@ -95,8 +95,9 @@ class _PlanningReviewRitualModalState
   final TextEditingController _brainDumpTaskCtrl = TextEditingController();
   final TextEditingController _eveningReflectionCtrl = TextEditingController();
   final TextEditingController _tomorrowPriorityCtrl = TextEditingController();
-  final TextEditingController _shutdownPhraseCtrl =
-      TextEditingController(text: 'Shutdown complete.');
+  final TextEditingController _shutdownPhraseCtrl = TextEditingController(
+    text: 'Shutdown complete.',
+  );
   final TextEditingController _mindSweepCtrl = TextEditingController();
   final TextEditingController _quarterScoreCtrl = TextEditingController();
   final TextEditingController _quarterBlockersCtrl = TextEditingController();
@@ -185,7 +186,7 @@ class _PlanningReviewRitualModalState
     final presetName = config.executionMode == CadenceExecutionMode.customSteps
         ? 'Custom Process'
         : (PlanningPresetCatalog.findById(config.selectedPresetId)?.name ??
-            widget.ritualKind.label);
+              widget.ritualKind.label);
 
     final outcomes = _outcomesCtrl.text
         .split('\n')
@@ -221,8 +222,9 @@ class _PlanningReviewRitualModalState
       ifThenCueText: _ifThenCueCtrl.text,
       eveningWinsAndLooseEnds: _eveningReflectionCtrl.text,
       tomorrowTopPriority: _tomorrowPriorityCtrl.text,
-      shutdownPhrase:
-          (hasShutdownStep && _shutdownConfirmed) ? _shutdownPhraseCtrl.text : '',
+      shutdownPhrase: (hasShutdownStep && _shutdownConfirmed)
+          ? _shutdownPhraseCtrl.text
+          : '',
       quarterGoalScoreSummary: _quarterScoreCtrl.text,
       quarterBlockersAndFixes: _quarterBlockersCtrl.text,
       thinkWeekInsights: _thinkInsightsCtrl.text,
@@ -269,8 +271,10 @@ class _PlanningReviewRitualModalState
     final allDocs = docsAsync.value ?? const [];
     final now = ref.watch(appClockProvider).now();
     final todayIso = NlDateParser.formatIsoDate(now);
-    final targetRelPath =
-        CadenceFiles.relPathForCadence(widget.ritualKind.cadence, now);
+    final targetRelPath = CadenceFiles.relPathForCadence(
+      widget.ritualKind.cadence,
+      now,
+    );
 
     final config = workspace.configForRitual(widget.ritualKind);
     final steps = config.activeSteps(depthOverride: _depthMode);
@@ -280,11 +284,304 @@ class _PlanningReviewRitualModalState
     final preset = PlanningPresetCatalog.findById(config.selectedPresetId);
     final modeSubtitle =
         config.executionMode == CadenceExecutionMode.customSteps
-            ? 'Custom Process (${steps.length} steps)'
-            : (preset?.name ?? widget.ritualKind.label);
+        ? 'Custom Process (${steps.length} steps)'
+        : (preset?.name ?? widget.ritualKind.label);
 
     final savedStep = workspace.resumableStepForRitual(widget.ritualKind);
     final isResumed = savedStep > 0 && safeStepIndex == savedStep;
+
+    final targetHeight = MediaQuery.sizeOf(context).height * 0.86;
+    final hasKeyboard = MediaQuery.viewInsetsOf(context).bottom > 0;
+
+    final headerWidgets = <Widget>[
+      // Top Header: Title + Customize Process + Save & Pause
+      Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${widget.ritualKind.label} · Step ${safeStepIndex + 1} of ${steps.length}',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  '$modeSubtitle → $targetRelPath',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Customize Process, Presets & Guidance',
+            icon: const Icon(Icons.tune, size: 20),
+            onPressed: () {
+              showProcessCustomizerDialog(
+                context,
+                initialRitual: widget.ritualKind,
+              );
+            },
+          ),
+          TextButton(
+            onPressed: () {
+              ref
+                  .read(workspaceStateProvider.notifier)
+                  .setRitualResumableStep(widget.ritualKind, safeStepIndex);
+              Navigator.of(context).pop();
+            },
+            child: const Text('Save & Pause'),
+          ),
+        ],
+      ),
+      const SizedBox(height: 8),
+
+      // Full vs. Minimal (Express) Toggle Bar + Estimated Time
+      Wrap(
+        spacing: 8,
+        runSpacing: 6,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          SegmentedButton<RitualDepthMode>(
+            showSelectedIcon: false,
+            style: const ButtonStyle(visualDensity: VisualDensity.compact),
+            segments: [
+              ButtonSegment(
+                value: RitualDepthMode.full,
+                label: Text(
+                  'Full (${widget.ritualKind.defaultFullMinutes})',
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ),
+              ButtonSegment(
+                value: RitualDepthMode.minimal,
+                label: Text(
+                  '⚡ Minimal (${widget.ritualKind.defaultMinimalMinutes})',
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ),
+            ],
+            selected: {_depthMode},
+            onSelectionChanged: (sel) {
+              final nextDepth = sel.first;
+              setState(() {
+                _depthMode = nextDepth;
+                _stepIndex = 0;
+              });
+              ref
+                  .read(workspaceStateProvider.notifier)
+                  .updateRitualProcessConfig(
+                    widget.ritualKind,
+                    config.copyWith(preferredDepth: nextDepth),
+                  );
+            },
+          ),
+          Chip(
+            visualDensity: VisualDensity.compact,
+            avatar: const Icon(Icons.timer_outlined, size: 14),
+            label: Text(
+              '~${currentStep.estimatedMinutes} min step',
+              style: const TextStyle(fontSize: 11),
+            ),
+          ),
+          if (currentStep.coachWhy.isNotEmpty ||
+              currentStep.coachAvoidTrap.isNotEmpty)
+            ActionChip(
+              visualDensity: VisualDensity.compact,
+              avatar: Icon(
+                _coachExpanded ? Icons.lightbulb : Icons.lightbulb_outline,
+                size: 14,
+              ),
+              label: Text(
+                _coachExpanded ? 'Hide Coach Tip' : '💡 Why & How',
+                style: const TextStyle(fontSize: 11),
+              ),
+              onPressed: () => setState(() => _coachExpanded = !_coachExpanded),
+            ),
+        ],
+      ),
+
+      if (isResumed)
+        Container(
+          margin: const EdgeInsets.only(top: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: colorScheme.secondaryContainer.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.history, size: 16),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Resumed at Step ${safeStepIndex + 1}',
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  ref
+                      .read(workspaceStateProvider.notifier)
+                      .resetRitualProgress(widget.ritualKind);
+                  setState(() => _stepIndex = 0);
+                },
+                child: const Text(
+                  'Start Fresh',
+                  style: TextStyle(fontSize: 11),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+      const SizedBox(height: 8),
+      LinearProgressIndicator(value: (safeStepIndex + 1) / steps.length),
+      const SizedBox(height: 10),
+
+      // Step Title & Subtitle
+      Text(
+        currentStep.title,
+        style: theme.textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      if (currentStep.subtitle.isNotEmpty) ...[
+        const SizedBox(height: 2),
+        Text(currentStep.subtitle, style: theme.textTheme.bodySmall),
+      ],
+
+      // Progressive Coaching Callout (Auto-collapses after 3 completions, or 1-click disable)
+      if (_coachExpanded &&
+          (currentStep.coachWhy.isNotEmpty ||
+              currentStep.coachAvoidTrap.isNotEmpty)) ...[
+        const SizedBox(height: 6),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 105),
+          child: Card(
+            elevation: 0,
+            color: colorScheme.secondaryContainer.withValues(alpha: 0.45),
+            margin: EdgeInsets.zero,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (currentStep.coachWhy.isNotEmpty)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.psychology_outlined,
+                          size: 16,
+                          color: colorScheme.onSecondaryContainer,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Why this works: ${currentStep.coachWhy}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: colorScheme.onSecondaryContainer,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  if (currentStep.coachAvoidTrap.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.shield_outlined,
+                          size: 16,
+                          color: colorScheme.onSecondaryContainer,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Avoid overwhelm: ${currentStep.coachAvoidTrap}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: colorScheme.onSecondaryContainer,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      onPressed: () {
+                        ref
+                            .read(workspaceStateProvider.notifier)
+                            .setGuidanceEnabled(false);
+                        setState(() => _coachExpanded = false);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Guidance disabled. You can re-enable it or customize your process anytime.',
+                            ),
+                          ),
+                        );
+                      },
+                      child: const Text(
+                        'Disable Guidance (I have my own process)',
+                        style: TextStyle(fontSize: 11),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+
+      const SizedBox(height: 10),
+    ];
+
+    final stepBody = _buildStepBody(
+      context: context,
+      step: currentStep,
+      workspace: workspace,
+      allEntries: allEntries,
+      allDocs: allDocs,
+      now: now,
+      todayIso: todayIso,
+      targetRelPath: targetRelPath,
+    );
+
+    final bottomNav = Row(
+      children: [
+        if (safeStepIndex > 0)
+          OutlinedButton(
+            onPressed: () => _setStep(safeStepIndex - 1, steps.length),
+            child: const Text('← Back'),
+          ),
+        const Spacer(),
+        if (safeStepIndex < steps.length - 1)
+          FilledButton(
+            onPressed: () => _setStep(safeStepIndex + 1, steps.length),
+            child: const Text('Next Step →'),
+          )
+        else
+          FilledButton.icon(
+            onPressed: () => _finishRitual(config, todayIso),
+            icon: const Icon(Icons.check),
+            label: Text('Complete ${widget.ritualKind.shortLabel}'),
+          ),
+      ],
+    );
 
     return Padding(
       padding: EdgeInsets.only(
@@ -293,324 +590,44 @@ class _PlanningReviewRitualModalState
         top: 16,
         bottom: MediaQuery.viewInsetsOf(context).bottom + 16,
       ),
-      child: SizedBox(
-        height: MediaQuery.sizeOf(context).height * 0.86,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Top Header: Title + Customize Process + Save & Pause
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${widget.ritualKind.label} · Step ${safeStepIndex + 1} of ${steps.length}',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        '$modeSubtitle → $targetRelPath',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Customize Process, Presets & Guidance',
-                  icon: const Icon(Icons.tune, size: 20),
-                  onPressed: () {
-                    showProcessCustomizerDialog(
-                      context,
-                      initialRitual: widget.ritualKind,
-                    );
-                  },
-                ),
-                TextButton(
-                  onPressed: () {
-                    ref
-                        .read(workspaceStateProvider.notifier)
-                        .setRitualResumableStep(
-                          widget.ritualKind,
-                          safeStepIndex,
-                        );
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text('Save & Pause'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final maxAvailable = constraints.maxHeight;
+          final modalHeight = maxAvailable.isFinite
+              ? maxAvailable.clamp(0.0, targetHeight)
+              : targetHeight;
 
-            // Full vs. Minimal (Express) Toggle Bar + Estimated Time
-            Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                SegmentedButton<RitualDepthMode>(
-                  showSelectedIcon: false,
-                  style: const ButtonStyle(
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  segments: [
-                    ButtonSegment(
-                      value: RitualDepthMode.full,
-                      label: Text(
-                        'Full (${widget.ritualKind.defaultFullMinutes})',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ),
-                    ButtonSegment(
-                      value: RitualDepthMode.minimal,
-                      label: Text(
-                        '⚡ Minimal (${widget.ritualKind.defaultMinimalMinutes})',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ),
-                  ],
-                  selected: {_depthMode},
-                  onSelectionChanged: (sel) {
-                    final nextDepth = sel.first;
-                    setState(() {
-                      _depthMode = nextDepth;
-                      _stepIndex = 0;
-                    });
-                    ref
-                        .read(workspaceStateProvider.notifier)
-                        .updateRitualProcessConfig(
-                          widget.ritualKind,
-                          config.copyWith(preferredDepth: nextDepth),
-                        );
-                  },
-                ),
-                Chip(
-                  visualDensity: VisualDensity.compact,
-                  avatar: const Icon(Icons.timer_outlined, size: 14),
-                  label: Text(
-                    '~${currentStep.estimatedMinutes} min step',
-                    style: const TextStyle(fontSize: 11),
-                  ),
-                ),
-                if (currentStep.coachWhy.isNotEmpty ||
-                    currentStep.coachAvoidTrap.isNotEmpty)
-                  ActionChip(
-                    visualDensity: VisualDensity.compact,
-                    avatar: Icon(
-                      _coachExpanded
-                          ? Icons.lightbulb
-                          : Icons.lightbulb_outline,
-                      size: 14,
-                    ),
-                    label: Text(
-                      _coachExpanded ? 'Hide Coach Tip' : '💡 Why & How',
-                      style: const TextStyle(fontSize: 11),
-                    ),
-                    onPressed: () =>
-                        setState(() => _coachExpanded = !_coachExpanded),
-                  ),
-              ],
-            ),
-
-            if (isResumed)
-              Container(
-                margin: const EdgeInsets.only(top: 6),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: colorScheme.secondaryContainer.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Row(
+          if (hasKeyboard || modalHeight < 480.0) {
+            return SizedBox(
+              height: modalHeight,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.history, size: 16),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'Resumed at Step ${safeStepIndex + 1}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        ref
-                            .read(workspaceStateProvider.notifier)
-                            .resetRitualProgress(widget.ritualKind);
-                        setState(() => _stepIndex = 0);
-                      },
-                      child: const Text(
-                        'Start Fresh',
-                        style: TextStyle(fontSize: 11),
-                      ),
-                    ),
+                    ...headerWidgets,
+                    SizedBox(height: 240, child: stepBody),
+                    const Divider(height: 16),
+                    bottomNav,
                   ],
                 ),
               ),
+            );
+          }
 
-            const SizedBox(height: 8),
-            LinearProgressIndicator(
-              value: (safeStepIndex + 1) / steps.length,
-            ),
-            const SizedBox(height: 10),
-
-            // Step Title & Subtitle
-            Text(
-              currentStep.title,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            if (currentStep.subtitle.isNotEmpty) ...[
-              const SizedBox(height: 2),
-              Text(
-                currentStep.subtitle,
-                style: theme.textTheme.bodySmall,
-              ),
-            ],
-
-            // Progressive Coaching Callout (Auto-collapses after 3 completions, or 1-click disable)
-            if (_coachExpanded &&
-                (currentStep.coachWhy.isNotEmpty ||
-                    currentStep.coachAvoidTrap.isNotEmpty)) ...[
-              const SizedBox(height: 6),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 105),
-                child: Card(
-                  elevation: 0,
-                  color: colorScheme.secondaryContainer.withValues(alpha: 0.45),
-                  margin: EdgeInsets.zero,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (currentStep.coachWhy.isNotEmpty)
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Icon(
-                                Icons.psychology_outlined,
-                                size: 16,
-                                color: colorScheme.onSecondaryContainer,
-                              ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  'Why this works: ${currentStep.coachWhy}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: colorScheme.onSecondaryContainer,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        if (currentStep.coachAvoidTrap.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Icon(
-                                Icons.shield_outlined,
-                                size: 16,
-                                color: colorScheme.onSecondaryContainer,
-                              ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  'Avoid overwhelm: ${currentStep.coachAvoidTrap}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: colorScheme.onSecondaryContainer,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            TextButton(
-                              style: TextButton.styleFrom(
-                                visualDensity: VisualDensity.compact,
-                              ),
-                              onPressed: () {
-                                ref
-                                    .read(workspaceStateProvider.notifier)
-                                    .setGuidanceEnabled(false);
-                                setState(() => _coachExpanded = false);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Guidance disabled. You can re-enable it or customize your process anytime.',
-                                    ),
-                                  ),
-                                );
-                              },
-                              child: const Text(
-                                'Disable Guidance (I have my own process)',
-                                style: TextStyle(fontSize: 11),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-
-            const SizedBox(height: 10),
-
-            // Interactive Step Body
-            Expanded(
-              child: _buildStepBody(
-                context: context,
-                step: currentStep,
-                workspace: workspace,
-                allEntries: allEntries,
-                allDocs: allDocs,
-                now: now,
-                todayIso: todayIso,
-                targetRelPath: targetRelPath,
-              ),
-            ),
-
-            const Divider(height: 16),
-
-            // Bottom Navigation Buttons
-            Row(
+          return SizedBox(
+            height: modalHeight,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (safeStepIndex > 0)
-                  OutlinedButton(
-                    onPressed: () =>
-                        _setStep(safeStepIndex - 1, steps.length),
-                    child: const Text('← Back'),
-                  ),
-                const Spacer(),
-                if (safeStepIndex < steps.length - 1)
-                  FilledButton(
-                    onPressed: () =>
-                        _setStep(safeStepIndex + 1, steps.length),
-                    child: const Text('Next Step →'),
-                  )
-                else
-                  FilledButton.icon(
-                    onPressed: () => _finishRitual(config, todayIso),
-                    icon: const Icon(Icons.check),
-                    label: Text('Complete ${widget.ritualKind.shortLabel}'),
-                  ),
+                ...headerWidgets,
+                Expanded(child: stepBody),
+                const Divider(height: 16),
+                bottomNav,
               ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -680,12 +697,14 @@ class _PlanningReviewRitualModalState
                   onPressed: () async {
                     final raw = _quickEventCtrl.text.trim();
                     if (raw.isEmpty) return;
-                    await ref.read(vaultMutationProvider).captureLine(
-                      rawInput: '$raw 📅 $todayIso',
-                      toTodayLog: true,
-                      defaultPrefix: '- ○ ',
-                      now: now,
-                    );
+                    await ref
+                        .read(vaultMutationProvider)
+                        .captureLine(
+                          rawInput: '$raw 📅 $todayIso',
+                          toTodayLog: true,
+                          defaultPrefix: '- ○ ',
+                          now: now,
+                        );
                     _quickEventCtrl.clear();
                   },
                   icon: const Icon(Icons.add, size: 16),
@@ -733,12 +752,12 @@ class _PlanningReviewRitualModalState
         final tomorrow = now.add(const Duration(days: 1));
         final migrateTargetRel =
             widget.ritualKind == RitualKind.dailyEveningShutdown
-                ? CadenceFiles.dailyRelPath(tomorrow)
-                : targetRelPath;
+            ? CadenceFiles.dailyRelPath(tomorrow)
+            : targetRelPath;
         final migrateLabel =
             widget.ritualKind == RitualKind.dailyEveningShutdown
-                ? 'Tomorrow >'
-                : 'Move to ${widget.ritualKind.cadence.label} >';
+            ? 'Tomorrow >'
+            : 'Move to ${widget.ritualKind.cadence.label} >';
 
         return ListView.builder(
           itemCount: openCandidates.length,
@@ -909,11 +928,13 @@ class _PlanningReviewRitualModalState
                   onPressed: () async {
                     final raw = _newFocusTaskCtrl.text.trim();
                     if (raw.isEmpty) return;
-                    await ref.read(vaultMutationProvider).captureLine(
-                      rawInput: '$raw 📅 $todayIso',
-                      toTodayLog: true,
-                      now: now,
-                    );
+                    await ref
+                        .read(vaultMutationProvider)
+                        .captureLine(
+                          rawInput: '$raw 📅 $todayIso',
+                          toTodayLog: true,
+                          now: now,
+                        );
                     _newFocusTaskCtrl.clear();
                   },
                   icon: const Icon(Icons.add, size: 16),
@@ -937,7 +958,9 @@ class _PlanningReviewRitualModalState
                 Card(
                   margin: const EdgeInsets.only(bottom: 6),
                   color: workspace.isPinnedToday(item.uniqueKey)
-                      ? theme.colorScheme.primaryContainer.withValues(alpha: 0.35)
+                      ? theme.colorScheme.primaryContainer.withValues(
+                          alpha: 0.35,
+                        )
                       : null,
                   child: Row(
                     children: [
@@ -959,7 +982,8 @@ class _PlanningReviewRitualModalState
                               .read(workspaceStateProvider.notifier)
                               .togglePinToday(
                                 item.uniqueKey,
-                                allowOverThree: effectiveMax > 3 &&
+                                allowOverThree:
+                                    effectiveMax > 3 &&
                                     workspace.topThreePinnedKeys.length <
                                         effectiveMax,
                               );
@@ -974,9 +998,7 @@ class _PlanningReviewRitualModalState
                           }
                         },
                       ),
-                      Expanded(
-                        child: InPlaceTaskTile(item: item, dense: true),
-                      ),
+                      Expanded(child: InPlaceTaskTile(item: item, dense: true)),
                     ],
                   ),
                 ),
@@ -993,7 +1015,9 @@ class _PlanningReviewRitualModalState
           children: [
             if (topOne != null)
               Card(
-                color: theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
+                color: theme.colorScheme.primaryContainer.withValues(
+                  alpha: 0.4,
+                ),
                 margin: const EdgeInsets.only(bottom: 12),
                 child: ListTile(
                   leading: const Icon(Icons.looks_one_outlined),
@@ -1010,8 +1034,7 @@ class _PlanningReviewRitualModalState
               controller: _microStepCtrl,
               decoration: const InputDecoration(
                 labelText: '2-Minute Physical Micro-First-Step (Solanto)',
-                hintText:
-                    'e.g. Open budget.xlsx and type the 3 column headers',
+                hintText: 'e.g. Open budget.xlsx and type the 3 column headers',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -1037,7 +1060,8 @@ class _PlanningReviewRitualModalState
                   child: TextField(
                     controller: _brainDumpTaskCtrl,
                     decoration: const InputDecoration(
-                      labelText: 'Quick Brain Dump to Inbox (get loose loops out of your head)',
+                      labelText:
+                          'Quick Brain Dump to Inbox (get loose loops out of your head)',
                       hintText: 'e.g. Reply to Alex about Tuesday agenda',
                       isDense: true,
                       border: OutlineInputBorder(),
@@ -1049,11 +1073,13 @@ class _PlanningReviewRitualModalState
                   onPressed: () async {
                     final raw = _brainDumpTaskCtrl.text.trim();
                     if (raw.isEmpty) return;
-                    await ref.read(vaultMutationProvider).captureLine(
-                      rawInput: raw,
-                      toTodayLog: false,
-                      now: now,
-                    );
+                    await ref
+                        .read(vaultMutationProvider)
+                        .captureLine(
+                          rawInput: raw,
+                          toTodayLog: false,
+                          now: now,
+                        );
                     _brainDumpTaskCtrl.clear();
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -1164,8 +1190,9 @@ class _PlanningReviewRitualModalState
         );
 
       case RitualStepKind.celebrateAndMindSweep:
-        final completedTasks =
-            allEntries.where((e) => e.isCompletedTask).toList();
+        final completedTasks = allEntries
+            .where((e) => e.isCompletedTask)
+            .toList();
         final inboxTasks = allEntries
             .where((e) => e.document.relPath == 'inbox.md' && e.isOpenTask)
             .toList();
@@ -1192,7 +1219,8 @@ class _PlanningReviewRitualModalState
                   child: TextField(
                     controller: _mindSweepCtrl,
                     decoration: const InputDecoration(
-                      labelText: 'Mind-Sweep: Dump any lingering open loop to Inbox',
+                      labelText:
+                          'Mind-Sweep: Dump any lingering open loop to Inbox',
                       isDense: true,
                       border: OutlineInputBorder(),
                     ),
@@ -1203,11 +1231,13 @@ class _PlanningReviewRitualModalState
                   onPressed: () async {
                     final raw = _mindSweepCtrl.text.trim();
                     if (raw.isEmpty) return;
-                    await ref.read(vaultMutationProvider).captureLine(
-                      rawInput: raw,
-                      toTodayLog: false,
-                      now: now,
-                    );
+                    await ref
+                        .read(vaultMutationProvider)
+                        .captureLine(
+                          rawInput: raw,
+                          toTodayLog: false,
+                          now: now,
+                        );
                     _mindSweepCtrl.clear();
                   },
                   child: const Text('Add'),
@@ -1381,9 +1411,7 @@ class _PlanningReviewRitualModalState
           return d.docType == 'project' || d.relPath.startsWith('projects/');
         }).toList();
         final zombieProjects = projects.where((p) {
-          return !allEntries.any(
-            (e) => e.document.id == p.id && e.isOpenTask,
-          );
+          return !allEntries.any((e) => e.document.id == p.id && e.isOpenTask);
         }).toList();
 
         if (zombieProjects.isEmpty) {
@@ -1471,8 +1499,9 @@ class _PlanningReviewRitualModalState
         );
 
       case RitualStepKind.staleAndSomedayTriage:
-        final staleCutoffMs =
-            now.subtract(const Duration(days: 14)).millisecondsSinceEpoch;
+        final staleCutoffMs = now
+            .subtract(const Duration(days: 14))
+            .millisecondsSinceEpoch;
         final staleTasks = allEntries.where((e) {
           if (!e.isOpenTask) return false;
           if (e.document.relPath == targetRelPath) return false;
@@ -1526,7 +1555,7 @@ class _PlanningReviewRitualModalState
                               visualDensity: VisualDensity.compact,
                               label: const Text(
                                 'Move to Someday',
-                              style: TextStyle(fontSize: 11),
+                                style: TextStyle(fontSize: 11),
                               ),
                               onPressed: () {
                                 ref
@@ -1636,11 +1665,13 @@ class _PlanningReviewRitualModalState
               for (final h in habits)
                 Builder(
                   builder: (ctx) {
-                    final completedToday =
-                        workspace.isHabitCompletedOn(h.uniqueKey, todayIso);
+                    final completedToday = workspace.isHabitCompletedOn(
+                      h.uniqueKey,
+                      todayIso,
+                    );
                     final completedDates =
                         workspace.habitCompletionsByDate[h.uniqueKey] ??
-                            const [];
+                        const [];
                     final rule = RecurrenceRule.tryParse(h.entry.recurrenceRaw);
                     final summary = HabitTrackerEngine.summarize(
                       rule: rule,
@@ -1966,10 +1997,7 @@ class _ProcessCustomizerDialogState
                       value: false,
                       label: Text('Reflection Prompt'),
                     ),
-                    ButtonSegment(
-                      value: true,
-                      label: Text('Checklist Step'),
-                    ),
+                    ButtonSegment(value: true, label: Text('Checklist Step')),
                   ],
                   selected: {isChecklist},
                   onSelectionChanged: (s) =>
@@ -2077,7 +2105,9 @@ class _ProcessCustomizerDialogState
               // 1. Progressive Guidance & Learning Stage Card
               Card(
                 margin: EdgeInsets.zero,
-                color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.4),
+                color: theme.colorScheme.secondaryContainer.withValues(
+                  alpha: 0.4,
+                ),
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Column(
@@ -2204,7 +2234,10 @@ class _ProcessCustomizerDialogState
                   const Expanded(
                     child: Text(
                       'Default Depth Mode:',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
                   SegmentedButton<RitualDepthMode>(
@@ -2219,7 +2252,10 @@ class _ProcessCustomizerDialogState
                       ),
                       ButtonSegment(
                         value: RitualDepthMode.minimal,
-                        label: Text('⚡ Minimal', style: TextStyle(fontSize: 12)),
+                        label: Text(
+                          '⚡ Minimal',
+                          style: TextStyle(fontSize: 12),
+                        ),
                       ),
                     ],
                     selected: {config.preferredDepth},
@@ -2288,7 +2324,8 @@ class _ProcessCustomizerDialogState
                     ),
                     TextButton.icon(
                       onPressed: () {
-                        final basePreset = PlanningPresetCatalog.findById(
+                        final basePreset =
+                            PlanningPresetCatalog.findById(
                               config.selectedPresetId,
                             ) ??
                             PlanningPresetCatalog.defaultPresetFor(
@@ -2372,8 +2409,9 @@ class _ProcessCustomizerDialogState
                                   final updated = List<RitualStepSpec>.from(
                                     config.customSteps,
                                   );
-                                  updated[i] =
-                                      step.copyWith(includedInMinimal: val);
+                                  updated[i] = step.copyWith(
+                                    includedInMinimal: val,
+                                  );
                                   _saveConfig(
                                     config.copyWith(customSteps: updated),
                                   );
