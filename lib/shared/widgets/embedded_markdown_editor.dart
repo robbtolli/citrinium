@@ -340,44 +340,22 @@ class _EmbeddedMarkdownEditorState
                       ],
                     ),
                   ),
-                if (dataViewBlocks.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Column(
-                      children: [
-                        for (final block in dataViewBlocks)
-                          CitrineDataViewCard(
-                            query: block.query,
-                            referenceDate: refDate,
-                            onEditBlock: () async {
-                              final updatedQuery =
-                                  await showCitrineDataViewPickerDialog(
-                                    context,
-                                    initialQuery: block.query,
-                                  );
-                              if (updatedQuery == null) return;
-                              final updatedFence = updatedQuery
-                                  .toMarkdownFence();
-                              final text = controller.text;
-                              if (block.endOffset <= text.length) {
-                                final newText = text.replaceRange(
-                                  block.startOffset,
-                                  block.endOffset,
-                                  updatedFence,
-                                );
-                                controller.updateTextPreservingSelection(
-                                  newText,
-                                );
-                              }
-                            },
-                          ),
-                      ],
-                    ),
-                  ),
-                if (widget.shrinkWrap)
-                  editorWidget
+                if (dataViewBlocks.isEmpty)
+                  if (widget.shrinkWrap)
+                    editorWidget
+                  else
+                    Expanded(child: editorWidget)
                 else
-                  Expanded(child: editorWidget),
+                  _buildInterleavedBody(
+                    context: context,
+                    controller: controller,
+                    pipeline: pipeline,
+                    dataViewBlocks: dataViewBlocks,
+                    refDate: refDate,
+                    noteTitles: noteTitles,
+                    tagNames: tagNames,
+                    contextNames: contextNames,
+                  ),
               ],
             );
           },
@@ -385,6 +363,259 @@ class _EmbeddedMarkdownEditorState
       },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (err, _) => Center(child: Text('Error loading ${widget.relPath}: $err')),
+    );
+  }
+
+  Widget _buildInterleavedBody({
+    required BuildContext context,
+    required LivePreviewController controller,
+    required EditorSavePipeline pipeline,
+    required List<CitrineDataViewBlock> dataViewBlocks,
+    required DateTime refDate,
+    required List<String> noteTitles,
+    required List<String> tagNames,
+    required List<String> contextNames,
+  }) {
+    final text = controller.text;
+    final items = <Widget>[];
+    var cursor = 0;
+
+    for (var i = 0; i < dataViewBlocks.length; i++) {
+      final block = dataViewBlocks[i];
+      if (block.startOffset > cursor) {
+        final segText = text.substring(cursor, block.startOffset);
+        if (segText.trim().isNotEmpty) {
+          items.add(
+            _MarkdownSegmentEditor(
+              key: ValueKey('seg_${widget.relPath}_${i}_$cursor'),
+              masterController: controller,
+              startOffset: cursor,
+              endOffset: block.startOffset,
+              noteTitles: noteTitles,
+              tagNames: tagNames,
+              contextNames: contextNames,
+              padding: widget.padding,
+              onSaveRequested: () => pipeline.saveNow(),
+              onLeftGlobalLine: _onLeftLine,
+            ),
+          );
+        }
+      }
+
+      items.add(
+        Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: widget.padding.horizontal / 2,
+          ),
+          child: CitrineDataViewCard(
+            query: block.query,
+            referenceDate: refDate,
+            onEditBlock: () async {
+              final updatedQuery = await showCitrineDataViewPickerDialog(
+                context,
+                initialQuery: block.query,
+              );
+              if (updatedQuery == null) return;
+              final updatedFence = updatedQuery.toMarkdownFence();
+              final current = controller.text;
+              if (block.endOffset <= current.length) {
+                final newText = current.replaceRange(
+                  block.startOffset,
+                  block.endOffset,
+                  updatedFence,
+                );
+                controller.updateTextPreservingSelection(newText);
+              }
+            },
+          ),
+        ),
+      );
+      cursor = block.endOffset;
+    }
+
+    if (cursor < text.length) {
+      items.add(
+        _MarkdownSegmentEditor(
+          key: ValueKey('seg_${widget.relPath}_tail_$cursor'),
+          masterController: controller,
+          startOffset: cursor,
+          endOffset: text.length,
+          noteTitles: noteTitles,
+          tagNames: tagNames,
+          contextNames: contextNames,
+          padding: widget.padding,
+          onSaveRequested: () => pipeline.saveNow(),
+          onLeftGlobalLine: _onLeftLine,
+        ),
+      );
+    }
+
+    final column = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: items,
+    );
+
+    if (widget.shrinkWrap) return column;
+    return Expanded(child: SingleChildScrollView(child: column));
+  }
+}
+
+/// Edits a single contiguous Markdown slice `[startOffset, endOffset)` of
+/// [masterController] while keeping [masterController.text] as the literal
+/// single source of truth on disk.
+class _MarkdownSegmentEditor extends StatefulWidget {
+  const _MarkdownSegmentEditor({
+    required this.masterController,
+    required this.startOffset,
+    required this.endOffset,
+    required this.noteTitles,
+    required this.tagNames,
+    required this.contextNames,
+    required this.padding,
+    required this.onSaveRequested,
+    required this.onLeftGlobalLine,
+    super.key,
+  });
+
+  final LivePreviewController masterController;
+  final int startOffset;
+  final int endOffset;
+  final List<String> noteTitles;
+  final List<String> tagNames;
+  final List<String> contextNames;
+  final EdgeInsets padding;
+  final VoidCallback onSaveRequested;
+  final Future<void> Function(int globalLine) onLeftGlobalLine;
+
+  @override
+  State<_MarkdownSegmentEditor> createState() => _MarkdownSegmentEditorState();
+}
+
+class _MarkdownSegmentEditorState extends State<_MarkdownSegmentEditor> {
+  late final LivePreviewController _segmentController;
+  late int _startOffset;
+  late int _endOffset;
+  bool _syncing = false;
+  int? _prevLocalLine;
+
+  @override
+  void initState() {
+    super.initState();
+    _startOffset = widget.startOffset;
+    _endOffset = widget.endOffset;
+    _segmentController = LivePreviewController(
+      text: _sliceFromMaster(),
+    );
+    _segmentController.addListener(_onSegmentChanged);
+    widget.masterController.addListener(_onMasterChanged);
+  }
+
+  @override
+  void didUpdateWidget(covariant _MarkdownSegmentEditor oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.masterController != widget.masterController) {
+      oldWidget.masterController.removeListener(_onMasterChanged);
+      widget.masterController.addListener(_onMasterChanged);
+    }
+    if (widget.startOffset != _startOffset || widget.endOffset != _endOffset) {
+      _startOffset = widget.startOffset;
+      _endOffset = widget.endOffset;
+      _syncFromMaster();
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.masterController.removeListener(_onMasterChanged);
+    _segmentController.removeListener(_onSegmentChanged);
+    _segmentController.dispose();
+    super.dispose();
+  }
+
+  String _sliceFromMaster() {
+    final full = widget.masterController.text;
+    final s = _startOffset.clamp(0, full.length);
+    final e = _endOffset.clamp(s, full.length);
+    return full.substring(s, e);
+  }
+
+  void _onMasterChanged() {
+    if (_syncing) return;
+    _syncFromMaster();
+  }
+
+  void _syncFromMaster() {
+    final masterSlice = _sliceFromMaster();
+    if (_segmentController.text == masterSlice) return;
+    _syncing = true;
+    try {
+      _segmentController.updateTextPreservingSelection(masterSlice);
+    } finally {
+      _syncing = false;
+    }
+  }
+
+  int _lineAtOffset(String text, int offset) {
+    final clamped = offset.clamp(0, text.length);
+    var line = 0;
+    for (var i = 0; i < clamped; i++) {
+      if (text.codeUnitAt(i) == 0x0A) line++;
+    }
+    return line;
+  }
+
+  void _onSegmentChanged() {
+    if (_syncing) return;
+    final newSegText = _segmentController.text;
+    final full = widget.masterController.text;
+    final s = _startOffset.clamp(0, full.length);
+    final e = _endOffset.clamp(s, full.length);
+    final oldSegText = full.substring(s, e);
+
+    if (newSegText != oldSegText) {
+      _syncing = true;
+      try {
+        final updatedFull = full.replaceRange(s, e, newSegText);
+        _endOffset = s + newSegText.length;
+        widget.masterController.value = TextEditingValue(
+          text: updatedFull,
+          selection: TextSelection.collapsed(
+            offset: (s + _segmentController.selection.baseOffset)
+                .clamp(0, updatedFull.length),
+          ),
+        );
+      } finally {
+        _syncing = false;
+      }
+    }
+
+    if (_segmentController.selection.isValid) {
+      final localLine = _lineAtOffset(
+        newSegText,
+        _segmentController.selection.baseOffset,
+      );
+      final prev = _prevLocalLine;
+      _prevLocalLine = localLine;
+      if (prev != null && prev != localLine) {
+        final baseGlobalLine = _lineAtOffset(
+          widget.masterController.text,
+          _startOffset,
+        );
+        widget.onLeftGlobalLine(baseGlobalLine + prev);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LivePreviewEditor(
+      controller: _segmentController,
+      noteTitles: widget.noteTitles,
+      tagNames: widget.tagNames,
+      contextNames: widget.contextNames,
+      padding: widget.padding,
+      onSaveRequested: widget.onSaveRequested,
     );
   }
 }

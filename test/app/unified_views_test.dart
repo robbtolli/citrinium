@@ -78,12 +78,15 @@ void main() {
           await File(p.join(tempDir.path, 'daily', '$todayIso.md'))
               .writeAsString(
             '# $todayIso\n\n'
-            '- [ ] Finish unified today view 📅 $todayIso\n\n'
+            '```citrine\n'
+            'view: top-focus\n'
+            '```\n\n'
             '```citrine\n'
             'view: tasks\n'
             'filter: due-today\n'
-            'include_overdue: true\n'
-            '```\n',
+            'include-overdue: true\n'
+            '```\n\n'
+            '- [ ] Finish unified today view 📅 $todayIso\n',
           );
 
           SharedPreferences.setMockInitialValues({'vaultPath': tempDir.path});
@@ -106,9 +109,16 @@ void main() {
                 find.byType(CitrineDataViewCard).evaluate().isNotEmpty,
           );
 
-          // Embedded citrine data view block and Insert Data View button render inline
-          expect(find.byType(CitrineDataViewCard), findsAtLeastNWidgets(1));
+          // Embedded citrine data view blocks render inline without raw fenced text
+          expect(find.byType(CitrineDataViewCard), findsAtLeastNWidgets(2));
+          expect(find.text("Today's Top Focus"), findsAtLeastNWidgets(1));
           expect(find.text('Tasks Due Today'), findsAtLeastNWidgets(1));
+          for (final et in tester.widgetList<EditableText>(
+            find.byType(EditableText),
+          )) {
+            expect(et.controller.text, isNot(contains('view: top-focus')));
+            expect(et.controller.text, isNot(contains('include-overdue: true')));
+          }
           expect(
             find.byKey(const Key('editor-insert-data-view')),
             findsOneWidget,
