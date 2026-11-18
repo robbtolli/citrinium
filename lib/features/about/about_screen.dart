@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/clock/app_clock.dart';
 import '../../shared/widgets/citrine_emblem.dart';
+import '../../shared/widgets/metadata_badge.dart';
 
 const String citrineAppVersion = '1.0.0+1';
 
@@ -119,9 +120,10 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                   title: const Text('App Version'),
                   subtitle: const Text(citrineAppVersion),
                   trailing: debugEnabled
-                      ? Chip(
-                          label: const Text('Debug Active'),
-                          avatar: const Icon(Icons.bug_report, size: 16),
+                      ? const MetadataBadge(
+                          icon: Icons.bug_report,
+                          label: 'Debug Active',
+                          fontSize: 12,
                         )
                       : null,
                   onTap: _handleVersionTap,

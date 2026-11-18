@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/plugins/plugin_models.dart';
 import '../../core/plugins/plugin_providers.dart';
 import '../../core/workspace/workspace_state.dart';
+import '../../shared/widgets/metadata_badge.dart';
 import 'plugin_consent_dialog.dart';
 
 /// Central management and revocation surface for plugins (PL-01, PL-04, PL-08).
@@ -106,9 +107,7 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
       ref.invalidate(installedPluginsProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Revoked and uninstalled ${plugin.name}.'),
-          ),
+          SnackBar(content: Text('Revoked and uninstalled ${plugin.name}.')),
         );
       }
     }
@@ -153,9 +152,9 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to read plugin: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to read plugin: $e')));
       }
     }
   }
@@ -182,7 +181,9 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
         children: [
           // Header info banner
           Card(
-            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+            color: theme.colorScheme.surfaceContainerHighest.withValues(
+              alpha: 0.5,
+            ),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
@@ -288,7 +289,8 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
                 child: CircularProgressIndicator(),
               ),
             ),
-            error: (err, _) => Center(child: Text('Error loading plugins: $err')),
+            error: (err, _) =>
+                Center(child: Text('Error loading plugins: $err')),
             data: (plugins) {
               if (plugins.isEmpty) {
                 return Card(
@@ -297,8 +299,11 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
                     child: Center(
                       child: Column(
                         children: [
-                          const Icon(Icons.extension_off_outlined,
-                              size: 40, color: Colors.grey),
+                          const Icon(
+                            Icons.extension_off_outlined,
+                            size: 40,
+                            color: Colors.grey,
+                          ),
                           const SizedBox(height: 8),
                           const Text('No community plugins discovered.'),
                           const SizedBox(height: 4),
@@ -327,8 +332,8 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
                             Row(
                               children: [
                                 CircleAvatar(
-                                  backgroundColor: theme
-                                      .colorScheme.primaryContainer,
+                                  backgroundColor:
+                                      theme.colorScheme.primaryContainer,
                                   child: const Icon(Icons.extension, size: 20),
                                 ),
                                 const SizedBox(width: 12),
@@ -348,9 +353,10 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
                                         '${plugin.id} • v${plugin.version}${plugin.author.isNotEmpty ? " • by ${plugin.author}" : ""}',
                                         style: theme.textTheme.bodySmall
                                             ?.copyWith(
-                                          color: theme
-                                              .colorScheme.onSurfaceVariant,
-                                        ),
+                                              color: theme
+                                                  .colorScheme
+                                                  .onSurfaceVariant,
+                                            ),
                                       ),
                                     ],
                                   ),
@@ -360,11 +366,13 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
                                   onChanged: plugin.installedAtMs > 0
                                       ? (val) async {
                                           await ref
-                                              .read(workspaceStateProvider
-                                                  .notifier)
+                                              .read(
+                                                workspaceStateProvider.notifier,
+                                              )
                                               .togglePlugin(plugin.id, val);
                                           ref.invalidate(
-                                              installedPluginsProvider);
+                                            installedPluginsProvider,
+                                          );
                                         }
                                       : null,
                                 ),
@@ -388,30 +396,18 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
                                   style: theme.textTheme.labelSmall,
                                 ),
                                 if (plugin.manifest.permissions.isEmpty)
-                                  const Chip(
-                                    visualDensity: VisualDensity.compact,
-                                    label: Text(
-                                      'None',
-                                      style: TextStyle(fontSize: 11),
-                                    ),
-                                  )
+                                  const MetadataBadge(label: 'None')
                                 else
-                                  for (final perm in plugin.manifest.permissions)
-                                    Chip(
-                                      visualDensity: VisualDensity.compact,
-                                      avatar: Icon(
-                                        plugin.hasPermission(perm)
-                                            ? Icons.check
-                                            : Icons.lock_outline,
-                                        size: 12,
-                                        color: plugin.hasPermission(perm)
-                                            ? Colors.green
-                                            : Colors.grey,
-                                      ),
-                                      label: Text(
-                                        perm.id,
-                                        style: const TextStyle(fontSize: 11),
-                                      ),
+                                  for (final perm
+                                      in plugin.manifest.permissions)
+                                    MetadataBadge(
+                                      icon: plugin.hasPermission(perm)
+                                          ? Icons.check
+                                          : Icons.lock_outline,
+                                      iconColor: plugin.hasPermission(perm)
+                                          ? Colors.green
+                                          : Colors.grey,
+                                      label: perm.id,
                                     ),
                               ],
                             ),
@@ -433,22 +429,24 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
                                     onPressed: _running || !plugin.isEnabled
                                         ? null
                                         : () => _runPlugin(plugin),
-                                    icon: const Icon(Icons.play_arrow, size: 16),
+                                    icon: const Icon(
+                                      Icons.play_arrow,
+                                      size: 16,
+                                    ),
                                     label: const Text('Run'),
                                   ),
                                   const SizedBox(width: 8),
                                   TextButton.icon(
                                     key: ValueKey('revoke_btn_${plugin.id}'),
                                     style: TextButton.styleFrom(
-                                      foregroundColor:
-                                          theme.colorScheme.error,
+                                      foregroundColor: theme.colorScheme.error,
                                     ),
                                     onPressed: () => _revokePlugin(plugin),
-                                    icon: const Icon(Icons.delete_outline,
-                                        size: 16),
-                                    label: const Text(
-                                      'Revoke & Uninstall',
+                                    icon: const Icon(
+                                      Icons.delete_outline,
+                                      size: 16,
                                     ),
+                                    label: const Text('Revoke & Uninstall'),
                                   ),
                                 ],
                               ],

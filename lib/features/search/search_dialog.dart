@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/index/app_services.dart';
 import '../../core/index/index_providers.dart';
+import '../../shared/widgets/metadata_badge.dart';
 import '../document_detail/document_detail_screen.dart';
 
 /// Full-Text Search and Quick Switcher Dialog with facet filters (`N-03`, `N-04`, `N-05`, `FR-06`).
@@ -246,83 +247,91 @@ class _SearchDialogState extends ConsumerState<SearchDialog> {
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : (_results == null || _results!.isEmpty)
-                      ? Center(
-                          child: Text(
-                            _queryCtrl.text.isEmpty && _selectedTag == null && _selectedContext == null
-                                ? 'No documents or tasks matching current filter.'
-                                : 'No results found.',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.outline,
-                            ),
-                          ),
-                        )
-                      : ListView.separated(
-                          itemCount: _results!.length,
-                          separatorBuilder: (_, _) => const Divider(height: 1),
-                          itemBuilder: (context, index) {
-                            final item = _results![index];
-                            final icon = switch (item.matchType) {
-                              'task' => Icons.check_box_outlined,
-                              'title' => Icons.title,
-                              'entry' => Icons.short_text,
-                              _ => _iconForDocType(item.document.docType),
-                            };
+                  ? Center(
+                      child: Text(
+                        _queryCtrl.text.isEmpty &&
+                                _selectedTag == null &&
+                                _selectedContext == null
+                            ? 'No documents or tasks matching current filter.'
+                            : 'No results found.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.outline,
+                        ),
+                      ),
+                    )
+                  : ListView.separated(
+                      itemCount: _results!.length,
+                      separatorBuilder: (_, _) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final item = _results![index];
+                        final icon = switch (item.matchType) {
+                          'task' => Icons.check_box_outlined,
+                          'title' => Icons.title,
+                          'entry' => Icons.short_text,
+                          _ => _iconForDocType(item.document.docType),
+                        };
 
-                            return ListTile(
-                              dense: true,
-                              leading: Icon(icon, size: 20, color: theme.colorScheme.primary),
-                              title: Text(
-                                item.document.title.isNotEmpty
-                                    ? item.document.title
-                                    : item.document.relPath,
-                                style: const TextStyle(fontWeight: FontWeight.w600),
-                              ),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    item.document.relPath,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: theme.colorScheme.outline,
-                                    ),
-                                  ),
-                                  if (item.snippet != item.document.title)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 2),
-                                      child: Text(
-                                        item.snippet,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: theme.colorScheme.onSurfaceVariant,
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              trailing: Chip(
-                                visualDensity: VisualDensity.compact,
-                                padding: EdgeInsets.zero,
-                                label: Text(
-                                  item.matchType == 'task' ? 'task' : item.document.docType,
-                                  style: const TextStyle(fontSize: 10),
+                        return ListTile(
+                          dense: true,
+                          leading: Icon(
+                            icon,
+                            size: 20,
+                            color: theme.colorScheme.primary,
+                          ),
+                          title: Text(
+                            item.document.title.isNotEmpty
+                                ? item.document.title
+                                : item.document.relPath,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.document.relPath,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: theme.colorScheme.outline,
                                 ),
                               ),
-                              onTap: () {
-                                Navigator.of(context).pop();
-                                Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (_) => DocumentDetailScreen(
-                                      document: item.document,
+                              if (item.snippet != item.document.title)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: Text(
+                                    item.snippet,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: theme.colorScheme.onSurfaceVariant,
                                     ),
                                   ),
-                                );
-                              },
+                                ),
+                            ],
+                          ),
+                          trailing: MetadataBadge(
+                            label: item.matchType == 'task'
+                                ? 'task'
+                                : item.document.docType,
+                            fontSize: 10,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 3,
+                            ),
+                          ),
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => DocumentDetailScreen(
+                                  document: item.document,
+                                ),
+                              ),
                             );
                           },
-                        ),
+                        );
+                      },
+                    ),
             ),
           ],
         ),

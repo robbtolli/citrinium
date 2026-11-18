@@ -1,9 +1,12 @@
 import 'dart:io';
 
 import 'package:citrine/app/citrine_app.dart';
+import 'package:citrine/core/index/app_services.dart';
 import 'package:citrine/core/vault/vault_path_provider.dart';
 import 'package:citrine/core/workspace/workspace_state.dart';
+import 'package:citrine/shared/widgets/planning_review_ritual_sheet.dart';
 import 'package:citrine_core/citrine_core.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -85,7 +88,10 @@ void main() {
         await _waitUntil(
           tester,
           () =>
-              find.textContaining('Today\'s Focus Shelf').evaluate().isNotEmpty &&
+              find
+                  .textContaining('Today\'s Focus Shelf')
+                  .evaluate()
+                  .isNotEmpty &&
               find.text('Meeting Notes').evaluate().isNotEmpty &&
               find.text('🌅 Morning Plan').evaluate().isNotEmpty,
         );
@@ -179,10 +185,7 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 400));
 
-        expect(
-          find.text('Planning & Review Process Studio'),
-          findsOneWidget,
-        );
+        expect(find.text('Planning & Review Process Studio'), findsOneWidget);
 
         // Select Ivy Lee preset
         final ivyFinder = find.text('Ivy Lee 6-Task Sequential Method');
@@ -199,10 +202,7 @@ void main() {
         await tester.tap(freeformFinder);
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 200));
-        expect(
-          find.text('Freeform Markdown Mode Enabled'),
-          findsOneWidget,
-        );
+        expect(find.text('Freeform Markdown Mode Enabled'), findsOneWidget);
 
         // Close Process Studio
         await tester.tap(find.text('Done'));
@@ -215,6 +215,156 @@ void main() {
             .configForRitual(RitualKind.dailyMorningPlan);
         expect(config.executionMode, CadenceExecutionMode.freeformMarkdown);
         expect(config.selectedPresetId, 'ivy_lee_morning');
+      });
+    },
+  );
+
+  testWidgets(
+    'Daily Morning Plan Step 1 does not overflow on phone viewport when keyboard opens',
+    (tester) async {
+      // Pixel 9a-like logical dimensions (412x915) with system bars and soft keyboard.
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(412, 915);
+      tester.view.viewPadding = const FakeViewPadding(top: 48, bottom: 24);
+      addTearDown(tester.view.reset);
+
+      await tester.runAsync(() async {
+        SharedPreferences.setMockInitialValues({'vaultPath': vault.path});
+        final prefs = await SharedPreferences.getInstance();
+
+        final container = ProviderContainer(
+          overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        );
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              home: Scaffold(
+                body: Consumer(
+                  builder: (context, ref, _) => Center(
+                    child: FilledButton(
+                      onPressed: () => showPlanningReviewRitualSheet(
+                        context,
+                        ref,
+                        ritualKind: RitualKind.dailyMorningPlan,
+                      ),
+                      child: const Text('Open Morning Plan'),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        await tester.tap(find.text('Open Morning Plan'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+
+        expect(
+          find.textContaining('Daily Morning Plan · Step 1 of 4'),
+          findsOneWidget,
+        );
+
+        final eventField = find.byType(TextField, skipOffstage: false);
+        expect(eventField, findsOneWidget);
+        await tester.ensureVisible(eventField);
+        await tester.pump();
+
+        // Tap the scheduled event field and simulate the soft keyboard opening.
+        await tester.tap(eventField);
+        tester.view.viewInsets = const FakeViewPadding(bottom: 350);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(tester.takeException(), isNull);
+        expect(eventField, findsOneWidget);
+        await container.read(appServicesProvider.future);
+      });
+    },
+  );
+
+  testWidgets(
+    'Daily Evening Shutdown Step 1 Quick Brain Dump keeps focus and keyboard when viewInsets open',
+    (tester) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(412, 915);
+      tester.view.viewPadding = const FakeViewPadding(top: 48, bottom: 24);
+      addTearDown(tester.view.reset);
+
+      await tester.runAsync(() async {
+        SharedPreferences.setMockInitialValues({'vaultPath': vault.path});
+        final prefs = await SharedPreferences.getInstance();
+
+        final container = ProviderContainer(
+          overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        );
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              home: Scaffold(
+                body: Consumer(
+                  builder: (context, ref, _) => Center(
+                    child: FilledButton(
+                      onPressed: () => showPlanningReviewRitualSheet(
+                        context,
+                        ref,
+                        ritualKind: RitualKind.dailyEveningShutdown,
+                      ),
+                      child: const Text('Open Evening Shutdown'),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        await tester.tap(find.text('Open Evening Shutdown'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+
+        expect(
+          find.textContaining('Daily Evening Shutdown · Step 1 of 4'),
+          findsOneWidget,
+        );
+
+        final brainDumpField = find.byType(TextField, skipOffstage: false).first;
+        expect(brainDumpField, findsOneWidget);
+        await tester.ensureVisible(brainDumpField);
+        await tester.pump();
+
+        final editableFinder = find.descendant(
+          of: brainDumpField,
+          matching: find.byType(EditableText),
+        );
+
+        // Tap the Quick Brain Dump field so it acquires focus & opens the keyboard.
+        await tester.tap(brainDumpField);
+        await tester.pump();
+        expect(
+          tester.widget<EditableText>(editableFinder).focusNode.hasFocus,
+          isTrue,
+        );
+
+        // Simulate the soft keyboard opening and verify focus is preserved.
+        tester.view.viewInsets = const FakeViewPadding(bottom: 350);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(tester.takeException(), isNull);
+        expect(
+          tester.widget<EditableText>(editableFinder).focusNode.hasFocus,
+          isTrue,
+        );
+        await container.read(appServicesProvider.future);
       });
     },
   );
