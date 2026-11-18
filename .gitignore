@@ -21,8 +21,9 @@ migrate_working_dir/
 # Obsidian (used to browse/edit the docs in this repo as a vault)
 .obsidian/
 
-# opentree agent worktrees / local state (not part of the product)
+# opentree / git worktrees / local state (not part of the product)
 .opentree/
+.worktrees/
 
 # The .vscode folder contains launch configuration and tasks you configure in
 # VS Code which you may wish to be included in version control, so this line
