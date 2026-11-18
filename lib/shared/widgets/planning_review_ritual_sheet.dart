@@ -82,6 +82,7 @@ class _PlanningReviewRitualModal extends ConsumerStatefulWidget {
 
 class _PlanningReviewRitualModalState
     extends ConsumerState<_PlanningReviewRitualModal> {
+  final GlobalKey _stepBodyKey = GlobalKey();
   late RitualDepthMode _depthMode;
   int _stepIndex = 0;
   bool _coachExpanded = true;
@@ -597,34 +598,39 @@ class _PlanningReviewRitualModalState
               ? maxAvailable.clamp(0.0, targetHeight)
               : targetHeight;
 
-          if (hasKeyboard || modalHeight < 480.0) {
-            return SizedBox(
-              height: modalHeight,
-              child: SingleChildScrollView(
+          final shouldScroll = hasKeyboard || modalHeight < 480.0;
+          final keyedStepBody = KeyedSubtree(
+            key: _stepBodyKey,
+            child: stepBody,
+          );
+
+          return SizedBox(
+            height: modalHeight,
+            child: SingleChildScrollView(
+              physics: shouldScroll
+                  ? const AlwaysScrollableScrollPhysics()
+                  : const NeverScrollableScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: modalHeight,
+                  maxHeight: shouldScroll ? double.infinity : modalHeight,
+                ),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisSize: shouldScroll
+                      ? MainAxisSize.min
+                      : MainAxisSize.max,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     ...headerWidgets,
-                    SizedBox(height: 240, child: stepBody),
+                    if (shouldScroll)
+                      SizedBox(height: 240, child: keyedStepBody)
+                    else
+                      Expanded(child: keyedStepBody),
                     const Divider(height: 16),
                     bottomNav,
                   ],
                 ),
               ),
-            );
-          }
-
-          return SizedBox(
-            height: modalHeight,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ...headerWidgets,
-                Expanded(child: stepBody),
-                const Divider(height: 16),
-                bottomNav,
-              ],
             ),
           );
         },
