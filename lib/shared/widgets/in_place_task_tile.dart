@@ -42,7 +42,9 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
   @override
   void initState() {
     super.initState();
-    _textController = TextEditingController(text: widget.item.entry.textContent);
+    _textController = TextEditingController(
+      text: widget.item.entry.textContent,
+    );
     _childNoteController = TextEditingController();
   }
 
@@ -100,11 +102,13 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
   Future<void> _saveEditedText() async {
     final newText = _textController.text.trim();
     if (newText.isEmpty) return;
-    await ref.read(vaultMutationProvider).updateEntryInPlace(
-      widget.item,
-      newContent: newText,
-      newChildNoteBody: _loadedChildNote ? _childNoteController.text : null,
-    );
+    await ref
+        .read(vaultMutationProvider)
+        .updateEntryInPlace(
+          widget.item,
+          newContent: newText,
+          newChildNoteBody: _loadedChildNote ? _childNoteController.text : null,
+        );
     if (mounted) {
       setState(() {
         _expanded = false;
@@ -129,8 +133,9 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
       );
     }
     if (mounted) {
-      final updated = await ref
-          .read(documentRawTextProvider(widget.item.document.relPath).future);
+      final updated = await ref.read(
+        documentRawTextProvider(widget.item.document.relPath).future,
+      );
       final doc = MarkdownDocument.parse(updated);
       if (widget.item.entry.lineIndex < doc.lines.length) {
         final line = doc.lines[widget.item.entry.lineIndex];
@@ -147,11 +152,13 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
 
   Future<void> _toggleContext(String ctxName) async {
     final hasCtx = widget.item.contexts.contains(ctxName);
-    await ref.read(vaultMutationProvider).updateEntryInPlace(
-      widget.item,
-      addContext: hasCtx ? null : ctxName,
-      removeContext: hasCtx ? ctxName : null,
-    );
+    await ref
+        .read(vaultMutationProvider)
+        .updateEntryInPlace(
+          widget.item,
+          addContext: hasCtx ? null : ctxName,
+          removeContext: hasCtx ? ctxName : null,
+        );
   }
 
   Future<void> _promptCustomContext(BuildContext context) async {
@@ -184,32 +191,34 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
     );
     controller.dispose();
     if (added != null && added.trim().isNotEmpty) {
-      await ref.read(vaultMutationProvider).updateEntryInPlace(
-        widget.item,
-        addContext: added.trim(),
-      );
+      await ref
+          .read(vaultMutationProvider)
+          .updateEntryInPlace(widget.item, addContext: added.trim());
     }
   }
 
   Future<void> _setQuickRecurrence(String? ruleText) async {
-    await ref.read(vaultMutationProvider).updateEntryInPlace(
-      widget.item,
-      recurrence: ruleText,
-      clearRecurrence: ruleText == null,
-    );
+    await ref
+        .read(vaultMutationProvider)
+        .updateEntryInPlace(
+          widget.item,
+          recurrence: ruleText,
+          clearRecurrence: ruleText == null,
+        );
   }
 
   Future<void> _toggleHabitTag() async {
     final isHabit = widget.item.tags.contains('habit');
-    await ref.read(vaultMutationProvider).updateEntryInPlace(
-      widget.item,
-      addTag: isHabit ? null : 'habit',
-      removeTag: isHabit ? 'habit' : null,
-      recurrence:
-          (!isHabit && widget.item.entry.recurrenceRaw == null)
+    await ref
+        .read(vaultMutationProvider)
+        .updateEntryInPlace(
+          widget.item,
+          addTag: isHabit ? null : 'habit',
+          removeTag: isHabit ? 'habit' : null,
+          recurrence: (!isHabit && widget.item.entry.recurrenceRaw == null)
               ? 'every day'
               : null,
-    );
+        );
   }
 
   Future<void> _promptCustomRecurrence(BuildContext context) async {
@@ -264,27 +273,31 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
   Future<void> _migrateToToday() async {
     final now = DateTime.now();
     final todayRelPath = CadenceFiles.dailyRelPath(now);
-    await ref.read(vaultMutationProvider).migrateOrScheduleEntry(
-      widget.item,
-      targetRelPath: todayRelPath,
-      targetInitialContent: CadenceFiles.defaultContentForCadence(
-        CadenceKind.daily,
-        now,
-      ),
-    );
+    await ref
+        .read(vaultMutationProvider)
+        .migrateOrScheduleEntry(
+          widget.item,
+          targetRelPath: todayRelPath,
+          targetInitialContent: CadenceFiles.defaultContentForCadence(
+            CadenceKind.daily,
+            now,
+          ),
+        );
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Migrated to $todayRelPath')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Migrated to $todayRelPath')));
     }
   }
 
   Future<void> _moveToSomeday() async {
-    await ref.read(vaultMutationProvider).migrateOrScheduleEntry(
-      widget.item,
-      targetRelPath: CadenceFiles.somedayRelPath,
-      targetInitialContent: CadenceFiles.defaultSomedayContent(),
-    );
+    await ref
+        .read(vaultMutationProvider)
+        .migrateOrScheduleEntry(
+          widget.item,
+          targetRelPath: CadenceFiles.somedayRelPath,
+          targetInitialContent: CadenceFiles.defaultSomedayContent(),
+        );
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -296,26 +309,27 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
 
   Future<void> _scheduleToFutureLog() async {
     final now = DateTime.now();
-    await ref.read(vaultMutationProvider).migrateOrScheduleEntry(
-      widget.item,
-      targetRelPath: CadenceFiles.futureLogRelPath,
-      targetInitialContent: CadenceFiles.defaultContentForCadence(
-        CadenceKind.future,
-        now,
-      ),
-    );
+    await ref
+        .read(vaultMutationProvider)
+        .migrateOrScheduleEntry(
+          widget.item,
+          targetRelPath: CadenceFiles.futureLogRelPath,
+          targetInitialContent: CadenceFiles.defaultContentForCadence(
+            CadenceKind.future,
+            now,
+          ),
+        );
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Scheduled to Future Log (future.md).'),
-        ),
+        const SnackBar(content: Text('Scheduled to Future Log (future.md).')),
       );
     }
   }
 
   Future<void> _promoteToCollection(BuildContext context) async {
-    final titleCtrl =
-        TextEditingController(text: widget.item.entry.textContent);
+    final titleCtrl = TextEditingController(
+      text: widget.item.entry.textContent,
+    );
     final chosenTitle = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -351,32 +365,32 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
             promoteFromEntry: widget.item,
           );
       if (mounted) {
-        ScaffoldMessenger.of(this.context).showSnackBar(
-          SnackBar(content: Text('Created Collection $relPath')),
-        );
+        ScaffoldMessenger.of(
+          this.context,
+        ).showSnackBar(SnackBar(content: Text('Created Collection $relPath')));
       }
     }
   }
 
   Future<void> _cancelTask() async {
-    await ref.read(vaultMutationProvider).setTaskStateInPlace(
-      widget.item,
-      TaskStateKind.cancelled,
-    );
+    await ref
+        .read(vaultMutationProvider)
+        .setTaskStateInPlace(widget.item, TaskStateKind.cancelled);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Cancelled task cleanly — one less thing on your plate.'),
+          content: Text(
+            'Cancelled task cleanly — one less thing on your plate.',
+          ),
         ),
       );
     }
   }
 
   Future<void> _setTaskState(TaskStateKind state) async {
-    await ref.read(vaultMutationProvider).setTaskStateInPlace(
-      widget.item,
-      state,
-    );
+    await ref
+        .read(vaultMutationProvider)
+        .setTaskStateInPlace(widget.item, state);
   }
 
   void _openSourcePeekSheet(BuildContext context) {
@@ -396,10 +410,18 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
 
   Widget _buildStateLeadingIcon(ColorScheme colorScheme) {
     if (widget.item.isEvent) {
-      return Icon(Icons.panorama_fish_eye, size: 18, color: colorScheme.primary);
+      return Icon(
+        Icons.panorama_fish_eye,
+        size: 18,
+        color: colorScheme.primary,
+      );
     }
     if (widget.item.isNote) {
-      return Icon(Icons.horizontal_rule, size: 18, color: colorScheme.secondary);
+      return Icon(
+        Icons.horizontal_rule,
+        size: 18,
+        color: colorScheme.secondary,
+      );
     }
     final state = widget.item.entry.taskState;
     switch (state) {
@@ -419,11 +441,7 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
           ),
         );
       case 'waitingFor':
-        return Icon(
-          Icons.hourglass_top,
-          size: 18,
-          color: colorScheme.tertiary,
-        );
+        return Icon(Icons.hourglass_top, size: 18, color: colorScheme.tertiary);
       case 'cancelled':
       case 'dropped':
         return Container(
@@ -438,11 +456,7 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
             color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
           ),
           child: Center(
-            child: Container(
-              width: 9,
-              height: 1.5,
-              color: colorScheme.outline,
-            ),
+            child: Container(width: 9, height: 1.5, color: colorScheme.outline),
           ),
         );
       default:
@@ -461,7 +475,8 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
     final workspace = ref.watch(workspaceStateProvider);
     final isPinned = workspace.isPinnedToday(widget.item.uniqueKey);
     final isDone = widget.item.isCompletedTask;
-    final isCancelled = widget.item.isCancelledTask ||
+    final isCancelled =
+        widget.item.isCancelledTask ||
         widget.item.entry.taskState == 'cancelled' ||
         widget.item.entry.taskState == 'dropped';
 
@@ -542,7 +557,8 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
                                 ),
                               if (widget.item.entry.recurrenceRaw != null)
                                 _MetadataPill(
-                                  label: '🔁 ${widget.item.entry.recurrenceRaw}',
+                                  label:
+                                      '🔁 ${widget.item.entry.recurrenceRaw}',
                                   color: colorScheme.tertiaryContainer,
                                   textColor: colorScheme.onTertiaryContainer,
                                 ),
@@ -570,6 +586,30 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
                             ],
                           ),
                         ],
+                        if (widget.showSourceBadge) ...[
+                          const SizedBox(height: 6),
+                          ActionChip(
+                            visualDensity: VisualDensity.compact,
+                            avatar: const Icon(
+                              Icons.description_outlined,
+                              size: 14,
+                            ),
+                            label: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 240),
+                              child: Text(
+                                widget.item.document.title.isNotEmpty
+                                    ? widget.item.document.title
+                                    : widget.item.document.relPath,
+                                style: const TextStyle(fontSize: 11),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            tooltip:
+                                'Peek surrounding context in ${widget.item.document.relPath}',
+                            onPressed: () => _openSourcePeekSheet(context),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -581,25 +621,6 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
                         size: 16,
                         color: colorScheme.primary,
                       ),
-                    ),
-                  if (widget.showSourceBadge)
-                    ActionChip(
-                      visualDensity: VisualDensity.compact,
-                      avatar: const Icon(Icons.description_outlined, size: 14),
-                      label: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 140),
-                        child: Text(
-                          widget.item.document.title.isNotEmpty
-                              ? widget.item.document.title
-                              : widget.item.document.relPath,
-                          style: const TextStyle(fontSize: 11),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      tooltip:
-                          'Peek surrounding context in ${widget.item.document.relPath}',
-                      onPressed: () => _openSourcePeekSheet(context),
                     ),
                   Icon(
                     _expanded ? Icons.expand_less : Icons.edit_note,
@@ -625,7 +646,8 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
                         child: TextField(
                           controller: _textController,
                           decoration: const InputDecoration(
-                            labelText: 'Edit task in-place (updates source .md file)',
+                            labelText:
+                                'Edit task in-place (updates source .md file)',
                             isDense: true,
                             border: OutlineInputBorder(),
                           ),
@@ -668,7 +690,8 @@ class _InPlaceTaskTileState extends ConsumerState<InPlaceTaskTile> {
                       ActionChip(
                         visualDensity: VisualDensity.compact,
                         label: const Text('[/] In-Progress'),
-                        onPressed: () => _setTaskState(TaskStateKind.inProgress),
+                        onPressed: () =>
+                            _setTaskState(TaskStateKind.inProgress),
                       ),
                       ActionChip(
                         visualDensity: VisualDensity.compact,
@@ -877,7 +900,11 @@ class _MetadataPill extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(fontSize: 11, color: textColor, fontWeight: FontWeight.w500),
+        style: TextStyle(
+          fontSize: 11,
+          color: textColor,
+          fontWeight: FontWeight.w500,
+        ),
       ),
     );
   }
@@ -892,7 +919,9 @@ class _SourceContextPeekSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final rawTextAsync = ref.watch(documentRawTextProvider(item.document.relPath));
+    final rawTextAsync = ref.watch(
+      documentRawTextProvider(item.document.relPath),
+    );
     final theme = Theme.of(context);
 
     return SafeArea(
@@ -940,8 +969,14 @@ class _SourceContextPeekSheet extends ConsumerWidget {
             rawTextAsync.when(
               data: (rawText) {
                 final doc = MarkdownDocument.parse(rawText);
-                final startIdx = (item.entry.lineIndex - 3).clamp(0, doc.lines.length);
-                final endIdx = (item.entry.lineIndex + 5).clamp(0, doc.lines.length);
+                final startIdx = (item.entry.lineIndex - 3).clamp(
+                  0,
+                  doc.lines.length,
+                );
+                final endIdx = (item.entry.lineIndex + 5).clamp(
+                  0,
+                  doc.lines.length,
+                );
                 final snippetLines = doc.lines.sublist(startIdx, endIdx);
 
                 return Container(
@@ -962,7 +997,9 @@ class _SourceContextPeekSheet extends ConsumerWidget {
                             horizontal: 4,
                           ),
                           color: line.index == item.entry.lineIndex
-                              ? theme.colorScheme.primaryContainer.withValues(alpha: 0.5)
+                              ? theme.colorScheme.primaryContainer.withValues(
+                                  alpha: 0.5,
+                                )
                               : null,
                           child: Text(
                             '${(line.index + 1).toString().padLeft(2)}: ${doc.rawText.substring(line.span.start, line.span.end)}',
@@ -1071,10 +1108,7 @@ class _TwoMinuteFocusDialogState extends ConsumerState<_TwoMinuteFocusDialog> {
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  CircularProgressIndicator(
-                    value: progress,
-                    strokeWidth: 8,
-                  ),
+                  CircularProgressIndicator(value: progress, strokeWidth: 8),
                   Text(
                     '$mins:$secs',
                     style: theme.textTheme.headlineSmall?.copyWith(
@@ -1115,10 +1149,9 @@ class _TwoMinuteFocusDialogState extends ConsumerState<_TwoMinuteFocusDialog> {
           ),
         FilledButton.tonalIcon(
           onPressed: () async {
-            await ref.read(vaultMutationProvider).setTaskStateInPlace(
-              widget.item,
-              TaskStateKind.completed,
-            );
+            await ref
+                .read(vaultMutationProvider)
+                .setTaskStateInPlace(widget.item, TaskStateKind.completed);
             if (context.mounted) Navigator.of(context).pop();
           },
           icon: const Icon(Icons.check, size: 16),
@@ -1218,8 +1251,7 @@ class _ReminderAndSnoozeDialogState
                   ActionChip(
                     visualDensity: VisualDensity.compact,
                     label: const Text('Snooze +15m'),
-                    onPressed: () =>
-                        _applySnooze(const Duration(minutes: 15)),
+                    onPressed: () => _applySnooze(const Duration(minutes: 15)),
                   ),
                   ActionChip(
                     visualDensity: VisualDensity.compact,
@@ -1299,13 +1331,16 @@ class _ReminderAndSnoozeDialogState
         FilledButton.icon(
           onPressed: () async {
             final cleanTime = _timeCtrl.text.trim();
-            final effectiveDate = widget.item.entry.dueDate ??
+            final effectiveDate =
+                widget.item.entry.dueDate ??
                 NlDateParser.formatIsoDate(DateTime.now());
-            await ref.read(vaultMutationProvider).updateEntryInPlace(
-              widget.item,
-              dueDate: effectiveDate,
-              dueTime: cleanTime.isEmpty ? null : cleanTime,
-            );
+            await ref
+                .read(vaultMutationProvider)
+                .updateEntryInPlace(
+                  widget.item,
+                  dueDate: effectiveDate,
+                  dueTime: cleanTime.isEmpty ? null : cleanTime,
+                );
             await ref
                 .read(workspaceStateProvider.notifier)
                 .setTaskReminderLeadMinutes(
