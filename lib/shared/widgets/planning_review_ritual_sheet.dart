@@ -6,6 +6,7 @@ import '../../core/clock/app_clock.dart';
 import '../../core/index/index_providers.dart';
 import '../../core/workspace/workspace_state.dart';
 import 'in_place_task_tile.dart';
+import 'metadata_badge.dart';
 
 /// Launches a Planning or Review ritual for [ritualKind] (`B-06`, `B-07`,
 /// `R-01`–`R-04`, `Q-02`, `Y-02`).
@@ -380,25 +381,28 @@ class _PlanningReviewRitualModalState
                   );
             },
           ),
-          Chip(
-            visualDensity: VisualDensity.compact,
-            avatar: const Icon(Icons.timer_outlined, size: 14),
-            label: Text(
-              '~${currentStep.estimatedMinutes} min step',
-              style: const TextStyle(fontSize: 11),
-            ),
+          MetadataBadge(
+            icon: Icons.timer_outlined,
+            label: '~${currentStep.estimatedMinutes} min step',
           ),
           if (currentStep.coachWhy.isNotEmpty ||
               currentStep.coachAvoidTrap.isNotEmpty)
             ActionChip(
               visualDensity: VisualDensity.compact,
+              backgroundColor: colorScheme.secondaryContainer,
+              side: BorderSide.none,
               avatar: Icon(
                 _coachExpanded ? Icons.lightbulb : Icons.lightbulb_outline,
                 size: 14,
+                color: colorScheme.onSecondaryContainer,
               ),
               label: Text(
                 _coachExpanded ? 'Hide Coach Tip' : '💡 Why & How',
-                style: const TextStyle(fontSize: 11),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: colorScheme.onSecondaryContainer,
+                ),
               ),
               onPressed: () => setState(() => _coachExpanded = !_coachExpanded),
             ),

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../shared/widgets/metadata_badge.dart';
 import '../clock/app_clock.dart';
 import '../index/index_providers.dart';
 import '../workspace/workspace_state.dart';
@@ -189,18 +190,16 @@ Future<void> executeReminderNotificationAction({
         final tomorrowIso = NlDateParser.formatIsoDate(
           currentNow.add(const Duration(days: 1)),
         );
-        await ref.read(vaultMutationProvider).updateEntryInPlace(
-          item,
-          dueDate: tomorrowIso,
-        );
+        await ref
+            .read(vaultMutationProvider)
+            .updateEntryInPlace(item, dueDate: tomorrowIso);
       }
     case NotificationActionKind.markDone:
       await workspaceNotifier.clearSnooze(reminder.entryUniqueKey);
       if (item != null) {
-        await ref.read(vaultMutationProvider).completeOrAdvanceTask(
-          item,
-          now: currentNow,
-        );
+        await ref
+            .read(vaultMutationProvider)
+            .completeOrAdvanceTask(item, now: currentNow);
       }
   }
 }
@@ -313,10 +312,14 @@ class _RemindersCenterSheet extends ConsumerWidget {
                         itemCount: reminders.length,
                         itemBuilder: (context, index) {
                           final r = reminders[index];
-                          final hh =
-                              r.scheduledAt.hour.toString().padLeft(2, '0');
-                          final mm =
-                              r.scheduledAt.minute.toString().padLeft(2, '0');
+                          final hh = r.scheduledAt.hour.toString().padLeft(
+                            2,
+                            '0',
+                          );
+                          final mm = r.scheduledAt.minute.toString().padLeft(
+                            2,
+                            '0',
+                          );
                           final dateStr = NlDateParser.formatIsoDate(
                             r.scheduledAt,
                           );
@@ -336,12 +339,9 @@ class _RemindersCenterSheet extends ConsumerWidget {
                                         ),
                                       ),
                                       if (r.isSnoozed)
-                                        const Chip(
-                                          visualDensity: VisualDensity.compact,
-                                          label: Text(
-                                            'Snoozed',
-                                            style: TextStyle(fontSize: 10),
-                                          ),
+                                        const MetadataBadge(
+                                          label: 'Snoozed',
+                                          fontSize: 10,
                                         ),
                                     ],
                                   ),
