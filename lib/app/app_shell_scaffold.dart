@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' show AppExitResponse;
 
 import 'package:citrine_core/citrine_core.dart';
@@ -372,6 +373,52 @@ class _AppShellScaffoldState extends ConsumerState<AppShellScaffold>
     );
   }
 
+  Widget _buildCompactRailItem({
+    required BuildContext context,
+    required AppPillar pillar,
+    required bool selected,
+    required Color indicatorColor,
+    required VoidCallback onTap,
+  }) {
+    final theme = Theme.of(context);
+    final color = selected
+        ? theme.colorScheme.onSecondaryContainer
+        : theme.colorScheme.onSurfaceVariant;
+    return Material(
+      color: selected ? indicatorColor : Colors.transparent,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          child: Row(
+            children: [
+              Icon(
+                selected ? pillar.selectedIcon : pillar.icon,
+                size: 16,
+                color: color,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  pillar.shortLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontSize: 14,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                    color: color,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final workspace = ref.watch(workspaceStateProvider);
@@ -386,9 +433,14 @@ class _AppShellScaffoldState extends ConsumerState<AppShellScaffold>
       _checkTwoHourSessionRestore(workspace, allDocs);
     }
 
-    final screenWidth = MediaQuery.sizeOf(context).width;
+    final screenSize = MediaQuery.sizeOf(context);
+    final screenWidth = screenSize.width;
+    final screenHeight = screenSize.height;
     final isWide = screenWidth >= 760;
     final isCompactPhone = screenWidth < 600;
+    final isPhone = screenSize.shortestSide < 600;
+    final isShortViewport = screenHeight < 550;
+    final isShortLandscape = isWide && isShortViewport;
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
 
     final bodyContent = switch (_pillar) {
@@ -461,10 +513,16 @@ class _AppShellScaffoldState extends ConsumerState<AppShellScaffold>
           ],
         ],
       ),
-      body: Column(
-        children: [
-          if (clock.isOverridden)
-            Material(
+      body: LayoutBuilder(
+        builder: (context, bodyConstraints) {
+          final hideBannersForKeyboard = keyboardOpen && isShortViewport;
+          final quickCapture = QuickCaptureBar(
+            hideWhenExternalKeyboardOpen: !isWide || isPhone || isShortViewport,
+          );
+          return Column(
+            children: [
+              if (clock.isOverridden && !hideBannersForKeyboard)
+                Material(
               color: Theme.of(context).colorScheme.tertiaryContainer,
               child: Padding(
                 padding: const EdgeInsets.symmetric(
@@ -528,7 +586,7 @@ class _AppShellScaffoldState extends ConsumerState<AppShellScaffold>
                 ),
               ),
             ),
-          if (untaggedState.shouldShowBanner)
+          if (untaggedState.shouldShowBanner && !hideBannersForKeyboard)
             Material(
               color: Theme.of(context).colorScheme.secondaryContainer,
               child: Padding(
@@ -673,20 +731,78 @@ class _AppShellScaffoldState extends ConsumerState<AppShellScaffold>
             child: isWide
                 ? Row(
                     children: [
-                      NavigationRail(
-                        selectedIndex: _pillar.index,
-                        labelType: NavigationRailLabelType.all,
-                        onDestinationSelected: (idx) {
-                          setState(() => _pillar = AppPillar.values[idx]);
-                        },
-                        destinations: [
-                          for (final p in AppPillar.values)
-                            NavigationRailDestination(
-                              icon: Icon(p.icon),
-                              selectedIcon: Icon(p.selectedIcon),
-                              label: Text(p.label),
+                      LayoutBuilder(
+                        builder: (context, railConstraints) {
+                          if (isShortLandscape) {
+                            final railTheme =
+                                Theme.of(context).navigationRailTheme;
+                            final colorScheme = Theme.of(context).colorScheme;
+                            return Material(
+                              key: const Key('compact-landscape-rail'),
+                              color: railTheme.backgroundColor ??
+                                  colorScheme.surfaceContainerLow,
+                              child: SizedBox(
+                                width: 112,
+                                height: railConstraints.maxHeight,
+                                child: SingleChildScrollView(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 8,
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      for (var i = 0;
+                                          i < AppPillar.values.length;
+                                          i++) ...[
+                                        if (i > 0) const SizedBox(height: 4),
+                                        _buildCompactRailItem(
+                                          context: context,
+                                          pillar: AppPillar.values[i],
+                                          selected: _pillar.index == i,
+                                          indicatorColor:
+                                              railTheme.indicatorColor ??
+                                                  colorScheme
+                                                      .secondaryContainer,
+                                          onTap: () => setState(
+                                            () => _pillar =
+                                                AppPillar.values[i],
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
+                          return SingleChildScrollView(
+                            child: SizedBox(
+                              height: math.max(
+                                railConstraints.maxHeight,
+                                320.0,
+                              ),
+                              child: NavigationRail(
+                                selectedIndex: _pillar.index,
+                                labelType: NavigationRailLabelType.all,
+                                onDestinationSelected: (idx) {
+                                  setState(
+                                    () => _pillar = AppPillar.values[idx],
+                                  );
+                                },
+                                destinations: [
+                                  for (final p in AppPillar.values)
+                                    NavigationRailDestination(
+                                      icon: Icon(p.icon),
+                                      selectedIcon: Icon(p.selectedIcon),
+                                      label: Text(p.label),
+                                    ),
+                                ],
+                              ),
                             ),
-                        ],
+                          );
+                        },
                       ),
                       const VerticalDivider(width: 1),
                       Expanded(child: bodyContent),
@@ -694,8 +810,13 @@ class _AppShellScaffoldState extends ConsumerState<AppShellScaffold>
                   )
                 : bodyContent,
           ),
-          QuickCaptureBar(hideWhenExternalKeyboardOpen: !isWide),
+          ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: bodyConstraints.maxHeight),
+            child: SingleChildScrollView(child: quickCapture),
+          ),
         ],
+      );
+        },
       ),
       bottomNavigationBar: (isWide || keyboardOpen)
           ? null

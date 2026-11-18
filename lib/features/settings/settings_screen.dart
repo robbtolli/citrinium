@@ -319,9 +319,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Portable Operational Data Export'),
-        content: SizedBox(
-          width: 480,
-          height: 320,
+        content: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 480,
+            maxHeight: (MediaQuery.sizeOf(ctx).height * 0.45).clamp(
+              140.0,
+              320.0,
+            ),
+          ),
           child: SingleChildScrollView(
             child: SelectableText(
               md,

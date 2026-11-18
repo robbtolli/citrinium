@@ -123,7 +123,9 @@ class _QuickCaptureBarState extends ConsumerState<QuickCaptureBar> {
     final colorScheme = theme.colorScheme;
     final workspace = ref.watch(workspaceStateProvider);
     final dest = workspace.captureDestination;
-    final isNarrow = MediaQuery.sizeOf(context).width < 480;
+    final screenSize = MediaQuery.sizeOf(context);
+    final isNarrow = screenSize.width < 480;
+    final isShortKeyboard = keyboardOpen && screenSize.height < 550;
 
     final typeButton = PopupMenuButton<RapidCaptureKind>(
       tooltip: 'Entry type (${_kind.label})',
@@ -205,9 +207,9 @@ class _QuickCaptureBarState extends ConsumerState<QuickCaptureBar> {
               hintText:
                   'Quick capture ${_kind.label.toLowerCase()} to ${dest.label} (e.g. "tomorrow 5pm @phone")...',
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(
+              contentPadding: EdgeInsets.symmetric(
                 horizontal: 12,
-                vertical: 10,
+                vertical: isShortKeyboard ? 8 : 10,
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -254,7 +256,10 @@ class _QuickCaptureBarState extends ConsumerState<QuickCaptureBar> {
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: isShortKeyboard ? 4 : 8,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -262,17 +267,20 @@ class _QuickCaptureBarState extends ConsumerState<QuickCaptureBar> {
               // Natural-language date/time confirmation chip (C-04)
               if (_detectedMatch != null)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: FilterChip(
-                    visualDensity: VisualDensity.compact,
-                    selected: _applyNlDate,
-                    avatar: const Icon(Icons.auto_awesome, size: 14),
-                    label: Text(
-                      'Recognized "${_detectedMatch!.matchedText}" → ${_detectedMatch!.summaryLabel}',
-                      style: const TextStyle(fontSize: 12),
-                      overflow: TextOverflow.ellipsis,
+                  padding: EdgeInsets.only(bottom: isShortKeyboard ? 4 : 6),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: FilterChip(
+                      visualDensity: VisualDensity.compact,
+                      selected: _applyNlDate,
+                      avatar: const Icon(Icons.auto_awesome, size: 14),
+                      label: Text(
+                        'Recognized "${_detectedMatch!.matchedText}" → ${_detectedMatch!.summaryLabel}',
+                        style: const TextStyle(fontSize: 12),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      onSelected: (v) => setState(() => _applyNlDate = v),
                     ),
-                    onSelected: (v) => setState(() => _applyNlDate = v),
                   ),
                 ),
               if (isNarrow && _isEditing) ...[

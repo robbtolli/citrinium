@@ -275,9 +275,9 @@ class _TodayCombinedScreenState extends ConsumerState<TodayCombinedScreen> {
       ],
     );
 
-    return Column(
-      children: [
-        _DateNavigationBar(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final dateBar = _DateNavigationBar(
           activeDate: activeDate,
           activeIso: activeIso,
           isViewingToday: isViewingToday,
@@ -291,14 +291,17 @@ class _TodayCombinedScreenState extends ConsumerState<TodayCombinedScreen> {
           ),
           onPickDate: () => _pickDate(context, activeDate, today),
           onBackToToday: () => setState(() => _selectedDate = null),
-        ),
-        const Divider(height: 1),
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+        );
+        final isTinyHeight = constraints.maxHeight < 100;
+        final scrollableContent = SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (isTinyHeight) ...[
+                dateBar,
+                const Divider(height: 1),
+              ],
               if (isViewingToday) topSection,
               if (activeDoc != null) ...[
                 Padding(
@@ -470,9 +473,18 @@ class _TodayCombinedScreenState extends ConsumerState<TodayCombinedScreen> {
               ],
             ],
             ),
-          ),
-        ),
-      ],
+          );
+        if (isTinyHeight) {
+          return scrollableContent;
+        }
+        return Column(
+          children: [
+            dateBar,
+            const Divider(height: 1),
+            Expanded(child: scrollableContent),
+          ],
+        );
+      },
     );
   }
 }

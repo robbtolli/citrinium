@@ -71,11 +71,21 @@ class _CitrineHelpSheetState extends ConsumerState<_CitrineHelpSheet>
     final theme = Theme.of(context);
     final workspace = ref.watch(workspaceStateProvider);
 
+    final availableHeight =
+        (MediaQuery.sizeOf(context).height -
+                MediaQuery.viewInsetsOf(context).bottom)
+            .clamp(160.0, double.infinity);
+
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+        padding: EdgeInsets.fromLTRB(
+          20,
+          16,
+          20,
+          16 + MediaQuery.viewInsetsOf(context).bottom,
+        ),
         child: SizedBox(
-          height: MediaQuery.of(context).size.height * 0.85,
+          height: availableHeight * 0.85,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

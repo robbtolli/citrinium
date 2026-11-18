@@ -268,11 +268,21 @@ class _RemindersCenterSheet extends ConsumerWidget {
     final bridge = ref.watch(platformNotificationBridgeProvider);
     final theme = Theme.of(context);
 
+    final availableHeight =
+        (MediaQuery.sizeOf(context).height -
+                MediaQuery.viewInsetsOf(context).bottom)
+            .clamp(160.0, double.infinity);
+
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.fromLTRB(
+          20,
+          20,
+          20,
+          20 + MediaQuery.viewInsetsOf(context).bottom,
+        ),
         child: SizedBox(
-          height: MediaQuery.of(context).size.height * 0.72,
+          height: availableHeight * 0.72,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

@@ -239,7 +239,9 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
                   ),
 
                   // Collapsible Backlinks & Document Tasks Footer (N-02, D-12, D-19)
-                  Material(
+                  if (!(MediaQuery.sizeOf(context).height < 550 &&
+                      MediaQuery.viewInsetsOf(context).bottom > 0))
+                    Material(
                     color: Theme.of(context).colorScheme.surfaceContainerLow,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -266,7 +268,8 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen> {
                           ),
                         ),
                         if (_showBacklinksPanel &&
-                            !(MediaQuery.sizeOf(context).width < 600 &&
+                            !((MediaQuery.sizeOf(context).shortestSide < 600 ||
+                                    MediaQuery.sizeOf(context).height < 550) &&
                                 MediaQuery.viewInsetsOf(context).bottom > 0))
                           ConstrainedBox(
                             constraints: BoxConstraints(

@@ -1,9 +1,13 @@
 import 'dart:io';
 
 import 'package:citrine/app/citrine_app.dart';
+import 'package:citrine/core/index/index_providers.dart';
 import 'package:citrine/core/vault/vault_path_provider.dart';
 import 'package:citrine/features/about/about_screen.dart';
+import 'package:citrine/features/document_detail/document_detail_screen.dart';
 import 'package:citrine/shared/widgets/citrine_help_sheet.dart';
+import 'package:citrine/shared/widgets/quick_capture_bar.dart';
+import 'package:citrine_core/citrine_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -236,6 +240,150 @@ void main() {
           final scrollRect = tester.getRect(nestedScrollFinder);
           expect(scrollRect.height, greaterThanOrEqualTo(640 * 0.5));
         }
+      },
+    );
+
+    testWidgets(
+      'Pixel 9a landscape (915x412) uses left-aligned compact single-line rail with zero overflow',
+      (tester) async {
+        await setPhoneViewport(tester, const Size(915, 412));
+        await pumpCitrineApp(tester);
+
+        final railFinder = find.byKey(const Key('compact-landscape-rail'));
+        expect(railFinder, findsOneWidget);
+        final railRect = tester.getRect(railFinder);
+        final todayIconRect = tester.getRect(
+          find.descendant(
+            of: railFinder,
+            matching: find.byIcon(Icons.wb_sunny),
+          ),
+        );
+        expect(todayIconRect.left - railRect.left, lessThanOrEqualTo(16));
+        expect(tester.takeException(), isNull);
+
+        for (final label in ['Actions', 'Plan', 'Notes', 'Today']) {
+          await tester.tap(
+            find.descendant(
+              of: railFinder,
+              matching: find.text(label),
+            ),
+          );
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 300));
+          expect(tester.takeException(), isNull);
+        }
+      },
+    );
+
+    testWidgets(
+      'Pixel 9a landscape (915x412) + soft keyboard handles external focus and active QuickCaptureBar typing without overflow',
+      (tester) async {
+        await setPhoneViewport(tester, const Size(915, 412));
+        await pumpCitrineApp(tester);
+        expect(find.byType(QuickCaptureBar), findsOneWidget);
+
+        // 1. External textbox opens soft keyboard -> QuickCaptureBar hides cleanly.
+        await setPhoneViewport(
+          tester,
+          const Size(915, 412),
+          keyboardHeight: 260,
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.descendant(
+            of: find.byType(QuickCaptureBar),
+            matching: find.byType(TextField),
+          ),
+          findsNothing,
+        );
+        expect(tester.takeException(), isNull);
+
+        // 2. Close keyboard, tap QuickCaptureBar to type directly in it, then open keyboard.
+        await setPhoneViewport(tester, const Size(915, 412));
+        await tester.pumpAndSettle();
+        await tester.tap(find.textContaining('Quick capture'));
+        await tester.pumpAndSettle();
+
+        await setPhoneViewport(
+          tester,
+          const Size(915, 412),
+          keyboardHeight: 260,
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.descendant(
+            of: find.byType(QuickCaptureBar),
+            matching: find.byType(TextField),
+          ),
+          findsOneWidget,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'CitrineHelpSheet renders without overflow in Pixel 9a landscape (915x412) even with keyboard',
+      (tester) async {
+        await setPhoneViewport(
+          tester,
+          const Size(915, 412),
+          keyboardHeight: 220,
+        );
+        await pumpCitrineApp(tester);
+
+        final scaffoldContext = tester.element(find.byType(Scaffold).first);
+        showCitrineHelpSheet(scaffoldContext);
+        await tester.pumpAndSettle();
+        expect(find.text('Getting Started'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'DocumentDetailScreen hides Backlinks/Unlinked/Tasks bar in Pixel 9a landscape (915x412) when keyboard opens',
+      (tester) async {
+        await setPhoneViewport(tester, const Size(915, 412));
+        SharedPreferences.setMockInitialValues({
+          'vaultPath': tempDir.path,
+          'citrine.nuxCompleted': true,
+        });
+        final prefs = await SharedPreferences.getInstance();
+        const doc = Document(
+          id: 1,
+          relPath: 'notes/sample.md',
+          title: 'Sample Project Note',
+          docType: 'note',
+          mtimeMs: 0,
+          indexedAtMs: 0,
+          sizeBytes: 100,
+          sha256: 'abc',
+        );
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              sharedPreferencesProvider.overrideWithValue(prefs),
+              documentRawTextProvider('notes/sample.md').overrideWith(
+                (ref) => Stream.value('# Sample Project Note\n\nBody text\n'),
+              ),
+            ],
+            child: const MaterialApp(
+              home: DocumentDetailScreen(document: doc),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.textContaining('Backlinks ('), findsOneWidget);
+
+        await setPhoneViewport(
+          tester,
+          const Size(915, 412),
+          keyboardHeight: 260,
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.textContaining('Backlinks ('), findsNothing);
+        expect(tester.takeException(), isNull);
       },
     );
   });

@@ -55,7 +55,8 @@ class _ActionsInboxScreenState extends ConsumerState<ActionsInboxScreen> {
           e.entry.taskState != 'dropped';
     }).toList();
 
-    final isCompactPhone = MediaQuery.sizeOf(context).width < 600;
+    final screenSize = MediaQuery.sizeOf(context);
+    final isCompactPhone = screenSize.width < 600 || screenSize.height < 550;
     final tabChips = [
       for (final (tab, label) in [
         (ActionsSubTab.inbox, '📥 Inbox (${inboxItems.length})'),

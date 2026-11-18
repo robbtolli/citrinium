@@ -1110,9 +1110,10 @@ class _TwoMinuteFocusDialogState extends ConsumerState<_TwoMinuteFocusDialog> {
       title: const Text('🎯 2-Minute Focus Sprint'),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 380),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
             Text(
               widget.item.entry.textContent,
               style: theme.textTheme.titleMedium,
@@ -1143,7 +1144,8 @@ class _TwoMinuteFocusDialogState extends ConsumerState<_TwoMinuteFocusDialog> {
               textAlign: TextAlign.center,
               style: theme.textTheme.bodySmall,
             ),
-          ],
+            ],
+          ),
         ),
       ),
       actions: [
